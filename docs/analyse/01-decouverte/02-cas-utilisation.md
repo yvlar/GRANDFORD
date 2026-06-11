@@ -91,3 +91,16 @@ Week-ends : A/C off le 6–7, travaille le 13–14 → **alternance confirmée**
 - **Sommeil manuel = piège TDAH.** B10 rend la fenêtre de sommeil manuelle à chaque fois → sera oubliée. Proposition : une fenêtre de sommeil **par défaut**, configurée une fois, auto-appliquée à chaque bloc de nuit (modifiable au cas par cas). À valider.
 - **OT volontaire (B11)** → l'OT est un *ajout* à un jour de repos, donc un cas de saisie fréquent : il doit être le geste le plus rapide de l'app.
 - **Priorisation MVP encore ouverte** : quel UC est le cœur irremplaçable ?
+
+## ✅ Décisions verrouillées (2026-06-11, 2e passe)
+
+- **Sommeil par défaut : OUI.** Le travailleur configure une fenêtre de sommeil par défaut une seule fois ; elle s'applique automatiquement à chaque quart de nuit, ajustable au cas par cas. (Évite le piège TDAH de la saisie répétée.)
+
+## Hypothèses tenues pour acquises (sauf correction)
+
+- **Calendrier de juin 2026 réputé exact** tant qu'aucun jour n'est signalé faux. Le moteur Pitman est considéré validé.
+- **Identités de quart fixes** : A,B toujours de jour ; C,D toujours de nuit ; aucune bascule jour↔nuit (conforme à l'énoncé initial des heures par équipe).
+
+## Recommandation MVP (à confirmer)
+
+Cœur irremplaçable = **(b) capturer une exception en 3 s + notifier la conjointe**. Justification : la thèse du produit est « prothèse de mémoire » ; (a) la génération fiable est l'**infrastructure** indispensable *sous* (b) mais n'est pas la valeur ressentie ; (c) la requête de la conjointe est un **fast-follow** (v1.1). MVP = (a)+(b) ensemble, (c) juste après.
