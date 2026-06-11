@@ -1,0 +1,4 @@
+# Supabase — artefacts locaux (jamais commités)
+.branches
+.temp
+.env

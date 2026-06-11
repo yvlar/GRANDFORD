@@ -7,10 +7,10 @@
 
 | Champ | Valeur |
 |---|---|
-| **Version** | 0.1.0 |
-| **Phase active** | MVP (pré-code) |
-| **Sprint actif** | **Sprint 1 — Échafaudage** (Next.js PWA + Supabase + moteur Pitman testé) |
-| **Dernier sprint complété** | Phase d'analyse (`docs/analyse/`) ✅ |
+| **Version** | 0.2.0 |
+| **Phase active** | MVP |
+| **Sprint actif** | **Sprint 2 — Schéma Postgres + RLS + tests d'isolation** |
+| **Dernier sprint complété** | Sprint 1 — Échafaudage + moteur Pitman ✅ |
 
 Note dépôt : branche d'intégration = **`dev`** (créée le 2026-06-11 depuis `claude/brave-pascal-5o9eiv`, première branche du dépôt — analyse + gouvernance). Chaque sprint : une branche `claude/sprintNN-<nom-court>` depuis `dev`, fusionnée par PR vers `dev`. Une `main` de production pourra naître de `dev` à la première mise en ligne (Sprint 8).
 
@@ -22,12 +22,12 @@ Note dépôt : branche d'intégration = **`dev`** (créée le 2026-06-11 depuis 
 
 ## Sprints MVP
 
-### Sprint 1 — Échafaudage + moteur Pitman 🟡 ACTIF
-**Livre** : dépôt Next.js (App Router, TS strict, pnpm, Biome, Tailwind, shadcn/ui, Serwist PWA), init Supabase CLI (sans tables), et le **moteur Pitman pur testé en premier** — golden encodant les points réels validés (`docs/analyse/01-decouverte/02-cas-utilisation.md:108`). Couvre FR-1.
-**Carte détaillée** : `prompt-mise-a-jour-roadmap.md`.
+### Sprint 1 — Échafaudage + moteur Pitman ✅
+**Livré** : dépôt Next.js (App Router, TS strict + `noUncheckedIndexedAccess`, pnpm, Biome, Tailwind, shadcn/ui init, Serwist PWA — manifest + `sw.js`), scaffold `supabase/` prêt pour migrations (sans tables), et le **moteur Pitman pur** (`lib/engine/`) testé en premier — golden encodant les points réels validés (`docs/analyse/01-decouverte/02-cas-utilisation.md:108`) : ancre 3 juin, 11 juin congé A, 25 déc. A travaille, table complète de juin. Gates verts (vitest 27, tsc 0, biome 0, build OK). Couvre FR-1.
 
-### Sprint 2 — Schéma Postgres + RLS + tests d'isolation ⬜
+### Sprint 2 — Schéma Postgres + RLS + tests d'isolation 🟡 ACTIF
 Tables du domaine (`architecture.md:109`) avec `household_id` porteur ; **RLS « membre du foyer » sur toutes** ; **étanchéité du motif** via `exception_private` (`architecture.md:111`) ; **tests d'isolation automatisés** (R7) — gate de sécurité critique. Fondation de FR-12.
+**Carte détaillée** : `prompt-mise-a-jour-roadmap.md`.
 
 ### Sprint 3 — Auth sans mot de passe + foyer ⬜
 Lien magique + OAuth Google/Apple ; invitation de la conjointe par lien/code à usage unique ; révocation par le propriétaire (`architecture.md:114`). Couvre FR-11, FR-12.

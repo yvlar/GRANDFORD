@@ -1,90 +1,89 @@
-# Carte d'embarquement — Sprint 1 : Échafaudage + moteur Pitman
+# Carte d'embarquement — Sprint 2 : Schéma Postgres + RLS + tests d'isolation
 
 > Cette carte est **réécrite à chaque fin de sprint** pour le sprint suivant (règle : `.claude/rules/workflow-sprint.md`).
 > ⚠️ C'est une **prémisse à vérifier**, pas une vérité terrain : réconcilier chaque dépendance avec le code réel avant d'implémenter ; prémisse fausse → STOP + signalement.
 
 ## État
 
-Pré-code : la gouvernance est posée, **aucun code applicatif n'existe**. État courant : voir la table en tête de `ROADMAP.md`. Ce sprint crée le squelette du dépôt et la première brique de valeur — le moteur.
+Sprint 1 livré : le squelette du dépôt et le **moteur Pitman pur** (`lib/engine/`) existent et sont verts (vitest 27, tsc 0, biome 0, build OK). État courant : voir la table en tête de `ROADMAP.md`. Ce sprint pose la **base de données** et sa sécurité — la préoccupation critique du projet (R7).
 
 ## LECTURE OBLIGATOIRE
 
-1. `CLAUDE.md` (index, structure cible, stack)
-2. `ROADMAP.md` (état courant + périmètre)
-3. `.claude/rules/moteur-pitman.md` + `.claude/rules/tests-vitest.md` (règles cadrées à ce sprint ; les règles universelles s'appliquent toujours)
+1. `.claude/rules/supabase-rls.md` — **règle cadrée centrale de ce sprint** (RLS partout, étanchéité du motif, tests d'isolation = livrable de 1re classe).
+2. `.claude/rules/tests-vitest.md` — priorité 2 = isolation RLS ; compteurs mesurés.
+3. `ROADMAP.md` (état + périmètre) ; les règles universelles s'appliquent toujours.
 
-## TÂCHE — Sprint 1
+## Prémisses à réconcilier AVANT d'implémenter (vérifier dans la session)
+
+- **Le CLI Supabase n'est PAS encore une devDependency** (`package.json` ne le contient pas — vérifié au Sprint 1). 1re tâche : `pnpm add -D supabase`, puis confirmer `pnpm supabase --version`. Le `supabase/config.toml` existe déjà (rédigé à la main au Sprint 1) ; le rejouer/étendre via le CLI.
+- **Les tests d'isolation RLS exigent un Postgres réel** (`supabase start` → Docker). Vérifier que l'environnement le permet ; sinon, STOP et signaler (l'isolation ne se teste pas à blanc).
+- **Aucune table n'existe** (`supabase/migrations/` ne contient que `.gitkeep`). Tout est **à créer**.
+
+## TÂCHE — Sprint 2
 
 ### Spécification
 
-1. **Échafauder** le projet : Next.js (App Router) + TypeScript **strict**, pnpm, Biome, Tailwind CSS, shadcn/ui (init), Serwist (manifest PWA + service worker minimal). Respecter la structure cible de `CLAUDE.md`. Aucune page produit encore — une page d'accueil placeholder suffit.
-2. **Init Supabase CLI** (`supabase init`) : dossier `supabase/` prêt pour les migrations. **Aucune table** (c'est le Sprint 2).
-3. **Moteur Pitman** dans `lib/engine/` (spécification : `docs/analyse/03-architecture/architecture.md:98-106`) :
-   - Types `Team` (`'A'|'B'|'C'|'D'`), `CycleTemplate` (`anchorDate: '2026-06-03'`, `pattern` = 14 booléens A/C — `docs/analyse/01-decouverte/02-cas-utilisation.md:61`, heures de quart).
-   - Fonction pure `shiftForDate(team, date, cycleTemplate)` → `{ working, shift: 'jour'|'nuit'|null, superCrew: 'AC'|'BD' }` (`architecture.md:101`).
-   - Helper `scheduleRange(team, from, to, cycleTemplate)` (génération à la volée, **aucune date stockée**).
-   - Mod **mathématique** (résultat ≥ 0 pour les dates antérieures à l'ancre) ; raisonner en date civile locale (America/Toronto).
-4. **Tests golden** (Vitest) encodant les points réels validés (`02-cas-utilisation.md:108-118`) :
-   - 3 juin 2026 = A jour + C nuit · 4 juin = A + C · 5 juin = B + D (ancrage)
-   - 11 juin 2026 = équipe A en **congé** (B/D travaille)
-   - 25 déc. 2026 = équipe A **travaille de jour** (`02-cas-utilisation.md:87`)
-   - Reconstruction **intégrale** de la table juin 2026 (`02-cas-utilisation.md:68-85`)
-   - Propriétés : 7 jours ON sur 14 ; complémentarité stricte A/C vs B/D ; périodicité 14 jours ; dates avant l'ancre.
-5. **Script de démonstration** `pnpm demo:juin` : imprime le calendrier de juin 2026 (jour | équipe jour | équipe nuit | au repos).
-6. Câbler `.env.example` (déjà à la racine) : le scaffold lit `.env`, ne le commite jamais.
+1. **Migrations SQL** (`supabase/migrations/`, via `supabase migration new …`) créant les tables du domaine, **toutes porteuses de `household_id`** (`docs/analyse/03-architecture/architecture.md:109`) :
+   `households · profiles · memberships(role) · cycle_templates · worker_assignments(team) · exceptions · exception_private(motif) · sleep_defaults · notes · requests(status) · reminders · audit_log · push_subscriptions`.
+   - `cycle_templates` doit pouvoir stocker un gabarit du moteur (ancre, pattern 14 bits, heures) — aligné sur `lib/engine/types.ts` (`CycleTemplate`).
+   - `worker_assignments(team)` relie un profil à une équipe `'A'|'B'|'C'|'D'`.
+2. **RLS activée sur TOUTE table, sans exception** ; politique de base « membre du foyer » via `household_id` (`architecture.md:110`).
+3. **Étanchéité du motif** (`architecture.md:111`, R7) : le motif vit **uniquement** dans `exception_private`, policy « travailleur propriétaire seul ». La conjointe lit `exceptions` (présent/absent) et ne peut **jamais** joindre/sélectionner le motif. Aucune vue/fonction ne recombine les deux pour un non-propriétaire.
+4. **Types générés** : `supabase gen types typescript` → fichier committé (jamais écrit à la main).
+5. **Tests d'isolation** (Vitest + supabase-js, contre le Postgres local) — les 3 scénarios de `supabase-rls.md` :
+   1. un membre du foyer A ne lit jamais les données du foyer B ;
+   2. la conjointe ne lit jamais `exception_private` (motif) ;
+   3. un membre **révoqué** perd tout accès immédiatement.
 
 ### Tests / validation obligatoires (gates)
 
-- `pnpm vitest run` — golden + propriétés verts (compteur **mesuré**, jamais estimé)
-- `pnpm tsc --noEmit` — 0 erreur
+- `pnpm vitest run` — moteur (déjà vert) **+ isolation RLS** verts (compteur **mesuré**)
+- `pnpm tsc --noEmit` — 0 erreur (types générés inclus)
 - `pnpm biome check .` — 0 erreur / 0 warning
 - `pnpm build` — succès
 
 ### Preuve d'acceptation observable
 
-1. La sortie réelle de `pnpm vitest run` montre les golden des points réels **qui passent** (3-5 juin, 11 juin, 25 déc. 2026).
-2. La sortie de `pnpm demo:juin` est **identique** à la table validée de `02-cas-utilisation.md:68-85` — dont 11 juin = A/C au repos.
-3. `pnpm build` produit une PWA : manifest présent et service worker enregistré (constaté, pas supposé).
+1. La sortie réelle de `pnpm vitest run` montre les 3 tests d'isolation **qui passent** — dont une requête de la conjointe sur le motif qui **échoue ou retourne 0 ligne** (constaté, pas supposé).
+2. `supabase db reset` (ou équivalent) applique toutes les migrations **sans erreur** sur une base vierge.
+3. Une requête manuelle d'un membre du foyer B sur une ligne du foyer A retourne **0 ligne** (RLS active), démontré dans la session.
 
 ## SPRINTS SUGGÉRÉS
 
-### Sprint 2 — Schéma Postgres + RLS + tests d'isolation
-**Objectif** : créer les tables du domaine avec RLS « membre du foyer » partout et l'étanchéité du motif, prouvées par des tests d'isolation automatisés.
-**Complexité** : Élevée
-**Justification** : gate de sécurité critique (R7) ; tout le produit s'appuie dessus ; à faire avant toute UI connectée.
-**Référence** : liste des tables — `docs/analyse/03-architecture/architecture.md:109` ; étanchéité `exception_private` — `architecture.md:111`. Les tables elles-mêmes sont **à créer** (aucune n'existe).
-
 ### Sprint 3 — Auth sans mot de passe + foyer
-**Objectif** : lien magique + OAuth, invitation de la conjointe par lien/code, révocation par le propriétaire.
+**Objectif** : lien magique + OAuth Google/Apple ; invitation de la conjointe par lien/code à usage unique ; révocation par le propriétaire.
 **Complexité** : Moyenne
-**Justification** : préalable à toute donnée réelle de foyer ; Supabase Auth porte le gros du travail.
-**Référence** : spécification — `architecture.md:114-117`. Flux d'invitation/révocation **à créer**.
+**Justification** : préalable à toute donnée réelle de foyer ; Supabase Auth porte le gros du travail ; s'appuie sur `memberships(role)` du Sprint 2.
+**Référence** : spécification — `docs/analyse/03-architecture/architecture.md:114-117`. Flux d'invitation/révocation **à créer**.
 
 ### Sprint 4 — Vue « coup d'œil »
-**Objectif** : accueil pastille Aujourd'hui + semaine + mois, consommant le moteur ; vue conjointe = disponibilité sans motif.
+**Objectif** : accueil pastille Aujourd'hui (CONGÉ/JOUR/NUIT/SOMMEIL) + semaine + mois, consommant le moteur ; vue conjointe = disponibilité sans motif.
 **Complexité** : Moyenne
-**Justification** : première valeur visible ; dépend du moteur (Sprint 1) et de l'auth (Sprint 3).
+**Justification** : première valeur visible ; le moteur (Sprint 1) expose déjà `crewsForDate`/`shiftForDate`/`scheduleRange` — vérifié dans `lib/engine/pitman.ts`.
 **Référence** : FR-2, FR-3 — `docs/analyse/02-analyse/analyse.md:16-17` ; NFR-1 (< 2 s) — `analyse.md:50`. Écrans **à créer**.
 
 ### Sprint 5 — Capture d'exception ≤ 3 taps
-**Objectif** : 1 bouton → 6 tuiles → confirmation ; motif stocké côté privé uniquement.
+**Objectif** : 1 bouton → 6 tuiles → confirmation ; motif stocké côté privé uniquement (`exception_private`).
 **Complexité** : Moyenne
-**Justification** : c'est le cœur de la thèse produit (fiabilité des écarts) ; dépend du schéma (Sprint 2).
-**Référence** : FR-4, FR-5, FR-7 — `analyse.md:20-23`. Flux **à créer**.
+**Justification** : cœur de la thèse produit (fiabilité des écarts) ; dépend du schéma + étanchéité du Sprint 2.
+**Référence** : FR-4, FR-5, FR-7 — `docs/analyse/02-analyse/analyse.md:20-23`. Flux **à créer**.
 
 ## Template de démarrage (coller tel quel dans une nouvelle session)
 
 ```
 Lis CLAUDE.md, ROADMAP.md et prompt-mise-a-jour-roadmap.md, puis exécute le
-Sprint 1 (Échafaudage + moteur Pitman) en suivant
+Sprint 2 (Schéma Postgres + RLS + tests d'isolation) en suivant
 .claude/prompts/prompt-executer-sprint.md — Phase A.
 
-Branche : claude/sprint01-echafaudage-moteur (à créer depuis dev).
+Branche : claude/sprint02-schema-rls (à créer depuis dev).
 
 Rappels non négociables :
-- Réconcilier la carte avec le code réel AVANT d'implémenter (prémisse fausse → STOP).
+- Réconcilier la carte avec le code réel AVANT d'implémenter (le CLI Supabase
+  n'est pas encore installé ; les tests d'isolation exigent un Postgres réel).
+- RLS sur TOUTE table ; le motif ne sort JAMAIS vers la conjointe (R7).
 - Toute capacité affirmée existante porte une référence fichier:ligne vérifiée en session.
-- Gates : pnpm vitest run + pnpm tsc --noEmit + pnpm biome check . + pnpm build, tous verts.
+- Gates : pnpm vitest run + pnpm tsc --noEmit + pnpm biome check . + pnpm build, tous verts,
+  + les 3 tests d'isolation RLS.
 - Preuve d'acceptation observable (sorties réelles), compteurs mesurés.
 - Fin de sprint = ROADMAP à jour + nouvelle carte + commit. PAS de push sans me demander.
 ```

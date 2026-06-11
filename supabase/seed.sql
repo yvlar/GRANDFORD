@@ -1,0 +1,2 @@
+-- Données de démarrage (seed) — vide au Sprint 1.
+-- Le schéma et les politiques RLS arrivent au Sprint 2 (supabase/migrations/).

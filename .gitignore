@@ -11,6 +11,10 @@ coverage/
 *.tsbuildinfo
 next-env.d.ts
 
+# Service worker généré par Serwist au build (source : app/sw.ts)
+public/sw.js
+public/sw.js.map
+
 # Supabase local
 supabase/.temp/
 supabase/.branches/
