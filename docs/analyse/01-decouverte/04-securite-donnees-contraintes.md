@@ -39,6 +39,17 @@
 
 **🕳️ Angle mort majeur — dès que tu héberges les données d'AUTRES foyers, tu deviens responsable de renseignements personnels d'autrui.** Au Québec, ça t'expose à la **Loi 25** (et PIPEDA au fédéral) : politique de confidentialité, consentement, responsable des données, etc. Sans gravité pour ton seul foyer, mais à anticiper avant d'« élargir ». Je l'inscris comme contrainte non fonctionnelle.
 
-## Réponses / vetos
+## Réponses / vetos (2026-06-11)
 
-_(à consigner ici)_
+- **SEC1–SEC4 acceptés** sans veto. **SEC5 / révocation : confirmé** — le propriétaire (travailleur) peut révoquer l'accès de la conjointe à tout moment.
+- **DAT1–DAT5 acceptés** sans veto (journal des changements visible, sauvegardes quotidiennes, export iCal/PDF).
+- **CON1 — Budget : 0 $/mois pour débuter** (tiers gratuits uniquement au lancement).
+- **CON3 — Construction/maintenance : lui-même** (solo, avec assistance au code).
+- **CON4 — Objectif : viser un vrai SaaS payant** à terme.
+- **CON5 — échelle** : non démentie (dizaines→centaines→, puis SaaS).
+
+## ⚠️ Tension structurante à arbitrer en architecture
+
+**0 $ aujourd'hui + SaaS payant demain + mainteneur solo non-spécialiste.** Ces trois forces convergent vers une seule famille de solutions : un **socle géré (BaaS)** à généreux palier gratuit, multi-tenant dès le jour 1, avec auth/BD/notifications intégrées et un chemin de facturation (Stripe) ajoutable plus tard — sans ré-architecture. À trancher en Phase 3, mais la direction est déjà fortement contrainte.
+
+Conséquence : le **moteur déterministe** (générer chaque jour à la volée depuis ancre+pattern, sans stocker chaque date) est un atout — quasi zéro coût de calcul et de stockage, idéal pour tenir à 0 $.

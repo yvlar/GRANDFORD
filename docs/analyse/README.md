@@ -8,9 +8,16 @@ Le projet suit une démarche d'analyse professionnelle en 3 phases. Aucune conce
 
 | Phase | Contenu | Statut |
 |---|---|---|
-| **1. Découverte** | Entrevues structurées, une section à la fois : Utilisateurs → Cas d'utilisation → Produit/MVP → UX → Sécurité → Données → Contraintes | 🟡 En cours — section Utilisateurs |
-| **2. Analyse** | Besoins fonctionnels et non fonctionnels, risques, hypothèses, zones d'incertitude, opportunités de valeur ajoutée | ⬜ À venir |
-| **3. Architecture** | Scénarios d'architecture comparés, recommandation cible (frontend, backend, BD, auth, notifications, déploiement, monitoring, sauvegardes) | ⬜ À venir |
+| **1. Découverte** | Entrevues structurées : Utilisateurs → Cas d'utilisation → UX → Sécurité/Données/Contraintes | ✅ Close |
+| **2. Analyse** | Besoins fonctionnels et non fonctionnels, risques, hypothèses, zones d'incertitude, opportunités de valeur ajoutée | ✅ Rédigée → `02-analyse/analyse.md` |
+| **3. Architecture** | Scénarios d'architecture comparés, recommandation cible (frontend, backend, BD, auth, notifications, déploiement, monitoring, sauvegardes) | 🟡 Prête à démarrer |
+
+## Acquis clés de la découverte
+
+- **Thèse** : prothèse de mémoire partagée pour un couple TDAH ; la valeur est dans la fiabilité des **écarts** d'horaire, pas l'horaire normal.
+- **Moteur validé** : Pitman 2-2-3 réduit à un binaire A/C vs B/D ; déterministe (ancre 3 juin 2026 + pattern 14 j). Confirmé sur 6 points réels.
+- **MVP** : générer + capturer une exception en 3 taps + notifier. Co-planification conjointe en v1.1.
+- **Contraintes dominantes** : 0 $ au lancement → SaaS payant visé, mainteneur solo, multi-tenant, PWA + push, conformité Loi 25 à l'échelle.
 
 ## Contraintes connues d'entrée de jeu
 
