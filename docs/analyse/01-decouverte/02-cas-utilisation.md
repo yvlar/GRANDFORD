@@ -104,3 +104,15 @@ Week-ends : A/C off le 6–7, travaille le 13–14 → **alternance confirmée**
 ## Recommandation MVP (à confirmer)
 
 Cœur irremplaçable = **(b) capturer une exception en 3 s + notifier la conjointe**. Justification : la thèse du produit est « prothèse de mémoire » ; (a) la génération fiable est l'**infrastructure** indispensable *sous* (b) mais n'est pas la valeur ressentie ; (c) la requête de la conjointe est un **fast-follow** (v1.1). MVP = (a)+(b) ensemble, (c) juste après.
+
+## 🏁 Moteur VALIDÉ (2026-06-11)
+
+L'utilisateur est sur l'**équipe A**. Le moteur a été confirmé sur 3 points indépendants en plus des 3 jours d'ancrage :
+
+| Point | Prédiction du moteur | Réalité (utilisateur) | Résultat |
+|---|---|---|---|
+| 11 juin 2026 (aujourd'hui) | A/C au repos → équipe A en congé | « en congé » | ✅ |
+| 25 déc. 2026 | A/C de jour → équipe A travaille | « je travaille » | ✅ |
+| 3–5 juin 2026 (ancrage) | A/C, A/C, B/D | fourni par l'utilisateur | ✅ |
+
+→ Le moteur Pitman 2-2-3 (ancre + pattern 14 j) est considéré **fiable et figé**. Il devient l'infrastructure (a) du MVP.
