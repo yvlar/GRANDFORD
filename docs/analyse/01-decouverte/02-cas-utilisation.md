@@ -37,6 +37,57 @@ L'exemple « simplifié » fourni est irrégulier (semaine 2 a un mercredi A/C i
 - Q-CYCLE-3 — **Ancre :** à une date réelle précise (ex. lun. 9 juin 2026), quelle(s) équipe(s) travaillai(en)t, en jour et en nuit ?
 - Q-CYCLE-4 — Le cycle est-il strictement continu (aucune remise à zéro), ou peut-il être décalé (jour férié, arrêt d'usine) ?
 
-## Réponses
+## Réponses (1re passe — 2026-06-11)
 
-_(à consigner ici)_
+- **B7** Cycle = **2-2-3 (Pitman)**, 14 jours, week-ends alternés.
+- **B9 / ancre** Mer 3 juin 2026 = A (jour) + C (nuit) · Jeu 4 juin = A + C · Ven 5 juin = B (jour) + D (nuit).
+- **B10 (sommeil)** Le travailleur **active** la fenêtre de sommeil et **sélectionne sa période** (manuel, opt-in — pas de calcul automatique).
+- **B11 (OT)** **Choisi** par le travailleur (volontaire, pas imposé).
+- _Non répondu : priorisation des UC / « cas le plus vital » (reporté), anatomie des changements autres que l'OT (échange, formation)._
+
+## 🔧 Spécification du moteur de cycle (dérivée — à confirmer)
+
+**Découverte clé : le système à 4 équipes se réduit à un binaire.** Chaque date appartient à un seul des deux « super-quarts » :
+
+- **A/C** = équipe A de jour (07–19) **+** équipe C de nuit (19–07), les **mêmes** jours.
+- **B/D** = équipe B de jour **+** équipe D de nuit, les jours **complémentaires**.
+- Chaque jour, exactement **un** super-quart travaille (jour+nuit couverts), l'autre est au repos.
+
+**Identités fixes (à confirmer) :** A,B = toujours jour ; C,D = toujours nuit. Pas de rotation jour↔nuit.
+
+**Algorithme :**
+1. Ancre = **mer. 3 juin 2026 = A/C**.
+2. Pattern A/C sur 14 jours depuis l'ancre (idx 0 = 3 juin) :
+   `[ON, ON, OFF, OFF, OFF, ON, ON, OFF, OFF, ON, ON, ON, OFF, OFF]`
+   → blocs 2 on · 3 off · 2 on · 2 off · 3 on · 2 off = lecture 2-2-3 décalée. 7 jours travaillés / 14. ✓
+3. Pour une date D : `i = (D − ancre) mod 14`. Si `pattern[i] = ON` → **A/C** travaille, sinon **B/D**.
+4. Vue du travailleur : `équipe → (super-quart, quart)` — A→(A/C, jour), C→(A/C, nuit), B→(B/D, jour), D→(B/D, nuit).
+
+**Paramétrable :** ancre + pattern + heures de quart stockés en config **par usine** → multi-tenant + branchement Dayforce futur sans refonte.
+
+**Calendrier reconstruit — juin 2026 (1 cycle complet) :**
+
+| Date | Jour sem. | Jour 07–19 | Nuit 19–07 | Au repos |
+|---|---|---|---|---|
+| 1 juin | Lun | B | D | A/C |
+| 2 juin | Mar | B | D | A/C |
+| 3 juin | Mer | **A** | **C** | B/D |
+| 4 juin | Jeu | **A** | **C** | B/D |
+| 5 juin | Ven | **B** | **D** | A/C |
+| 6 juin | Sam | B | D | A/C |
+| 7 juin | Dim | B | D | A/C |
+| 8 juin | Lun | A | C | B/D |
+| 9 juin | Mar | A | C | B/D |
+| 10 juin | Mer | B | D | A/C |
+| 11 juin | Jeu | B | D | A/C |
+| 12 juin | Ven | A | C | B/D |
+| 13 juin | Sam | A | C | B/D |
+| 14 juin | Dim | A | C | B/D |
+
+Week-ends : A/C off le 6–7, travaille le 13–14 → **alternance confirmée**. Les 3 points d'ancrage réels concordent. Vérif. lointaine : **ven. 25 déc. 2026 = A/C** (équipe A travaille Noël).
+
+## 💡 Opportunités / angles morts relevés
+
+- **Sommeil manuel = piège TDAH.** B10 rend la fenêtre de sommeil manuelle à chaque fois → sera oubliée. Proposition : une fenêtre de sommeil **par défaut**, configurée une fois, auto-appliquée à chaque bloc de nuit (modifiable au cas par cas). À valider.
+- **OT volontaire (B11)** → l'OT est un *ajout* à un jour de repos, donc un cas de saisie fréquent : il doit être le geste le plus rapide de l'app.
+- **Priorisation MVP encore ouverte** : quel UC est le cœur irremplaçable ?
