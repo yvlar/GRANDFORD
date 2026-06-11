@@ -10,7 +10,9 @@ Le projet suit une démarche d'analyse professionnelle en 3 phases. Aucune conce
 |---|---|---|
 | **1. Découverte** | Entrevues structurées : Utilisateurs → Cas d'utilisation → UX → Sécurité/Données/Contraintes | ✅ Close |
 | **2. Analyse** | Besoins fonctionnels et non fonctionnels, risques, hypothèses, zones d'incertitude, opportunités de valeur ajoutée | ✅ Rédigée → `02-analyse/analyse.md` |
-| **3. Architecture** | Scénarios d'architecture comparés, recommandation cible (frontend, backend, BD, auth, notifications, déploiement, monitoring, sauvegardes) | 🟡 Prête à démarrer |
+| **3. Architecture** | Scénarios d'architecture comparés, recommandation cible (frontend, backend, BD, auth, notifications, déploiement, monitoring, sauvegardes) | ✅ Rédigée → `03-architecture/architecture.md` |
+
+**Architecture cible retenue :** Next.js (PWA) + Supabase (Postgres/Auth/RLS/Edge Functions) + Web Push avec repli courriel (Resend). Moteur Pitman déterministe calculé à la volée. 0 $ au lancement, chemin vers SaaS payant (Stripe) sans refonte.
 
 ## Acquis clés de la découverte
 
