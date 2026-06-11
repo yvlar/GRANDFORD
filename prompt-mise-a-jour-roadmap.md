@@ -79,7 +79,7 @@ Lis CLAUDE.md, ROADMAP.md et prompt-mise-a-jour-roadmap.md, puis exécute le
 Sprint 1 (Échafaudage + moteur Pitman) en suivant
 .claude/prompts/prompt-executer-sprint.md — Phase A.
 
-Branche : claude/sprint01-echafaudage-moteur (à créer).
+Branche : claude/sprint01-echafaudage-moteur (à créer depuis dev).
 
 Rappels non négociables :
 - Réconcilier la carte avec le code réel AVANT d'implémenter (prémisse fausse → STOP).

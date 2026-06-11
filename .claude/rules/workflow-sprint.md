@@ -7,7 +7,7 @@
 - `ROADMAP.md` : < 200 lignes ; ~4 sprints **détaillés** max — au 5ᵉ, **rotation** du plus ancien vers `docs/roadmap-archive.md` par **couper-coller** (jamais réécrit de mémoire).
 
 ## Branches
-- **Une branche par sprint** : `claude/sprintNN-<nom-court>`, créée depuis la branche d'intégration. Jamais de commit applicatif direct sur l'intégration.
+- **Une branche par sprint** : `claude/sprintNN-<nom-court>`, créée depuis la branche d'intégration **`dev`**, fusionnée par PR vers `dev`. Jamais de commit applicatif direct sur `dev`.
 
 ## Loi anti-hallucination (rigueur centrale)
 - Toute capacité présentée comme **EXISTANTE** (« champ déjà là », « table X », « hook Y ») porte une **référence `fichier:ligne` obtenue par recherche réelle dans la session** — jamais de mémoire. Introuvable → reformuler « **à créer / à vérifier** », jamais l'affirmer existante.

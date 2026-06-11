@@ -12,7 +12,7 @@
 | **Sprint actif** | **Sprint 1 — Échafaudage** (Next.js PWA + Supabase + moteur Pitman testé) |
 | **Dernier sprint complété** | Phase d'analyse (`docs/analyse/`) ✅ |
 
-Note dépôt : branche d'intégration `main` à créer à la première PR ; la gouvernance a été posée sur `claude/brave-pascal-5o9eiv`. Sprints applicatifs : une branche `claude/sprintNN-<nom-court>` chacun.
+Note dépôt : branche d'intégration = **`dev`** (créée le 2026-06-11 depuis `claude/brave-pascal-5o9eiv`, première branche du dépôt — analyse + gouvernance). Chaque sprint : une branche `claude/sprintNN-<nom-court>` depuis `dev`, fusionnée par PR vers `dev`. Une `main` de production pourra naître de `dev` à la première mise en ligne (Sprint 8).
 
 ## Périmètre (découpage source : `docs/analyse/02-analyse/analyse.md:41`)
 
