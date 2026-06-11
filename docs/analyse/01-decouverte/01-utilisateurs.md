@@ -39,6 +39,35 @@
 - **Q14. Vie privée dans le couple.** Le motif d'une absence (ex. maladie, rendez-vous médical) doit-il toujours être visible du conjoint, ou parfois seulement « absent/présent » ? Y a-t-il des informations que le travailleur voudrait garder pour lui ?
 - **Q15. Au-delà du calendrier.** Le suivi des heures d'OT (pour vérifier la paie), des banques de congés/vacances restantes, ou des primes de quart fait-il partie du besoin réel, ou est-ce hors sujet ?
 
-## Réponses
+## Réponses (1re passe — 2026-06-11)
 
-_(à consigner ici)_
+- **H1** Produit multi-foyers (multi-tenant) dès la conception. · **H2** Planification bidirectionnelle. · **H3** Les jours travaillés normaux sont facilement calculables (auto-générés) ; l'utilisateur ne saisit que les modifications. · **H4** Génération automatique confirmée.
+- **Q1** D'abord mon foyer, mais vocation à grandir. · **Q2** Aucun couple bi-travailleur à l'usine. · **Q3** Seulement la conjointe (pas de ménage élargi). · **Q4** App responsive (web mobile-first, pas natif imposé).
+- **Q5** Notifications bidirectionnelles (JTBD validés). · **Q6** Ce qui ferait abandonner = mauvaise UI/UX. · **Q7** Conjointe : lire + écrire (notes/mémos/questions sur une date) + soumettre des **requêtes** ; le travailleur **approuve ou refuse**.
+- **Q8** Aucun système actuel ; numériser les « notes du frigo » dans l'app. · **Q9** « On est 2 TDAH qui oublient tout. » · **Q10** Préavis / rappels souhaités : 1 mois avant, 1 semaine avant, 1 jour avant. · **Q11** _(implicite : Dayforce mal exploité, voir Q-C11)._
+- **C11** Dayforce mal exploité, écarté pour l'instant, mais **l'architecture doit prévoir son ajout futur** comme source.
+- **Q12** Non à une confirmation hebdomadaire de fraîcheur. · **Q13** Oui — afficher « disponible / indisponible » incluant les fenêtres de **sommeil** de jour. · **Q14** Absences affichées comme « absent » **sans motif**. · **Q15** Suivi OT/paie/banques de congés/primes = **hors sujet**.
+
+## Synthèse à valider
+
+**Insight central — prothèse de mémoire pour deux personnes TDAH.** Ce n'est pas un calendrier de plus : c'est un cerveau externe partagé. Conséquences directrices : friction quasi nulle, rappels proactifs multi-échéances (1 mois / 1 semaine / 1 jour), le système ne doit **jamais** dépendre du fait qu'ils « pensent à » faire quelque chose. Mauvaise UX = abandon immédiat → la simplicité est existentielle, pas cosmétique.
+
+**Modèle de rôles (simple, 2 rôles).** Travailleur = propriétaire de la vérité « horaire » (choisit l'équipe, horaire auto-généré, saisit les exceptions). Conjointe = lecture + écriture de notes/questions + requêtes soumises à approbation. Le travailleur garde l'autorité sur les faits du calendrier ; la conjointe enrichit et propose.
+
+**Disponibilité ≠ heures de quart.** Le moteur ne calcule pas que 07h–19h / 19h–07h : il produit des **fenêtres de disponibilité familiale** incluant le sommeil de jour après les quarts de nuit.
+
+**Vie privée par défaut.** Le modèle de données sépare l'**indisponibilité** (fait, visible) du **motif** (privé, non partagé). « Absent » suffit.
+
+**Multi-tenant + cycle configurable.** Plusieurs foyers, donc l'équipe et le cycle rotatif doivent être paramétrables par travailleur (et, à terme, par usine).
+
+**Dayforce = source future.** La couche « source de vérité » doit être conçue pour qu'une source externe puisse un jour alimenter/écraser la saisie manuelle, sans refonte.
+
+## ⚠️ Paradoxe de conception à résoudre (risque n° 1)
+
+H3 dit « les exceptions sont rares et saisies à la main ». C9 dit « deux TDAH oublient tout ». D12 refuse le rituel de confirmation hebdomadaire. → Une exception non saisie = calendrier faux = perte de confiance = retour aux textos. Sans filet de fraîcheur (refusé), la fiabilité doit venir **de la capture elle-même** : saisie en quelques secondes au moment exact où le changement est connu, rappels contextuels, et possiblement saisie déléguée à la conjointe (mode requête). **À trancher en conception.** C'est le facteur de succès n° 1.
+
+## Questions ouvertes reportées
+
+- Anatomie fine des changements (fréquence, qui initie, lesquels font le plus mal) — partiellement répondu, à compléter en cas d'utilisation.
+- **Mécanique EXACTE du cycle rotatif** — l'exemple fourni était « simplifié » et irrégulier ; c'est le cœur du moteur, à extraire précisément.
+- Fenêtres de sommeil (durée, fixe/variable, avant vs après un quart de nuit).
