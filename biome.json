@@ -17,6 +17,7 @@
       "public/sw.js",
       "public/sw.js.map",
       "next-env.d.ts",
+      "lib/database.types.ts",
       "supabase/.temp",
       "supabase/.branches"
     ]

@@ -7,10 +7,10 @@
 
 | Champ | Valeur |
 |---|---|
-| **Version** | 0.2.0 |
+| **Version** | 0.3.0 |
 | **Phase active** | MVP |
-| **Sprint actif** | **Sprint 2 — Schéma Postgres + RLS + tests d'isolation** |
-| **Dernier sprint complété** | Sprint 1 — Échafaudage + moteur Pitman ✅ |
+| **Sprint actif** | **Sprint 3 — Auth sans mot de passe + foyer** |
+| **Dernier sprint complété** | Sprint 2 — Schéma Postgres + RLS + tests d'isolation ✅ |
 
 Note dépôt : branche d'intégration = **`dev`** (créée le 2026-06-11 depuis `claude/brave-pascal-5o9eiv`, première branche du dépôt — analyse + gouvernance). Chaque sprint : une branche `claude/sprintNN-<nom-court>` depuis `dev`, fusionnée par PR vers `dev`. Une `main` de production pourra naître de `dev` à la première mise en ligne (Sprint 8).
 
@@ -25,12 +25,12 @@ Note dépôt : branche d'intégration = **`dev`** (créée le 2026-06-11 depuis 
 ### Sprint 1 — Échafaudage + moteur Pitman ✅
 **Livré** : dépôt Next.js (App Router, TS strict + `noUncheckedIndexedAccess`, pnpm, Biome, Tailwind, shadcn/ui init, Serwist PWA — manifest + `sw.js`), scaffold `supabase/` prêt pour migrations (sans tables), et le **moteur Pitman pur** (`lib/engine/`) testé en premier — golden encodant les points réels validés (`docs/analyse/01-decouverte/02-cas-utilisation.md:108`) : ancre 3 juin, 11 juin congé A, 25 déc. A travaille, table complète de juin. Gates verts (vitest 27, tsc 0, biome 0, build OK). Couvre FR-1.
 
-### Sprint 2 — Schéma Postgres + RLS + tests d'isolation 🟡 ACTIF
-Tables du domaine (`architecture.md:109`) avec `household_id` porteur ; **RLS « membre du foyer » sur toutes** ; **étanchéité du motif** via `exception_private` (`architecture.md:111`) ; **tests d'isolation automatisés** (R7) — gate de sécurité critique. Fondation de FR-12.
-**Carte détaillée** : `prompt-mise-a-jour-roadmap.md`.
+### Sprint 2 — Schéma Postgres + RLS + tests d'isolation ✅
+**Livré** : 13 tables du domaine (toutes porteuses de `household_id`) en 2 migrations versionnées ; **RLS activée sur les 13** avec politique « membre du foyer » (helpers `SECURITY DEFINER` anti-récursion) ; **étanchéité du motif structurelle** — `exception_private` arrimé à l'exception parente par FK composites, lisible par le seul travailleur propriétaire (la conjointe obtient 0 ligne) ; types BD générés (`lib/database.types.ts`) ; **tests d'isolation** des 3 scénarios (isolation inter-foyers · motif étanche · révocation immédiate) contre un **vrai Postgres**. Gates mesurés : vitest **35** (27 moteur + 8 isolation), tsc 0, biome 0, build OK. Contrainte d'env : stack Docker Supabase indisponible (CDN d'images bloqué) → Postgres natif + impersonation de rôle (comme PostgREST), `scripts/local-db.sh` ; `supabase start` reste la voie normale ailleurs. Fondation de FR-12.
 
-### Sprint 3 — Auth sans mot de passe + foyer ⬜
-Lien magique + OAuth Google/Apple ; invitation de la conjointe par lien/code à usage unique ; révocation par le propriétaire (`architecture.md:114`). Couvre FR-11, FR-12.
+### Sprint 3 — Auth sans mot de passe + foyer 🟡 ACTIF
+Lien magique + OAuth Google/Apple ; invitation de la conjointe par lien/code à usage unique ; révocation par le propriétaire (`architecture.md:114`). S'appuie sur `memberships(role)` du Sprint 2. Couvre FR-11, FR-12.
+**Carte détaillée** : `prompt-mise-a-jour-roadmap.md`.
 
 ### Sprint 4 — Vue « coup d'œil » ⬜
 Accueil : pastille Aujourd'hui (CONGÉ / JOUR / NUIT / SOMMEIL) + semaine + mois, lisible en < 2 s (NFR-1) ; vue conjointe = **disponibilité sans motif**. Couvre FR-2, FR-3.
