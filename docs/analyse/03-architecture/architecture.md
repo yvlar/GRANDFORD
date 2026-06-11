@@ -176,3 +176,37 @@ iOS n'accepte le Web Push **que pour une PWA installée** (« Ajouter à l'écra
 ## 8. Prochaine étape proposée
 
 Découper le **MVP** (FR-1→7, 10, 11, 12) en lots livrables et **échafauder le dépôt** : Next.js PWA + projet Supabase + le **moteur Pitman avec ses tests** (la brique la plus sûre pour démarrer, déjà spécifiée et validée).
+
+## 9. Stack concrète recommandée
+
+**Principe directeur :** TypeScript partout (un seul langage), le **moteur testé en premier**, et **Supabase porte l'auth + la sécurité multi-foyers** pour que vous écriviez le moins de code sensible possible.
+
+### Cœur (à monter dès le MVP)
+| Couche | Choix | Pourquoi |
+|---|---|---|
+| Langage | **TypeScript** (front + back + moteur) | Un seul langage ; le typage attrape les bugs à votre place |
+| Framework | **Next.js** (App Router) + React | L'écosystème le mieux documenté → idéal en solo assisté par IA |
+| PWA / Service Worker | **Serwist** | Hors-ligne + réception Web Push, maintenu (successeur de next-pwa) |
+| Style | **Tailwind CSS** | Rapide, cohérent, peu de CSS à écrire |
+| Composants UI | **shadcn/ui** (+ Radix, lucide-react) | Accessibles, vous les **possédez** (pas de verrou) ; parfait pour l'UI épurée TDAH |
+| Données côté client | **supabase-js** + **TanStack Query** | Requêtes RLS, temps réel, cache + mises à jour optimistes |
+| Formulaires + validation | **React Hook Form** + **Zod** | Zod = schémas partagés entre l'UI et le moteur |
+| BaaS | **Supabase** (Postgres · Auth · RLS · Edge Functions · Realtime) | Auth sans mot de passe + sécurité au niveau de la BD |
+| Schéma / migrations | **Supabase CLI** (SQL) + `supabase gen types` | Types bout-en-bout, **sans ORM à apprendre** |
+| Moteur Pitman | **TypeScript pur** (fonctions), testé | Cœur déterministe du produit |
+| Tests | **Vitest** | Tester le moteur d'abord (rapide) |
+| Courriel | **Resend** + **react-email** | Liens magiques + repli des rappels |
+| Push | **Web Push API** + lib **web-push** (VAPID) | Notifications gratuites |
+| Outils | **pnpm** + **Biome** (ou ESLint+Prettier) + TS strict | Rapide, peu de configuration |
+| CI/CD | **GitHub Actions** | Tests + migrations + déploiement auto |
+| Hébergement | **Vercel Hobby** (ou Cloudflare Pages) + **Supabase Cloud** (région CA/US-est) | 0 $ ; voir le fork §7 |
+| Monitoring | **Sentry** + **UptimeRobot** | Erreurs + uptime (et réveil de Supabase) |
+
+### À ajouter seulement quand le besoin arrive
+- **Stripe** (Checkout + portail client) → quand on monétise.
+- **Playwright** (tests E2E) → quand les flux se stabilisent.
+- **Drizzle ORM** → si vous voulez des requêtes SQL typées plus tard (optionnel).
+- **Upstash QStash** → si `pg_cron` ne suffit plus pour la planification des rappels.
+
+### Délibérément **PAS** au MVP (anti-sur-ingénierie)
+Pas de serveur backend séparé · pas de Docker/Kubernetes · pas de Redis · pas de microservices · pas de monorepo complexe. **Un seul dépôt Next.js + Supabase suffit** et reste maintenable en solo.
