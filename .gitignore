@@ -1,0 +1,21 @@
+# Secrets — jamais commités (.env.example est la seule exception versionnée)
+.env
+.env.local
+.env*.local
+
+# Dépendances & builds
+node_modules/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# Supabase local
+supabase/.temp/
+supabase/.branches/
+
+# Divers
+.vercel
+.DS_Store
+*.log
