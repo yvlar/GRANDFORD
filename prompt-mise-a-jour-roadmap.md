@@ -1,82 +1,85 @@
-# Carte d'embarquement — Sprint 7 : Notifications
+# Carte d'embarquement — Sprint 8 : Mise en ligne + filets
 
 > Cette carte est **réécrite à chaque fin de sprint** pour le sprint suivant (règle : `.claude/rules/workflow-sprint.md`).
 > ⚠️ C'est une **prémisse à vérifier**, pas une vérité terrain : réconcilier chaque dépendance avec le code réel avant d'implémenter ; prémisse fausse → STOP + signalement.
 
 ## État
 
-Sprint 6 livré : fenêtre de sommeil configurée une fois (page foyer), ajustement au cas par cas (`sleep_adjustments`), repli heuristique intact. État courant : voir la table en tête de `ROADMAP.md`. Ce sprint livre **FR-10** : rappels **1 mois / 1 semaine / 1 jour** avant chaque écart — Web Push (VAPID) + repli courriel (Resend) — le cœur « prothèse de mémoire ».
+Sprint 7 livré : pipeline de rappels complet au niveau BD + pur + UI (génération transactionnelle, abonnement push, Edge Function écrite mais jamais exécutée). État courant : voir la table en tête de `ROADMAP.md`. Ce sprint **met GRANDFORD en ligne** (Vercel + Supabase Cloud CA/US-est) et solde la **dette « jamais tourné en vrai »** accumulée depuis le Sprint 2 — c'est un sprint d'opérations et de validation, plus que de code.
 
 ## LECTURE OBLIGATOIRE
 
-1. `.claude/rules/securite-secrets.md` — `VAPID_PRIVATE_KEY` et `RESEND_API_KEY` = serveur seulement ; **jamais de motif dans une notification, un log ou un courriel** (R7).
-2. `.claude/rules/supabase-rls.md` — Edge Functions et `service_role` : le contournement de RLS y est volontaire et doit rester côté serveur ; tests d'isolation si schéma/policy touchés.
+1. `.claude/rules/securite-secrets.md` — vraies clés = `.env` réel et secrets cloud → **confirmation préalable** ; région **CA/US-est** (Loi 25) ; `GRANDFORD_DEMO` ne doit JAMAIS exister en production.
+2. `.claude/rules/autonomie-confirmations.md` — tout ce sprint est fait d'actions **distantes et facturables** (projets cloud, envois réels) : demander avant chaque création de ressource et chaque envoi externe.
 3. `ROADMAP.md` (état + périmètre) ; les règles universelles s'appliquent toujours.
 
 ## Prémisses à réconcilier AVANT d'implémenter (vérifier dans la session)
 
-- **Tables prêtes, pipeline absent** : `reminders(remind_at, lead month|week|day, channel push|email, sent_at, exception_id)` — `supabase/migrations/20260611192620_initial_schema.sql:178` (aucun motif par design, R7) ; `push_subscriptions(endpoint, p256dh, auth_key)` — `…:204` ; index des rappels dus — `…:227`. **Rien n'écrit dans ces tables aujourd'hui** (aucun code applicatif ne les référence — à re-vérifier par grep).
-- **Architecture cible** : pg_cron réveille une Edge Function chaque heure → lit les `reminders` dus → envoie push + repli courriel — `docs/analyse/03-architecture/architecture.md:121`. **À créer en entier** : génération des rappels à la capture d'un écart (RPC `create_exception_with_motif`, `supabase/migrations/20260612172755_sprint05_capture_exception.sql:17`, est le point d'entrée naturel), abonnement push côté client (service worker Serwist déjà en place — `app/sw.ts`), Edge Function d'envoi.
-- **Clés** : `.env.example:13-18` porte déjà les clés VAPID et Resend (factices). Vraies clés = `.env` réel → **confirmation préalable** (`.claude/rules/autonomie-confirmations.md`).
-- **⚠️ Contrainte d'environnement (Sprints 2-6)** : ni GoTrue ni Edge Functions n'ont tourné localement (Docker bloqué). L'envoi RÉEL (push à un vrai appareil, courriel Resend) est un **envoi externe → confirmation préalable obligatoire** ; en session, prouver le pipeline au niveau BD + fonctions pures (calcul des échéances) + appels mockés à la frontière réseau.
+- **Dette GoTrue/Edge réelle (Sprints 3-7)** : lien magique + OAuth jamais testés contre un vrai GoTrue (`ROADMAP.md`, Sprint 3 archivé) ; actions serveur de capture jamais E2E (Sprint 5) ; Edge Function `send-reminders` **jamais exécutée** — `supabase/functions/send-reminders/README.md` liste ses secrets et son cron.
+- **⚠️ Import relatif hors `functions/`** : `supabase/functions/send-reminders/index.ts:16` importe `../../../lib/notifications/payload.ts` — **à vérifier au premier `supabase functions deploy`** ; plan B documenté dans le README (déplacer vers `_shared/`).
+- **pg_cron + pg_net** : extensions à activer sur le projet Cloud seulement ; le SQL de planification est dans le README de la fonction — il n'existe **aucune migration** pg_cron (voulu : inapplicable localement).
+- **Clés réelles à créer** : VAPID (`web-push generate-vapid-keys`), Resend (domaine expéditeur), Sentry DSN — `.env.example:12-21` porte les noms attendus. Vraies valeurs → confirmation.
+- **iPhone réel disponible** (R11/U-7, `docs/analyse/03-architecture/architecture.md:130`) : le push iOS n'existe que PWA installée — c'est l'utilisateur qui manipule l'appareil, prévoir sa participation.
 
-## TÂCHE — Sprint 7
+## TÂCHE — Sprint 8
 
 ### Spécification
 
-1. **Génération des rappels (FR-10)** : à la création d'un écart, créer les `reminders` aux échéances 1 mois / 1 semaine / 1 jour **antérieures à l'écart et futures au moment de la saisie** ; à la suppression de l'écart, les rappels suivent (cascade FK — à constater).
-2. **Abonnement Web Push** : geste UI (activer les rappels) → `PushManager.subscribe` (VAPID public) → upsert `push_subscriptions` (RLS : ses propres appareils).
-3. **Envoi** : Edge Function (service_role) lisant les rappels dus (`sent_at is null`, `remind_at <= now()`), envoi push, repli courriel Resend, marquage `sent_at`. Planification pg_cron documentée (active seulement sur Supabase Cloud — Sprint 8).
-4. **R7 absolu** : le payload d'une notification dit « écart le DATE » (disponibilité), **jamais le motif**.
+1. **Supabase Cloud** (région CA/US-est) : projet créé, migrations appliquées par CLI (`supabase db push`), types régénérés identiques, secrets Edge posés, fonction `send-reminders` déployée, pg_cron planifié.
+2. **Vercel** : projet relié au dépôt, variables d'env (sans `GRANDFORD_DEMO`), build de prod, domaine.
+3. **Dette réelle soldée** : lien magique reçu et connexion réussie ; OAuth Google ; capture d'un écart sur le site réel ; rappels générés en BD Cloud ; **push reçu sur l'iPhone réel (PWA installée)** ; courriel de repli Resend reçu.
+4. **Filets** : Sentry (sans donnée personnelle ni motif — R7), UptimeRobot (uptime + réveil du projet gratuit), sauvegarde `pg_dump` quotidienne par GitHub Action (+ restauration essayée une fois, NFR-11).
 
 ### Tests / validation obligatoires (gates)
 
-- `pnpm vitest run` — calcul des échéances en pur (dates limites : écart < 1 mois, < 1 semaine, < 1 jour, passé) ; isolation RLS de `push_subscriptions` (appareils personnels) et du chemin d'écriture des `reminders` ; compteur **mesuré**.
-- `pnpm tsc --noEmit` · `pnpm biome check .` · `pnpm build` — tous verts.
+- `pnpm vitest run` · `pnpm tsc --noEmit` · `pnpm biome check .` · `pnpm build` — tous verts (aucune régression locale).
+- Les validations cloud sont **manuelles et observées** : chaque point de la preuve ci-dessous est constaté, pas supposé.
 
 ### Preuve d'acceptation observable
 
-1. Saisir un écart à J+40 → 3 lignes `reminders` (month/week/day) aux bons instants, constatées en BD ; un écart à J+3 → seules week/day… selon la règle « échéance future ».
-2. Supprimer l'écart → 0 rappel orphelin (constaté).
-3. Le contenu généré d'une notification (payload) ne contient **aucun motif** (inspecté).
+1. Connexion par lien magique réel (courriel reçu) sur l'URL de prod.
+2. Écart capturé à J+40 sur le site réel → 3 `reminders` constatés dans la BD Cloud.
+3. Notification push **reçue sur l'iPhone** (PWA installée) via un rappel de test ; payload affiché sans motif.
+4. Courriel de repli Resend reçu pour un compte sans abonnement push.
+5. Sentry reçoit un événement de test ; UptimeRobot voit le site UP ; un artefact `pg_dump` daté existe.
 
 ## SPRINTS SUGGÉRÉS
 
-### Sprint 8 — Mise en ligne + filets
-**Objectif** : Vercel + Supabase Cloud (CA/US-est), pg_cron actif, Sentry/UptimeRobot, sauvegardes `pg_dump`, test PWA installable + push sur l'iPhone réel (R11/U-7) — **et solde de la dette GoTrue/Edge réelle** (lien magique, OAuth, actions serveur, envoi réel) accumulée depuis le Sprint 3.
-**Complexité** : Élevée
-**Justification** : rien n'a jamais tourné contre les vrais services gérés ; `GRANDFORD_DEMO` ne doit jamais y être défini.
-**Référence** : `docs/analyse/03-architecture/architecture.md:130` ; contraintes documentées dans `ROADMAP.md` (Sprints 3-6) et `docs/roadmap-archive.md` (Sprint 2).
-
-### v1.1 — Co-planification conjointe
-**Objectif** : notes (FR-8) et requêtes approuver/refuser (FR-9, mécanisme de fraîcheur O-1).
+### v1.1 — Co-planification conjointe (FR-8, FR-9)
+**Objectif** : notes de la conjointe sur une date + requêtes approuver/refuser (mécanisme de fraîcheur O-1).
 **Complexité** : Moyenne
-**Justification** : premier apport actif pour la conjointe ; tables prêtes.
-**Référence** : `notes` — `supabase/migrations/20260611192620_initial_schema.sql:152` ; `requests` — `…:163`. UI **à créer**.
+**Justification** : premier apport actif pour la conjointe ; tables prêtes. ⚠️ Revue Sprint 7 : FR-9 crée un **2ᵉ chemin d'écriture d'exceptions** → déplacer la génération des rappels de la RPC vers un **trigger sur `exceptions`** (sinon les écarts issus de requêtes n'auront pas de rappels).
+**Référence** : `notes` — `supabase/migrations/20260611192620_initial_schema.sql:152` ; `requests` — `…:163` ; génération actuelle dans la RPC — `supabase/migrations/20260612193000_sprint07_reminders.sql:54`. UI **à créer**.
 
-### v1.1 — Journal des changements + export
-**Objectif** : journal (FR-13, `audit_log` — `supabase/migrations/20260611192620_initial_schema.sql:191`) et export iCal/PDF (FR-14).
+### v1.1 — Journal des changements + export (FR-13, FR-14)
+**Objectif** : journal « qui a changé quoi » + export iCal/PDF.
 **Complexité** : Moyenne
-**Justification** : confiance (qui a changé quoi) + partage hors app ; `audit_log` existe, rien ne l'alimente encore.
-**Référence** : table vérifiée ; alimentation et UI **à créer**.
+**Justification** : confiance + partage hors app ; `audit_log` existe, rien ne l'alimente.
+**Référence** : `audit_log` — `supabase/migrations/20260611192620_initial_schema.sql:191` (vérifié) ; alimentation et UI **à créer**.
+
+### Conformité Loi 25 (dès le 2ᵉ foyer)
+**Objectif** : politique de confidentialité, consentement à l'inscription, responsable des renseignements personnels.
+**Complexité** : Faible (texte + écran), mais bloquante avant d'inviter un foyer externe.
+**Justification** : exigence `.claude/rules/securite-secrets.md` ; déclenchée par la mise en ligne du Sprint 8.
+**Référence** : règle citée ; tout **à créer**.
 
 ## Template de démarrage (coller tel quel dans une nouvelle session)
 
 ```
 Lis CLAUDE.md, ROADMAP.md et prompt-mise-a-jour-roadmap.md, puis exécute le
-Sprint 7 (Notifications) en suivant .claude/prompts/prompt-executer-sprint.md — Phase A.
+Sprint 8 (Mise en ligne + filets) en suivant .claude/prompts/prompt-executer-sprint.md — Phase A.
 
-Branche : claude/sprint07-notifications (à créer depuis dev), sauf branche de
+Branche : claude/sprint08-mise-en-ligne (à créer depuis dev), sauf branche de
 session imposée par l'environnement (la documenter alors dans ROADMAP).
 
 Rappels non négociables :
-- Réconcilier la carte avec le code réel AVANT d'implémenter — en particulier
-  « rien n'écrit dans reminders/push_subscriptions » (grep).
-- AUCUN motif dans un payload de notification, un courriel, un log (R7).
-- Tout envoi externe réel (push, courriel) et toute modification du .env réel :
-  confirmation préalable. Le moteur (lib/engine/) ne se modifie PAS.
-- Toute capacité affirmée existante porte une référence fichier:ligne vérifiée en session.
-- Gates : pnpm vitest run + pnpm tsc --noEmit + pnpm biome check . + pnpm build,
-  tous verts ; isolation RLS pour push_subscriptions et le chemin des reminders.
+- Ce sprint est fait d'actions DISTANTES : création de ressources cloud, vraies
+  clés, envois réels (push, courriel) → CONFIRMATION PRÉALABLE à chaque fois.
+- GRANDFORD_DEMO ne doit jamais être défini en production.
+- Vérifier l'import relatif de l'Edge Function au premier deploy (README de
+  send-reminders) ; pg_cron seulement sur le Cloud, jamais en migration locale.
+- AUCUN motif dans Sentry, les logs, les notifications (R7).
+- Gates locaux verts + chaque preuve cloud CONSTATÉE (lien magique, push iPhone,
+  repli courriel, sauvegarde) — « déployé » n'est pas une preuve.
 - Fin de sprint = ROADMAP à jour + nouvelle carte + commit. PAS de push sans me demander.
 ```
