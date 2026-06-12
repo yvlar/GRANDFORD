@@ -32,10 +32,12 @@ grant anon, authenticated, service_role to postgres;
 
 create schema if not exists auth;
 
--- auth.users minimal : seules les colonnes utilisées par le schéma applicatif (FK profiles).
+-- auth.users minimal : seules les colonnes utilisées par le schéma applicatif
+-- (FK profiles + raw_user_meta_data lu par le trigger handle_new_user).
 create table if not exists auth.users (
   id uuid primary key default gen_random_uuid(),
-  email text
+  email text,
+  raw_user_meta_data jsonb not null default '{}'::jsonb
 );
 
 -- Réplique fidèle des helpers Supabase : lisent les claims JWT injectés par PostgREST

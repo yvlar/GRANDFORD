@@ -52,6 +52,14 @@ async function withTransaction<T>(run: (client: pg.PoolClient) => Promise<T>): P
 }
 
 /**
+ * Exécute `run` en tant que postgres (propriétaire, exempt de RLS) — pour préparer
+ * des fixtures hors seed (ex. : nouvel usager inscrit, invitation expirée).
+ */
+export async function asAdmin<T>(run: (client: pg.PoolClient) => Promise<T>): Promise<T> {
+  return withTransaction(run);
+}
+
+/**
  * Exécute `run` en se faisant passer pour `userId` (rôle `authenticated` + claim `sub`),
  * exactement comme PostgREST. La RLS s'applique donc pleinement.
  */
@@ -90,14 +98,14 @@ export async function seed(): Promise<void> {
     // truncate en cascade depuis auth.users : vide tout le graphe applicatif.
     await client.query("truncate auth.users restart identity cascade");
 
+    // Les profils sont créés par le trigger handle_new_user (Sprint 3) à partir du
+    // raw_user_meta_data — exactement le chemin d'une vraie inscription GoTrue.
     await client.query(
-      `insert into auth.users (id, email) values
-        ($1,'workerA@test'),($2,'spouseA@test'),($3,'workerB@test'),($4,'spouseB@test')`,
-      [FIX.workerA, FIX.spouseA, FIX.workerB, FIX.spouseB],
-    );
-    await client.query(
-      `insert into public.profiles (id, full_name) values
-        ($1,'Travailleur A'),($2,'Conjointe A'),($3,'Travailleur B'),($4,'Conjointe B')`,
+      `insert into auth.users (id, email, raw_user_meta_data) values
+        ($1,'workerA@test','{"full_name":"Travailleur A"}'),
+        ($2,'spouseA@test','{"full_name":"Conjointe A"}'),
+        ($3,'workerB@test','{"full_name":"Travailleur B"}'),
+        ($4,'spouseB@test','{"full_name":"Conjointe B"}')`,
       [FIX.workerA, FIX.spouseA, FIX.workerB, FIX.spouseB],
     );
     await client.query(
