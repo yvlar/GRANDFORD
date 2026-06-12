@@ -15,6 +15,7 @@ import type {
   DayStatus,
   MonthGrid,
   ScheduleException,
+  SleepAdjustment,
   SleepWindow,
 } from "@/lib/schedule/types";
 
@@ -29,9 +30,9 @@ export function addDays(date: string, n: number): string {
 
 /**
  * Fenêtre de sommeil par défaut, dérivée du gabarit : 8 h de récupération à partir
- * de la FIN du quart de nuit. Heuristique assumée du Sprint 4 — remplacée par la
- * fenêtre configurée (`sleep_defaults`) dès qu'elle existe, et paramétrable au cas
- * par cas au Sprint 6 (FR-6).
+ * de la FIN du quart de nuit. Heuristique assumée du Sprint 4 — supplantée par la
+ * fenêtre configurée (`sleep_defaults`), elle-même supplantée par l'ajustement du
+ * jour (`sleep_adjustments`) — FR-6, Sprint 6.
  */
 export function defaultSleepWindow(template: CycleTemplate): SleepWindow {
   const start = template.nightHours.end;
@@ -62,8 +63,9 @@ function resolveShift(
 /**
  * États affichables de chaque jour de [from, to] : moteur + écarts + sommeil.
  * Règle sommeil (heuristique documentée) : un jour SANS quart qui suit un quart de
- * NUIT est une journée de récupération (« sommeil ») — fenêtre `sleepDefault` si
- * configurée, sinon celle dérivée du gabarit.
+ * NUIT est une journée de récupération (« sommeil ») — fenêtre ajustée pour CE jour
+ * (FR-6) si elle existe, sinon `sleepDefault` si configurée, sinon celle dérivée
+ * du gabarit. Un ajustement sur un jour sans sommeil est ignoré (rien à ajuster).
  */
 export function dayStatuses(
   team: Team,
@@ -72,8 +74,10 @@ export function dayStatuses(
   template: CycleTemplate,
   exceptions: readonly ScheduleException[],
   sleepDefault: SleepWindow | null,
+  sleepAdjustments: readonly SleepAdjustment[] = [],
 ): DayStatus[] {
   const byDate = new Map(exceptions.map((e) => [e.onDate, e]));
+  const adjustmentByDate = new Map(sleepAdjustments.map((a) => [a.onDate, a.window]));
   // Un jour de plus en amont : le statut « sommeil » dépend du quart de la VEILLE.
   const days = scheduleRange(team, addDays(from, -1), to, template);
   const window = sleepDefault ?? defaultSleepWindow(template);
@@ -99,7 +103,7 @@ export function dayStatuses(
         // (sommeil ↔ congé) découle d'un écart de la veille — sinon la conjointe
         // verrait un changement sans son indicateur (R1 : jamais taire un écart).
         fromException: fromException || (shift === null && previousAltered),
-        sleep: sleeping ? window : null,
+        sleep: sleeping ? (adjustmentByDate.get(day.date) ?? window) : null,
       });
     }
     previousAltered = fromException && (shift === "nuit") !== (day.shift === "nuit");
@@ -115,8 +119,17 @@ export function statusForDate(
   template: CycleTemplate,
   exceptions: readonly ScheduleException[],
   sleepDefault: SleepWindow | null,
+  sleepAdjustments: readonly SleepAdjustment[] = [],
 ): DayStatus {
-  const statuses = dayStatuses(team, date, date, template, exceptions, sleepDefault);
+  const statuses = dayStatuses(
+    team,
+    date,
+    date,
+    template,
+    exceptions,
+    sleepDefault,
+    sleepAdjustments,
+  );
   const status = statuses[0];
   if (status === undefined) {
     // Invariant : dayStatuses(d, d) produit exactement un élément.
@@ -149,6 +162,7 @@ export function monthGrid(
   template: CycleTemplate,
   exceptions: readonly ScheduleException[],
   sleepDefault: SleepWindow | null,
+  sleepAdjustments: readonly SleepAdjustment[] = [],
 ): MonthGrid {
   const { year, month } = parseCivilDate(date);
   const first = formatCivilDate({ year, month, day: 1 });
@@ -157,7 +171,15 @@ export function monthGrid(
     year,
     month,
     leadingBlanks: weekdayIndex(parseCivilDate(first)),
-    days: dayStatuses(team, first, lastOfMonth, template, exceptions, sleepDefault),
+    days: dayStatuses(
+      team,
+      first,
+      lastOfMonth,
+      template,
+      exceptions,
+      sleepDefault,
+      sleepAdjustments,
+    ),
   };
 }
 

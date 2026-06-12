@@ -25,3 +25,7 @@ export const dateCivileSchema = z.string().refine((d) => {
     return false;
   }
 });
+
+// Heure 'HH:MM' (24 h) : le format des colonnes `time` de sleep_defaults /
+// sleep_adjustments et des <input type="time"> — une seule définition de frontière.
+export const heureSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);

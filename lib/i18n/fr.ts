@@ -63,6 +63,22 @@ export const fr = {
     erreurCapture: "L'enregistrement de l'écart a échoué. Réessayez.",
     erreurSuppression: "La suppression a échoué. Réessayez.",
   },
+  sommeil: {
+    titre: "Fenêtre de sommeil",
+    consigne:
+      "Après chaque quart de nuit, votre journée de récupération affiche cette fenêtre. Réglez-la une seule fois — ajustable au cas par cas depuis l'horaire.",
+    debut: "Début",
+    fin: "Fin",
+    enregistrer: "Enregistrer ma fenêtre",
+    enregistree: "Fenêtre enregistrée.",
+    erreurEnregistrement: "L'enregistrement de la fenêtre a échoué. Réessayez.",
+    ajusterTitre: "Sommeil ce jour-là",
+    ajusterConsigne: "Ajuster ce jour seulement — les autres jours gardent votre fenêtre.",
+    ajuste: "(ajusté)",
+    ajuster: "Ajuster ce jour",
+    retirer: "Revenir à ma fenêtre habituelle",
+    erreurAjustement: "L'ajustement a échoué. Réessayez.",
+  },
   connexion: {
     titre: "Connexion",
     sousTitre: "Sans mot de passe : un lien par courriel, ou un compte existant.",

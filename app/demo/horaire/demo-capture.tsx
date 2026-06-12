@@ -10,16 +10,27 @@ import {
   type Tuile,
   capturePlan,
 } from "@/lib/schedule/capture";
+import type { SommeilHandlers } from "@/lib/schedule/sommeil";
+import type { SleepAdjustment, SleepWindow } from "@/lib/schedule/types";
 import { useState } from "react";
 
-// Démo du flux de capture SANS BD (preuve d'acceptation du Sprint 5, sous
+// Démo du flux de capture SANS BD (preuves d'acceptation des Sprints 5-6, sous
 // GRANDFORD_DEMO=1) : mêmes composants (VueCoupDoeil + PanneauCapture) et même
-// sémantique pure (capturePlan) que le flux réel — seule la persistance change
-// (état local au lieu de la RPC atomique). Permet de COMPTER les taps à l'écran
-// dans les environnements où GoTrue ne tourne pas (contrainte Sprints 2-4).
+// sémantique pure (capturePlan, dayStatuses) que le flux réel — seule la persistance
+// change (état local au lieu de la BD). Permet de COMPTER les taps et de CONSTATER
+// l'ajustement de sommeil à l'écran là où GoTrue ne tourne pas (contrainte Sprints 2-4).
 
-export function DemoCapture({ team, initialToday }: { team: Team; initialToday: string }) {
+export function DemoCapture({
+  team,
+  initialToday,
+  sleepDefault,
+}: {
+  team: Team;
+  initialToday: string;
+  sleepDefault: SleepWindow | null;
+}) {
   const [ecarts, setEcarts] = useState<readonly OwnException[]>([]);
+  const [ajustements, setAjustements] = useState<readonly SleepAdjustment[]>([]);
   // WHY une variable : `role` est une prop métier de VueCoupDoeil, pas un rôle ARIA —
   // la passer en littéral déclenche à tort lint/a11y/useValidAriaRole.
   const role = "worker" as const;
@@ -49,16 +60,32 @@ export function DemoCapture({ team, initialToday }: { team: Team; initialToday: 
     },
   };
 
+  // Mêmes gestes que les actions serveur (upsert par jour / suppression par jour).
+  const sommeil: SommeilHandlers = {
+    ajuster: async (date: string, debut: string, fin: string): Promise<EtatCapture> => {
+      setAjustements((courants) => [
+        ...courants.filter((a) => a.onDate !== date),
+        { onDate: date, window: { start: debut, end: fin } },
+      ]);
+      return { ok: true, erreur: null };
+    },
+    retirer: async (date: string): Promise<EtatCapture> => {
+      setAjustements((courants) => courants.filter((a) => a.onDate !== date));
+      return { ok: true, erreur: null };
+    },
+  };
+
   return (
     <VueCoupDoeil
       role={role}
       team={team}
       template={GRANDFORD_CYCLE}
       exceptions={ecarts}
-      sleepDefault={null}
+      sleepDefault={sleepDefault}
+      sleepAdjustments={ajustements}
       initialToday={initialToday}
       clockFrozen
-      capture={{ ownExceptions: ecarts, handlers }}
+      capture={{ ownExceptions: ecarts, handlers, sommeil }}
     />
   );
 }

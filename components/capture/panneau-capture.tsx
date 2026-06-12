@@ -8,6 +8,8 @@ import {
   type Tuile,
 } from "@/lib/schedule/capture";
 import { FORMAT_JOUR_LONG, dateUTC } from "@/lib/schedule/format";
+import type { SommeilHandlers } from "@/lib/schedule/sommeil";
+import type { SleepWindow } from "@/lib/schedule/types";
 import { useState, useTransition } from "react";
 
 // Panneau de capture d'un écart (FR-4/FR-7, Sprint 5) — le cœur de la thèse produit.
@@ -34,10 +36,26 @@ export interface PanneauCaptureProps {
   /** Écart existant ce jour-là → mode détail (motif + suppression), sinon capture. */
   readonly ownException: OwnException | null;
   readonly handlers: CaptureHandlers;
+  /**
+   * Présent quand le jour tapé est une journée de SOMMEIL (FR-6, Sprint 6) :
+   * fenêtre affichée ce jour-là + gestes d'ajustement au cas par cas. Bloc ajouté
+   * SOUS la capture — le budget ≤ 3 taps d'un écart reste intact (NFR-1).
+   */
+  readonly sommeil?: {
+    readonly window: SleepWindow;
+    readonly ajuste: boolean;
+    readonly handlers: SommeilHandlers;
+  } | null;
   readonly onClose: () => void;
 }
 
-export function PanneauCapture({ date, ownException, handlers, onClose }: PanneauCaptureProps) {
+export function PanneauCapture({
+  date,
+  ownException,
+  handlers,
+  sommeil = null,
+  onClose,
+}: PanneauCaptureProps) {
   const t = fr.capture;
   const [jour, setJour] = useState(date);
   const [tuileChoisie, setTuileChoisie] = useState<Tuile | null>(null);
@@ -158,8 +176,105 @@ export function PanneauCapture({ date, ownException, handlers, onClose }: Pannea
             ) : null}
           </>
         )}
+
+        {/* WHY jour === date : le bloc sommeil décrit le jour TAPÉ ; si l'usager
+            change la date de capture, la fenêtre affichée ne le concernerait plus. */}
+        {sommeil && jour === date ? (
+          <AjusterSommeil
+            date={date}
+            sommeil={sommeil}
+            pending={pending}
+            onErreur={setErreur}
+            onSoumettre={(action) => {
+              setErreur(null);
+              startTransition(async () => {
+                const etat = await action();
+                if (etat.ok) {
+                  onClose();
+                } else {
+                  setErreur(etat.erreur);
+                }
+              });
+            }}
+          />
+        ) : null}
       </dialog>
     </div>
+  );
+}
+
+/** Ajustement de la fenêtre de sommeil d'UN jour (FR-6) — les autres jours gardent le défaut. */
+function AjusterSommeil({
+  date,
+  sommeil,
+  pending,
+  onErreur,
+  onSoumettre,
+}: {
+  date: string;
+  sommeil: { window: SleepWindow; ajuste: boolean; handlers: SommeilHandlers };
+  pending: boolean;
+  onErreur: (erreur: string | null) => void;
+  onSoumettre: (action: () => ReturnType<SommeilHandlers["ajuster"]>) => void;
+}) {
+  const t = fr.sommeil;
+  const [debut, setDebut] = useState(sommeil.window.start);
+  const [fin, setFin] = useState(sommeil.window.end);
+
+  return (
+    <section
+      aria-label={t.ajusterTitre}
+      className="mt-5 flex flex-col gap-3 border-t border-neutral-800 pt-4"
+    >
+      <h3 className="text-lg font-bold">
+        😴 {t.ajusterTitre} {sommeil.ajuste ? t.ajuste : ""}
+      </h3>
+      <p className="text-sm text-neutral-400">{t.ajusterConsigne}</p>
+      <div className="flex items-end gap-3">
+        <label className="flex flex-col gap-1 text-sm text-neutral-300">
+          {t.debut}
+          <input
+            type="time"
+            value={debut}
+            onChange={(e) => {
+              onErreur(null);
+              setDebut(e.target.value);
+            }}
+            className="rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-base text-neutral-50"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-sm text-neutral-300">
+          {t.fin}
+          <input
+            type="time"
+            value={fin}
+            onChange={(e) => {
+              onErreur(null);
+              setFin(e.target.value);
+            }}
+            className="rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-base text-neutral-50"
+          />
+        </label>
+        <button
+          type="button"
+          disabled={pending || debut === "" || fin === ""}
+          onClick={() => onSoumettre(() => sommeil.handlers.ajuster(date, debut, fin))}
+          className="rounded-lg bg-sky-600 px-4 py-3 font-semibold hover:bg-sky-500 disabled:opacity-50"
+        >
+          {t.ajuster}
+        </button>
+      </div>
+      {sommeil.ajuste ? (
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => onSoumettre(() => sommeil.handlers.retirer(date))}
+          className="text-left text-sm text-neutral-400 underline hover:text-neutral-200 disabled:opacity-50"
+        >
+          {t.retirer}
+        </button>
+      ) : null}
+    </section>
   );
 }
 
