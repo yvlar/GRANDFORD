@@ -9,3 +9,7 @@ import { z } from "zod";
 export const cheminInterneSchema = z.string().regex(/^\/(?!\/)/);
 
 export const uuidSchema = z.uuid();
+
+// Équipe A/B/C/D : UNE définition pour le formulaire (action), la lecture BD et l'UI.
+// Aligné sur le type Team du moteur et le CHECK de worker_assignments.team (Sprint 2).
+export const equipeSchema = z.enum(["A", "B", "C", "D"]);

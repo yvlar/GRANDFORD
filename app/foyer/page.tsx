@@ -1,15 +1,20 @@
+import { TeamPicker } from "@/components/schedule/team-picker";
 import { fr } from "@/lib/i18n/fr";
 import { requestOrigin } from "@/lib/request-origin";
 import { createClient } from "@/lib/supabase/server";
+import { equipeSchema } from "@/lib/validation";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { annulerInvitation, creerInvitation, quitterFoyer, revoquerMembre } from "./actions";
 
-// Gestion du foyer (FR-12) : membres, invitation à usage unique, révocation.
+// Gestion du foyer (FR-12) : membres, invitation à usage unique, révocation —
+// et, depuis le Sprint 4, l'équipe du travailleur (modifiable ici).
 // Tout ce que cette page voit passe par la RLS — les invitations, par exemple,
 // ne reviennent que pour le propriétaire (0 ligne pour la conjointe).
 const ERREURS: Record<string, string> = {
   invitation: fr.foyer.erreurInvitation,
   revocation: fr.foyer.erreurRevocation,
+  equipe: fr.horaire.erreurEquipe,
 };
 
 export default async function FoyerPage({
@@ -28,7 +33,7 @@ export default async function FoyerPage({
 
   const { data: monAdhesion } = await supabase
     .from("memberships")
-    .select("id, household_id")
+    .select("id, role, household_id")
     .eq("profile_id", user.id)
     .limit(1)
     .maybeSingle();
@@ -36,30 +41,38 @@ export default async function FoyerPage({
     redirect("/onboarding");
   }
 
-  const [{ data: foyer }, { data: membres }, { data: invitations }] = await Promise.all([
-    supabase
-      .from("households")
-      .select("id, name, owner_id")
-      .eq("id", monAdhesion.household_id)
-      .single(),
-    supabase
-      .from("memberships")
-      .select("id, role, profile_id, profiles(full_name)")
-      .eq("household_id", monAdhesion.household_id)
-      .order("created_at"),
-    supabase
-      .from("invitations")
-      .select("id, code")
-      .eq("household_id", monAdhesion.household_id)
-      .is("used_at", null)
-      // Filtre d'affichage seulement (horloge du serveur Next) : l'expiration qui
-      // fait foi est revérifiée en BD par redeem_invitation.
-      .gt("expires_at", new Date().toISOString())
-      .order("created_at"),
-  ]);
+  const [{ data: foyer }, { data: membres }, { data: invitations }, { data: affectation }] =
+    await Promise.all([
+      supabase
+        .from("households")
+        .select("id, name, owner_id")
+        .eq("id", monAdhesion.household_id)
+        .single(),
+      supabase
+        .from("memberships")
+        .select("id, role, profile_id, profiles(full_name)")
+        .eq("household_id", monAdhesion.household_id)
+        .order("created_at"),
+      supabase
+        .from("invitations")
+        .select("id, code")
+        .eq("household_id", monAdhesion.household_id)
+        .is("used_at", null)
+        // Filtre d'affichage seulement (horloge du serveur Next) : l'expiration qui
+        // fait foi est revérifiée en BD par redeem_invitation.
+        .gt("expires_at", new Date().toISOString())
+        .order("created_at"),
+      supabase
+        .from("worker_assignments")
+        .select("team")
+        .eq("household_id", monAdhesion.household_id)
+        .eq("profile_id", user.id)
+        .maybeSingle(),
+    ]);
   if (!foyer) {
     redirect("/onboarding");
   }
+  const monEquipe = equipeSchema.safeParse(affectation?.team).data ?? null;
 
   const estProprietaire = foyer.owner_id === user.id;
   const origin = await requestOrigin();
@@ -68,6 +81,9 @@ export default async function FoyerPage({
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-lg flex-col gap-8 bg-neutral-950 p-6 text-neutral-50">
+      <Link href="/" className="text-sm text-neutral-400 underline hover:text-neutral-200">
+        {t.monHoraire}
+      </Link>
       <header className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">{foyer.name}</h1>
         <form action="/auth/deconnexion" method="post">
@@ -84,6 +100,13 @@ export default async function FoyerPage({
         <p role="alert" className="rounded-lg bg-red-950 px-4 py-3 text-red-200">
           {erreur}
         </p>
+      ) : null}
+
+      {monAdhesion.role === "worker" ? (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-xl font-semibold">{t.monEquipe}</h2>
+          <TeamPicker householdId={foyer.id} currentTeam={monEquipe} />
+        </section>
       ) : null}
 
       <section className="flex flex-col gap-3">

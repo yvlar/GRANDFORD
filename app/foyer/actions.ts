@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { uuidSchema } from "@/lib/validation";
+import { equipeSchema, uuidSchema } from "@/lib/validation";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -9,6 +9,38 @@ import { redirect } from "next/navigation";
 // est la vraie barrière (propriétaire seul pour inviter/révoquer/annuler ; soi-même
 // pour quitter). Les ids reçus du client sont validés en forme, jamais en droit —
 // le droit, c'est la BD qui le tranche.
+
+/**
+ * Choisit (ou change) l'équipe du travailleur connecté — pré-requis de la vue
+ * « coup d'œil » (Sprint 4). Un seul enregistrement par (foyer, profil) : upsert.
+ */
+export async function choisirEquipe(householdId: string, formData: FormData): Promise<void> {
+  const hid = uuidSchema.safeParse(householdId);
+  const equipe = equipeSchema.safeParse(formData.get("equipe"));
+  if (!hid.success || !equipe.success) {
+    redirect("/foyer?erreur=equipe");
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect("/connexion?suivant=%2F");
+  }
+
+  const { error } = await supabase
+    .from("worker_assignments")
+    .upsert(
+      { household_id: hid.data, profile_id: user.id, team: equipe.data },
+      { onConflict: "household_id,profile_id" },
+    );
+  if (error) {
+    redirect("/foyer?erreur=equipe");
+  }
+  revalidatePath("/");
+  revalidatePath("/foyer");
+}
 
 export async function creerInvitation(householdId: string): Promise<void> {
   const hid = uuidSchema.safeParse(householdId);

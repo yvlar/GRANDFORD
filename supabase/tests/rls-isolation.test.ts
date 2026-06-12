@@ -129,4 +129,36 @@ describe.skipIf(!rlsAvailable)("Isolation RLS (Postgres réel)", () => {
       expect(afterHouseholds[0]?.n).toBe(0);
     });
   });
+
+  describe("4. Affectations d'équipe (Sprint 4 — la vue en dépend)", () => {
+    it("un membre du foyer A ne lit jamais les affectations du foyer B", async () => {
+      const rows = await queryAs(
+        FIX.workerA,
+        "select team from public.worker_assignments where household_id = $1",
+        [FIX.householdB],
+      );
+      expect(rows).toHaveLength(0);
+    });
+
+    it("la conjointe lit l'équipe du travailleur de SON foyer (FR-3)", async () => {
+      const rows = await queryAs<{ team: string }>(
+        FIX.spouseA,
+        "select team from public.worker_assignments where household_id = $1",
+        [FIX.householdA],
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.team).toBe("A");
+    });
+
+    it("un membre du foyer A ne peut pas écrire une affectation dans le foyer B", async () => {
+      await expect(
+        asUser(FIX.workerA, (client) =>
+          client.query(
+            "insert into public.worker_assignments (household_id, profile_id, team) values ($1, $2, 'B')",
+            [FIX.householdB, FIX.workerA],
+          ),
+        ),
+      ).rejects.toThrow();
+    });
+  });
 });

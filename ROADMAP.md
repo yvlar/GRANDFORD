@@ -7,10 +7,10 @@
 
 | Champ | Valeur |
 |---|---|
-| **Version** | 0.4.0 |
+| **Version** | 0.5.0 |
 | **Phase active** | MVP |
-| **Sprint actif** | **Sprint 4 — Vue « coup d'œil »** |
-| **Dernier sprint complété** | Sprint 3 — Auth sans mot de passe + foyer ✅ |
+| **Sprint actif** | **Sprint 5 — Capture d'exception ≤ 3 taps** |
+| **Dernier sprint complété** | Sprint 4 — Vue « coup d'œil » ✅ |
 
 Note dépôt : branche d'intégration = **`dev`** (créée le 2026-06-11 depuis `claude/brave-pascal-5o9eiv`, première branche du dépôt — analyse + gouvernance). Chaque sprint : une branche `claude/sprintNN-<nom-court>` depuis `dev`, fusionnée par PR vers `dev`. Une `main` de production pourra naître de `dev` à la première mise en ligne (Sprint 8).
 
@@ -31,12 +31,12 @@ Note dépôt : branche d'intégration = **`dev`** (créée le 2026-06-11 depuis 
 ### Sprint 3 — Auth sans mot de passe + foyer ✅
 **Livré** : client Supabase typé (`lib/supabase/` : navigateur, serveur, middleware — `@supabase/ssr`) ; pages connexion (lien magique + OAuth Google/Apple), callback, déconnexion ; onboarding (création foyer) ; page foyer (membres, invitation par lien à usage unique, révocation, quitter) — Server Components purs, chaînes dans `lib/i18n/fr.ts`. Migration `…_sprint03_auth_household.sql` : trigger `handle_new_user` (auth.users → profiles), RPC atomique `create_household_with_membership` (SECURITY INVOKER, sous RLS), table `invitations` (RLS propriétaire seul, expiration 7 j), RPC `redeem_invitation` (SECURITY DEFINER, refus par ERRCODE stables GF001-GF004) ; types régénérés. Gates mesurés : vitest **48** (35 + 13 cycle de vie foyer), tsc 0, biome 0, build OK. Contrainte d'env : GoTrue inexécutable localement (Docker bloqué, cf. Sprint 2) → flux d'auth validés **au niveau BD** (insert `auth.users` = effet GoTrue) ; la frontière GoTrue réelle (lien magique, OAuth) reste **à valider contre un projet Supabase Cloud** (au plus tard Sprint 8). Couvre FR-11, FR-12.
 
-### Sprint 4 — Vue « coup d'œil » 🟡 ACTIF
-Accueil : pastille Aujourd'hui (CONGÉ / JOUR / NUIT / SOMMEIL) + semaine + mois, lisible en < 2 s (NFR-1) ; vue conjointe = **disponibilité sans motif**. Couvre FR-2, FR-3.
-**Carte détaillée** : `prompt-mise-a-jour-roadmap.md`.
+### Sprint 4 — Vue « coup d'œil » ✅
+**Livré** : couche pure `lib/schedule/` (`overviewRange` = moteur + écarts + sommeil ; calendrier ; date civile America/Toronto), vue `GlanceView` (pastille Aujourd'hui + semaine + mois, **calculée côté client** — NFR-4), sélection d'équipe A/B/C/D (`TeamPicker` + action `choisirEquipe` → `worker_assignments`, modifiable dans la page foyer), accueil par rôle : travailleur (FR-2) / conjointe = disponibilité **sans motif** (FR-3, R7 — colonnes explicites, jamais de jointure `exception_private`). Sommeil : heuristique 08 h–16 h le lendemain d'une nuit, `sleep_defaults` prime (FR-6 complet au Sprint 6). Gates mesurés : vitest **78** (48 + 23 logique pure + 4 rendu HTML du composant + 3 isolation `worker_assignments`), tsc 0, biome 0, build OK ; démo `pnpm demo:coup-doeil` (11 juin = CONGÉ, 25 déc. = JOUR, zéro réseau). **Décision** : gabarit `GRANDFORD_CYCLE` lu côté client tant que FR-17 (la table `cycle_templates` reste inutilisée hors seed de tests). Contrainte d'env (héritée S2/S3) : pas de GoTrue local → preuve « écran » par rendu HTML testé + démo CLI ; l'observation navigateur avec session réelle reste due au Sprint 8.
 
-### Sprint 5 — Capture d'exception ≤ 3 taps ⬜
+### Sprint 5 — Capture d'exception ≤ 3 taps 🟡 ACTIF
 1 bouton → 6 tuiles (OT, congé, maladie, échange, formation, vacances) ; motif stocké côté privé seulement ; OT = geste le plus rapide de l'app. Couvre FR-4, FR-5, FR-7.
+**Carte détaillée** : `prompt-mise-a-jour-roadmap.md`.
 
 ### Sprint 6 — Fenêtre de sommeil par défaut ⬜
 Configurée une fois, auto-appliquée à chaque quart de nuit, ajustable au cas par cas. Couvre FR-6.

@@ -21,7 +21,8 @@
     "test:watch": "vitest",
     "db:local": "bash scripts/local-db.sh",
     "db:gen-types": "node scripts/gen-types.mjs",
-    "demo:juin": "tsx scripts/demo-juin.ts"
+    "demo:juin": "tsx scripts/demo-juin.ts",
+    "demo:coup-doeil": "tsx scripts/demo-coup-doeil.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
