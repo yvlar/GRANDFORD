@@ -1,89 +1,89 @@
-# Carte d'embarquement — Sprint 2 : Schéma Postgres + RLS + tests d'isolation
+# Carte d'embarquement — Sprint 3 : Auth sans mot de passe + foyer
 
 > Cette carte est **réécrite à chaque fin de sprint** pour le sprint suivant (règle : `.claude/rules/workflow-sprint.md`).
 > ⚠️ C'est une **prémisse à vérifier**, pas une vérité terrain : réconcilier chaque dépendance avec le code réel avant d'implémenter ; prémisse fausse → STOP + signalement.
 
 ## État
 
-Sprint 1 livré : le squelette du dépôt et le **moteur Pitman pur** (`lib/engine/`) existent et sont verts (vitest 27, tsc 0, biome 0, build OK). État courant : voir la table en tête de `ROADMAP.md`. Ce sprint pose la **base de données** et sa sécurité — la préoccupation critique du projet (R7).
+Sprint 2 livré : 13 tables + RLS « membre du foyer » + étanchéité du motif + tests d'isolation (3 scénarios) verts contre un vrai Postgres. État courant : voir la table en tête de `ROADMAP.md`. Ce sprint branche **l'authentification sans mot de passe** (FR-11) et le **cycle de vie du foyer** (FR-12) par-dessus le schéma existant.
 
 ## LECTURE OBLIGATOIRE
 
-1. `.claude/rules/supabase-rls.md` — **règle cadrée centrale de ce sprint** (RLS partout, étanchéité du motif, tests d'isolation = livrable de 1re classe).
-2. `.claude/rules/tests-vitest.md` — priorité 2 = isolation RLS ; compteurs mesurés.
+1. `.claude/rules/conventions-frontend.md` — Server Components par défaut, accessibilité TDAH (accueil < 2 s, i18n français d'abord), **la vue conjointe ne reçoit jamais le motif**.
+2. `.claude/rules/supabase-rls.md` — l'auth crée/révoque des `memberships` ; la révocation doit couper l'accès immédiatement (déjà testé au Sprint 2, à préserver).
 3. `ROADMAP.md` (état + périmètre) ; les règles universelles s'appliquent toujours.
 
 ## Prémisses à réconcilier AVANT d'implémenter (vérifier dans la session)
 
-- **Le CLI Supabase n'est PAS encore une devDependency** (`package.json` ne le contient pas — vérifié au Sprint 1). 1re tâche : `pnpm add -D supabase`, puis confirmer `pnpm supabase --version`. Le `supabase/config.toml` existe déjà (rédigé à la main au Sprint 1) ; le rejouer/étendre via le CLI.
-- **Les tests d'isolation RLS exigent un Postgres réel** (`supabase start` → Docker). Vérifier que l'environnement le permet ; sinon, STOP et signaler (l'isolation ne se teste pas à blanc).
-- **Aucune table n'existe** (`supabase/migrations/` ne contient que `.gitkeep`). Tout est **à créer**.
+- **`@supabase/supabase-js` n'est PAS encore une dépendance** (vérifié : absent de `package.json`). 1re tâche : l'ajouter (+ `@supabase/ssr` pour l'App Router), client **typé avec `lib/database.types.ts`** (généré au Sprint 2).
+- **⚠️ BLOQUANT POTENTIEL — Supabase Auth (GoTrue) exige la stack Docker** (indisponible ici : CDN d'images bloqué par l'egress, constaté au Sprint 2) **ou un vrai projet Supabase Cloud**. Les flux d'auth réels (lien magique, OAuth) ne se testent donc pas localement sans Docker. **Décider la stratégie** : (a) brancher un projet Supabase Cloud (région CA/US-est) pour l'auth, ou (b) tester la logique foyer/membership au niveau BD (faisable via le harnais `supabase/tests/` du Sprint 2) et traiter GoTrue comme une frontière d'intégration mockée. Réconcilier avant d'implémenter ; sinon STOP + signalement.
+- **Le schéma du foyer existe déjà** (Sprint 2) : `memberships(role 'worker'|'spouse')` — `supabase/migrations/20260611192620_initial_schema.sql:52` ; invitation = INSERT réservé au propriétaire — `supabase/migrations/20260611192623_rls_policies.sql:148` ; révocation = DELETE par le propriétaire (ou soi) — `…192623_rls_policies.sql:152` ; helper `is_household_owner` — `…192623_rls_policies.sql:29`. Ne PAS recréer ces objets : les **consommer**.
+- **Création du `profiles` à l'inscription** : `profiles.id` référence `auth.users(id)` (`…192620_initial_schema.sql:32`). Il faut un pont auth.users → profiles **à créer** : trigger `handle_new_user` (migration versionnée) ou création applicative à la 1re connexion.
 
-## TÂCHE — Sprint 2
+## TÂCHE — Sprint 3
 
 ### Spécification
 
-1. **Migrations SQL** (`supabase/migrations/`, via `supabase migration new …`) créant les tables du domaine, **toutes porteuses de `household_id`** (`docs/analyse/03-architecture/architecture.md:109`) :
-   `households · profiles · memberships(role) · cycle_templates · worker_assignments(team) · exceptions · exception_private(motif) · sleep_defaults · notes · requests(status) · reminders · audit_log · push_subscriptions`.
-   - `cycle_templates` doit pouvoir stocker un gabarit du moteur (ancre, pattern 14 bits, heures) — aligné sur `lib/engine/types.ts` (`CycleTemplate`).
-   - `worker_assignments(team)` relie un profil à une équipe `'A'|'B'|'C'|'D'`.
-2. **RLS activée sur TOUTE table, sans exception** ; politique de base « membre du foyer » via `household_id` (`architecture.md:110`).
-3. **Étanchéité du motif** (`architecture.md:111`, R7) : le motif vit **uniquement** dans `exception_private`, policy « travailleur propriétaire seul ». La conjointe lit `exceptions` (présent/absent) et ne peut **jamais** joindre/sélectionner le motif. Aucune vue/fonction ne recombine les deux pour un non-propriétaire.
-4. **Types générés** : `supabase gen types typescript` → fichier committé (jamais écrit à la main).
-5. **Tests d'isolation** (Vitest + supabase-js, contre le Postgres local) — les 3 scénarios de `supabase-rls.md` :
-   1. un membre du foyer A ne lit jamais les données du foyer B ;
-   2. la conjointe ne lit jamais `exception_private` (motif) ;
-   3. un membre **révoqué** perd tout accès immédiatement.
+1. **Client Supabase typé** (`lib/supabase/`) : variantes navigateur + serveur (App Router, `@supabase/ssr`), paramétrées par `Database` (`lib/database.types.ts`). Clés via `.env` (déjà documentées : `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`).
+2. **Auth (FR-11)** : lien magique par courriel + OAuth Google/Apple (`architecture.md:114`). Pages connexion / callback / déconnexion ; sessions côté serveur. Aucun mot de passe.
+3. **Foyer (FR-12, `architecture.md:116`)** : à la 1re connexion, créer `profiles` + `households` (le créateur devient `owner_id`) + `memberships(role='worker')`. **Invitation** de la conjointe par lien/code à usage unique → `memberships(role='spouse')`. **Révocation** par le propriétaire (DELETE membership).
+4. **Pont inscription → profil** : trigger `handle_new_user` (ou équivalent applicatif), en migration versionnée + types régénérés (`pnpm db:gen-types`).
+5. **RLS** : réutiliser les policies du Sprint 2 ; toute nouvelle table (ex. jetons d'invitation, si nécessaire) porte `household_id` + RLS + tests d'isolation.
 
 ### Tests / validation obligatoires (gates)
 
-- `pnpm vitest run` — moteur (déjà vert) **+ isolation RLS** verts (compteur **mesuré**)
-- `pnpm tsc --noEmit` — 0 erreur (types générés inclus)
-- `pnpm biome check .` — 0 erreur / 0 warning
-- `pnpm build` — succès
+- `pnpm vitest run` — moteur + isolation RLS (compteur **mesuré**) ; tests d'isolation **étendus** si le schéma change (trigger, table d'invitation).
+- `pnpm tsc --noEmit` · `pnpm biome check .` · `pnpm build` — tous verts.
+- Logique invitation/révocation testée au niveau BD (le harnais `supabase/tests/` du Sprint 2 sert de base).
 
 ### Preuve d'acceptation observable
 
-1. La sortie réelle de `pnpm vitest run` montre les 3 tests d'isolation **qui passent** — dont une requête de la conjointe sur le motif qui **échoue ou retourne 0 ligne** (constaté, pas supposé).
-2. `supabase db reset` (ou équivalent) applique toutes les migrations **sans erreur** sur une base vierge.
-3. Une requête manuelle d'un membre du foyer B sur une ligne du foyer A retourne **0 ligne** (RLS active), démontré dans la session.
+1. Une connexion par lien magique (contre un projet réel OU la stack locale si la stratégie le permet) crée **profile + household + membership(worker)** — constaté en BD.
+2. Un lien/code d'invitation utilisé par la conjointe crée **membership(role='spouse')** ; elle lit la **disponibilité** du foyer mais **0 ligne** de `exception_private` (motif) — constaté.
+3. La révocation par le propriétaire fait **perdre l'accès** à la conjointe (le test de révocation du Sprint 2 reste vert).
 
 ## SPRINTS SUGGÉRÉS
-
-### Sprint 3 — Auth sans mot de passe + foyer
-**Objectif** : lien magique + OAuth Google/Apple ; invitation de la conjointe par lien/code à usage unique ; révocation par le propriétaire.
-**Complexité** : Moyenne
-**Justification** : préalable à toute donnée réelle de foyer ; Supabase Auth porte le gros du travail ; s'appuie sur `memberships(role)` du Sprint 2.
-**Référence** : spécification — `docs/analyse/03-architecture/architecture.md:114-117`. Flux d'invitation/révocation **à créer**.
 
 ### Sprint 4 — Vue « coup d'œil »
 **Objectif** : accueil pastille Aujourd'hui (CONGÉ/JOUR/NUIT/SOMMEIL) + semaine + mois, consommant le moteur ; vue conjointe = disponibilité sans motif.
 **Complexité** : Moyenne
-**Justification** : première valeur visible ; le moteur (Sprint 1) expose déjà `crewsForDate`/`shiftForDate`/`scheduleRange` — vérifié dans `lib/engine/pitman.ts`.
-**Référence** : FR-2, FR-3 — `docs/analyse/02-analyse/analyse.md:16-17` ; NFR-1 (< 2 s) — `analyse.md:50`. Écrans **à créer**.
+**Justification** : première valeur visible ; le moteur pur (Sprint 1) est prêt et testé.
+**Référence** : moteur — `lib/engine/pitman.ts` + `lib/engine/index.ts` (vérifiés) ; FR-2/FR-3 — `docs/analyse/02-analyse/analyse.md:16-17` ; NFR-1 (< 2 s). Écrans **à créer**.
 
 ### Sprint 5 — Capture d'exception ≤ 3 taps
-**Objectif** : 1 bouton → 6 tuiles → confirmation ; motif stocké côté privé uniquement (`exception_private`).
+**Objectif** : 1 bouton → 6 tuiles → confirmation ; motif stocké côté privé uniquement.
 **Complexité** : Moyenne
-**Justification** : cœur de la thèse produit (fiabilité des écarts) ; dépend du schéma + étanchéité du Sprint 2.
-**Référence** : FR-4, FR-5, FR-7 — `docs/analyse/02-analyse/analyse.md:20-23`. Flux **à créer**.
+**Justification** : cœur de la thèse produit ; le schéma est prêt — `exception_private` (motif owner-only) et `exceptions` (disponibilité) existent.
+**Référence** : `supabase/migrations/20260611192620_initial_schema.sql:113` (exception_private) ; FR-4/5/7 — `docs/analyse/02-analyse/analyse.md:20-23`. Flux **à créer**.
+
+### Sprint 6 — Fenêtre de sommeil par défaut
+**Objectif** : configurée une fois, auto-appliquée à chaque quart de nuit, ajustable au cas par cas.
+**Complexité** : Faible/Moyenne
+**Justification** : table prête au Sprint 2.
+**Référence** : `supabase/migrations/20260611192620_initial_schema.sql` (table `sleep_defaults`) ; FR-6. Logique d'application **à créer**.
+
+### Sprint 7 — Notifications
+**Objectif** : Web Push (VAPID) + repli courriel Resend ; planification 1 mois / 1 sem. / 1 jour.
+**Complexité** : Élevée
+**Justification** : tables `reminders` / `push_subscriptions` prêtes au Sprint 2 ; reste pg_cron + Edge Function **à créer**.
+**Référence** : `architecture.md:119-123` ; FR-10.
 
 ## Template de démarrage (coller tel quel dans une nouvelle session)
 
 ```
 Lis CLAUDE.md, ROADMAP.md et prompt-mise-a-jour-roadmap.md, puis exécute le
-Sprint 2 (Schéma Postgres + RLS + tests d'isolation) en suivant
+Sprint 3 (Auth sans mot de passe + foyer) en suivant
 .claude/prompts/prompt-executer-sprint.md — Phase A.
 
-Branche : claude/sprint02-schema-rls (à créer depuis dev).
+Branche : claude/sprint03-auth-foyer (à créer depuis dev).
 
 Rappels non négociables :
-- Réconcilier la carte avec le code réel AVANT d'implémenter (le CLI Supabase
-  n'est pas encore installé ; les tests d'isolation exigent un Postgres réel).
-- RLS sur TOUTE table ; le motif ne sort JAMAIS vers la conjointe (R7).
+- Réconcilier la carte avec le code réel AVANT d'implémenter — en particulier la
+  stratégie d'auth (GoTrue exige Docker ou un projet Supabase Cloud : trancher d'abord).
+- Réutiliser le schéma foyer du Sprint 2 (memberships, is_household_owner) — ne pas le recréer.
+- La vue conjointe ne reçoit JAMAIS le motif (R7).
 - Toute capacité affirmée existante porte une référence fichier:ligne vérifiée en session.
-- Gates : pnpm vitest run + pnpm tsc --noEmit + pnpm biome check . + pnpm build, tous verts,
-  + les 3 tests d'isolation RLS.
+- Gates : pnpm vitest run + pnpm tsc --noEmit + pnpm biome check . + pnpm build, tous verts.
 - Preuve d'acceptation observable (sorties réelles), compteurs mesurés.
 - Fin de sprint = ROADMAP à jour + nouvelle carte + commit. PAS de push sans me demander.
 ```
