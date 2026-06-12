@@ -129,4 +129,58 @@ describe.skipIf(!rlsAvailable)("Isolation RLS (Postgres réel)", () => {
       expect(afterHouseholds[0]?.n).toBe(0);
     });
   });
+
+  describe("4. Données de la vue « coup d'œil » (Sprint 4)", () => {
+    it("la conjointe lit l'équipe du travailleur de SON foyer (vue conjointe, FR-3)", async () => {
+      const rows = await queryAs<{ team: string }>(
+        FIX.spouseA,
+        "select team from public.worker_assignments where household_id = $1 and profile_id = $2",
+        [FIX.householdA, FIX.workerA],
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.team).toBe("A");
+    });
+
+    it("un membre d'un autre foyer ne lit jamais l'affectation d'équipe du foyer A", async () => {
+      const rows = await queryAs(
+        FIX.workerB,
+        "select team from public.worker_assignments where household_id = $1",
+        [FIX.householdA],
+      );
+      expect(rows).toHaveLength(0);
+    });
+
+    it("le travailleur change sa propre équipe (upsert sous RLS)", async () => {
+      await asUser(FIX.workerA, (client) =>
+        client.query(
+          `insert into public.worker_assignments (household_id, profile_id, team)
+           values ($1, $2, 'B')
+           on conflict (household_id, profile_id) do update set team = excluded.team`,
+          [FIX.householdA, FIX.workerA],
+        ),
+      );
+      const rows = await queryAs<{ team: string }>(
+        FIX.workerA,
+        "select team from public.worker_assignments where household_id = $1 and profile_id = $2",
+        [FIX.householdA, FIX.workerA],
+      );
+      expect(rows[0]?.team).toBe("B");
+    });
+
+    it("la conjointe lit la fenêtre de sommeil du travailleur (disponibilité, pas un motif)", async () => {
+      await asUser(FIX.workerA, (client) =>
+        client.query(
+          "insert into public.sleep_defaults (household_id, profile_id, start_time, end_time) values ($1, $2, '07:30', '15:30')",
+          [FIX.householdA, FIX.workerA],
+        ),
+      );
+      const rows = await queryAs<{ start_time: string }>(
+        FIX.spouseA,
+        "select start_time from public.sleep_defaults where household_id = $1 and profile_id = $2",
+        [FIX.householdA, FIX.workerA],
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.start_time).toBe("07:30:00");
+    });
+  });
 });

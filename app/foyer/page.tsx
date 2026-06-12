@@ -1,6 +1,8 @@
+import { SelecteurEquipe } from "@/components/equipe/selecteur-equipe";
 import { fr } from "@/lib/i18n/fr";
 import { requestOrigin } from "@/lib/request-origin";
 import { createClient } from "@/lib/supabase/server";
+import { equipeSchema } from "@/lib/validation";
 import { redirect } from "next/navigation";
 import { annulerInvitation, creerInvitation, quitterFoyer, revoquerMembre } from "./actions";
 
@@ -10,6 +12,7 @@ import { annulerInvitation, creerInvitation, quitterFoyer, revoquerMembre } from
 const ERREURS: Record<string, string> = {
   invitation: fr.foyer.erreurInvitation,
   revocation: fr.foyer.erreurRevocation,
+  equipe: fr.equipe.erreur,
 };
 
 export default async function FoyerPage({
@@ -28,7 +31,7 @@ export default async function FoyerPage({
 
   const { data: monAdhesion } = await supabase
     .from("memberships")
-    .select("id, household_id")
+    .select("id, household_id, role")
     .eq("profile_id", user.id)
     .limit(1)
     .maybeSingle();
@@ -36,30 +39,48 @@ export default async function FoyerPage({
     redirect("/onboarding");
   }
 
-  const [{ data: foyer }, { data: membres }, { data: invitations }] = await Promise.all([
-    supabase
-      .from("households")
-      .select("id, name, owner_id")
-      .eq("id", monAdhesion.household_id)
-      .single(),
-    supabase
-      .from("memberships")
-      .select("id, role, profile_id, profiles(full_name)")
-      .eq("household_id", monAdhesion.household_id)
-      .order("created_at"),
-    supabase
-      .from("invitations")
-      .select("id, code")
-      .eq("household_id", monAdhesion.household_id)
-      .is("used_at", null)
-      // Filtre d'affichage seulement (horloge du serveur Next) : l'expiration qui
-      // fait foi est revérifiée en BD par redeem_invitation.
-      .gt("expires_at", new Date().toISOString())
-      .order("created_at"),
-  ]);
+  // L'équipe du travailleur (Sprint 4) : affichée et modifiable ici. Requête jointe
+  // au Promise.all (un aller-retour de moins sur le chemin chaud de la page).
+  const affectationQuery =
+    monAdhesion.role === "worker"
+      ? supabase
+          .from("worker_assignments")
+          .select("team")
+          .eq("household_id", monAdhesion.household_id)
+          .eq("profile_id", user.id)
+          .maybeSingle()
+      : null;
+
+  const [{ data: foyer }, { data: membres }, { data: invitations }, affectationRes] =
+    await Promise.all([
+      supabase
+        .from("households")
+        .select("id, name, owner_id")
+        .eq("id", monAdhesion.household_id)
+        .single(),
+      supabase
+        .from("memberships")
+        .select("id, role, profile_id, profiles(full_name)")
+        .eq("household_id", monAdhesion.household_id)
+        .order("created_at"),
+      supabase
+        .from("invitations")
+        .select("id, code")
+        .eq("household_id", monAdhesion.household_id)
+        .is("used_at", null)
+        // Filtre d'affichage seulement (horloge du serveur Next) : l'expiration qui
+        // fait foi est revérifiée en BD par redeem_invitation.
+        .gt("expires_at", new Date().toISOString())
+        .order("created_at"),
+      affectationQuery,
+    ]);
   if (!foyer) {
     redirect("/onboarding");
   }
+  if (affectationRes?.error) {
+    throw affectationRes.error;
+  }
+  const monAffectation = affectationRes?.data ?? null;
 
   const estProprietaire = foyer.owner_id === user.id;
   const origin = await requestOrigin();
@@ -119,6 +140,17 @@ export default async function FoyerPage({
           ))}
         </ul>
       </section>
+
+      {monAdhesion.role === "worker" ? (
+        <section className="flex flex-col items-start gap-3">
+          <h2 className="text-xl font-semibold">{fr.equipe.actuelle}</h2>
+          <SelecteurEquipe
+            householdId={monAdhesion.household_id}
+            retour="/foyer"
+            equipeActuelle={monAffectation ? equipeSchema.parse(monAffectation.team) : null}
+          />
+        </section>
+      ) : null}
 
       {estProprietaire ? (
         <section className="flex flex-col gap-3">

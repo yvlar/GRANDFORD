@@ -1,0 +1,55 @@
+import { VueCoupDoeil } from "@/components/horaire/vue-coup-doeil";
+import { GRANDFORD_CYCLE } from "@/lib/engine";
+import { todayCivil } from "@/lib/schedule/today";
+import type { ScheduleException } from "@/lib/schedule/types";
+import { dateCivileSchema, equipeSchema } from "@/lib/validation";
+import { notFound } from "next/navigation";
+import { z } from "zod";
+
+// Démo de la vue « coup d'œil » SANS authentification — uniquement pour constater
+// la preuve d'acceptation du Sprint 4 dans les environnements où GoTrue ne tourne
+// pas (contrainte documentée depuis le Sprint 2 : Docker bloqué). N'expose que des
+// données calculées (horaire déterministe public) ou factices (`ecart`), jamais
+// une donnée réelle de foyer. Inaccessible sans GRANDFORD_DEMO=1 (jamais en prod).
+//
+//   /demo/horaire?equipe=A&date=2026-06-11            → pastille du travailleur
+//   /demo/horaire?role=spouse&ecart=2026-06-12        → vue conjointe, écart factice
+
+const parametresSchema = z.object({
+  equipe: equipeSchema.default("A"),
+  date: dateCivileSchema.optional(),
+  role: z.enum(["worker", "spouse"]).default("worker"),
+  ecart: dateCivileSchema.optional(),
+});
+
+export default async function DemoHorairePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  if (process.env.GRANDFORD_DEMO !== "1") {
+    notFound();
+  }
+
+  const lecture = parametresSchema.safeParse(await searchParams);
+  if (!lecture.success) {
+    notFound();
+  }
+  const params = lecture.data;
+  const ecarts: ScheduleException[] = params.ecart
+    ? [{ onDate: params.ecart, effect: "off", shift: null }]
+    : [];
+
+  return (
+    <VueCoupDoeil
+      role={params.role}
+      team={params.equipe}
+      template={GRANDFORD_CYCLE}
+      exceptions={ecarts}
+      sleepDefault={null}
+      initialToday={params.date ?? todayCivil()}
+      workerName={params.role === "spouse" ? "Démo" : null}
+      clockFrozen={params.date !== undefined}
+    />
+  );
+}

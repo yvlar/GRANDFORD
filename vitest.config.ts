@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
 // Le moteur est pur : tests en environnement Node, sans DOM. Pas de mock du moteur
@@ -5,6 +6,10 @@ import { defineConfig } from "vitest/config";
 // Les tests d'isolation RLS (supabase/tests) tournent contre un vrai Postgres ; le
 // globalSetup prépare une base vierge, ou marque les tests à ignorer si la BD est absente.
 export default defineConfig({
+  resolve: {
+    // Même alias que tsconfig.json (imports absolus `@/…`, règle conventions-code-base.md).
+    alias: { "@": fileURLToPath(new URL(".", import.meta.url)) },
+  },
   test: {
     environment: "node",
     include: ["lib/**/*.test.ts", "supabase/tests/**/*.test.ts"],
