@@ -9,5 +9,9 @@ export default defineConfig({
     environment: "node",
     include: ["lib/**/*.test.ts", "supabase/tests/**/*.test.ts"],
     globalSetup: ["supabase/tests/global-setup.ts"],
+    // WHY: les fichiers de supabase/tests partagent UNE base et des seeds qui
+    // tronquent tout — exécutés en parallèle, ils se sabotent (deadlocks, données
+    // disparues sous les pieds d'une transaction). La suite reste < 10 s.
+    fileParallelism: false,
   },
 });
