@@ -15,7 +15,7 @@
 - **Compteurs de tests toujours mesurés** par une commande dans la session ; non mesuré → omis.
 
 ## Fin de sprint = 3 étapes automatiques (sans demander confirmation pour la doc)
-1. **`ROADMAP.md`** : sprint ✅, **version++** (pré-1.0 : bump mineur par sprint complété, patch pour correctif), rotation d'archive si un 5ᵉ bloc détaillé apparaît.
+1. **`ROADMAP.md`** : sprint ✅, **version++** (pré-1.0 : bump mineur par sprint complété, patch pour correctif), rotation d'archive si un 5ᵉ bloc détaillé apparaît ; **synchroniser le champ `version` de `package.json`** sur la même valeur (ROADMAP reste la source, `package.json` suit).
 2. **Réécrire `prompt-mise-a-jour-roadmap.md`** pour le sprint suivant : État (2-3 lignes, pointe vers ROADMAP) · LECTURE OBLIGATOIRE (1-2 règles cadrées) · TÂCHE (Spécification + Tests + **Preuve d'acceptation observable**) · SPRINTS SUGGÉRÉS (3-5, format : Objectif / Complexité / Justification / **Référence** `fichier:ligne` vérifiée ou « à créer ») · Template de démarrage.
 3. **Commit unique** incluant code + doc du sprint, message structuré.
 

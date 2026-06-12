@@ -17,7 +17,7 @@
 5. **Preuve d'acceptation observable** : exécuter ce que la carte décrit et **constater** le résultat (sortie de commande, démo, comportement) — « ça compile » ou « les tests passent » ne suffit pas si la carte exige une observation précise.
 6. **Revue indépendante** (contexte frais — jamais l'auteur) : lancer `/code-review` à effort **high** en fournissant les critères d'acceptation du sprint ; **traiter** les findings (corriger ou justifier) ; puis une passe `/simplify`.
 7. **Fin de sprint — 3 étapes automatiques** (sans confirmation) :
-   1. `ROADMAP.md` : sprint ✅, version++, rotation vers `docs/roadmap-archive.md` si 5ᵉ bloc détaillé ;
+   1. `ROADMAP.md` : sprint ✅, version++, synchroniser `version` de `package.json`, rotation vers `docs/roadmap-archive.md` si 5ᵉ bloc détaillé ;
    2. réécrire `prompt-mise-a-jour-roadmap.md` pour le sprint suivant (format complet, champ **Référence** vérifié) ;
    3. **commit unique** : code + tests + doc du sprint, message structuré (quoi, pourquoi, gates mesurés).
 8. **Demander confirmation** pour `git push`. Sans accord explicite : ne pas pousser.

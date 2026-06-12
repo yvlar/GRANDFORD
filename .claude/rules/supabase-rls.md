@@ -1,10 +1,10 @@
 # Supabase & RLS — sécurité multi-tenant
 
-**Portée** : `supabase/**` + tout code d'accès aux données (`lib/**` touchant la BD).
+**Portée** : `supabase/**` + tout code d'accès aux données (`lib/**` touchant la BD, `middleware.ts`).
 
 > C'est la préoccupation critique du projet : une RLS mal écrite = fuite entre foyers ou fuite du motif dans le couple (R7 — `docs/analyse/02-analyse/analyse.md:77`).
 
-- **RLS activée sur TOUTE table, sans exception.** Politique de base : « membre du foyer » via `household_id` porteur sur chaque table (`docs/analyse/03-architecture/architecture.md:109`).
+- **RLS activée sur TOUTE table, sans exception.** Politique de base : « membre du foyer » via `household_id` porteur sur chaque table (`docs/analyse/03-architecture/architecture.md:108-110`).
 - **Étanchéité du motif (`architecture.md:111`)** : le motif d'une absence vit dans la table séparée `exception_private`, policy « **travailleur propriétaire seul** ». La conjointe lit `exceptions` (présent/absent) et ne peut **jamais** joindre ou sélectionner le motif. Aucune vue, fonction ou Edge Function ne doit recombiner les deux pour un non-propriétaire.
 - **Tests d'isolation RLS = livrable de première classe**, obligatoires dès qu'un sprint touche au schéma, à une policy ou à une donnée de foyer :
   1. un membre d'un foyer ne lit jamais les données d'un autre foyer ;
