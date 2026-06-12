@@ -1,7 +1,10 @@
 "use client";
 
+import { PanneauCapture } from "@/components/capture/panneau-capture";
 import type { CycleTemplate, Team } from "@/lib/engine";
 import { fr } from "@/lib/i18n/fr";
+import type { CaptureHandlers, OwnException } from "@/lib/schedule/capture";
+import { FORMAT_JOUR_LONG, dateUTC } from "@/lib/schedule/format";
 import {
   addDays,
   availabilityFor,
@@ -56,12 +59,6 @@ const AFFICHAGE_CONJOINTE: Record<Availability, Affichage> = {
 
 // Dates affichées : les chaînes civiles 'YYYY-MM-DD' sont formatées en UTC pour ne
 // pas glisser d'un jour selon le fuseau du navigateur (la date civile est la vérité).
-const FORMAT_JOUR_LONG = new Intl.DateTimeFormat("fr-CA", {
-  weekday: "long",
-  day: "numeric",
-  month: "long",
-  timeZone: "UTC",
-});
 const FORMAT_MOIS = new Intl.DateTimeFormat("fr-CA", {
   month: "long",
   year: "numeric",
@@ -72,8 +69,14 @@ const FORMAT_LETTRE_JOUR = new Intl.DateTimeFormat("fr-CA", {
   timeZone: "UTC",
 });
 
-function dateUTC(date: string): Date {
-  return new Date(`${date}T00:00:00Z`);
+/** Point « écart à l'horaire » d'une case de la grille (même rendu pour les deux rôles). */
+function MarqueurEcart() {
+  return (
+    <span
+      aria-label={fr.horaire.ecart}
+      className="absolute right-1 top-1 h-2 w-2 rounded-full bg-black/60"
+    />
+  );
 }
 
 // Lettres D L M M J V S : dérivées d'une semaine réelle commençant un dimanche
@@ -100,6 +103,15 @@ export interface VueCoupDoeilProps {
   readonly exceptionsRange?: { readonly from: string; readonly to: string } | null;
   /** Démo/preuve : fige « aujourd'hui » sur initialToday (jamais en usage réel). */
   readonly clockFrozen?: boolean;
+  /**
+   * Capture d'écart (Sprint 5) — branche TRAVAILLEUR seulement : ses propres écarts
+   * (id + motif) et les gestes d'écriture. La conjointe ne reçoit jamais cette prop,
+   * son payload reste sans motif (R7).
+   */
+  readonly capture?: {
+    readonly ownExceptions: readonly OwnException[];
+    readonly handlers: CaptureHandlers;
+  } | null;
 }
 
 export function VueCoupDoeil({
@@ -112,10 +124,14 @@ export function VueCoupDoeil({
   workerName = null,
   exceptionsRange = null,
   clockFrozen = false,
+  capture = null,
 }: VueCoupDoeilProps) {
   const t = fr.horaire;
   const [today, setToday] = useState(initialToday);
   const [monthAnchor, setMonthAnchor] = useState(initialToday);
+  // Jour ciblé par le panneau de capture (null = panneau fermé). La clé du panneau
+  // est ce jour : rouvrir sur un autre jour repart d'un état neuf.
+  const [captureDate, setCaptureDate] = useState<string | null>(null);
   useEffect(() => {
     // WHY: l'accueil peut être servi depuis le cache PWA (hors-ligne) avec un
     // « aujourd'hui » périmé — l'horloge du client fait foi après hydratation.
@@ -188,6 +204,17 @@ export function VueCoupDoeil({
         ) : null}
       </section>
 
+      {/* Capture d'écart (FR-4) : LE geste central — tap 1 du budget ≤ 3 taps. */}
+      {capture ? (
+        <button
+          type="button"
+          onClick={() => setCaptureDate(today)}
+          className="rounded-2xl bg-emerald-600 px-6 py-4 text-xl font-bold hover:bg-emerald-500"
+        >
+          ➕ {fr.capture.saisirEcart}
+        </button>
+      ) : null}
+
       {/* Bande semaine : aujourd'hui + 6 jours. */}
       <section aria-label={t.semaine}>
         <ul className="grid grid-cols-7 gap-1">
@@ -256,21 +283,27 @@ export function VueCoupDoeil({
           ))}
           {grid.days.map((day) => {
             const aff = affichagePour(day);
-            return (
-              <div
+            const titre = `${FORMAT_JOUR_LONG.format(dateUTC(day.date))} : ${aff.etiquette}`;
+            const classes = `relative flex h-10 items-center justify-center rounded-lg text-base font-bold ${aff.classes} ${
+              day.date === today ? "ring-2 ring-white" : ""
+            }`;
+            // Travailleur : chaque jour de la grille est un point de capture (le jour
+            // tapé devient le jour par défaut du panneau) ou d'accès au détail/suppression.
+            return capture ? (
+              <button
                 key={day.date}
-                title={`${FORMAT_JOUR_LONG.format(dateUTC(day.date))} : ${aff.etiquette}`}
-                className={`relative flex h-10 items-center justify-center rounded-lg text-base font-bold ${aff.classes} ${
-                  day.date === today ? "ring-2 ring-white" : ""
-                }`}
+                type="button"
+                title={titre}
+                onClick={() => setCaptureDate(day.date)}
+                className={classes}
               >
                 {Number(day.date.slice(8))}
-                {day.fromException ? (
-                  <span
-                    aria-label={t.ecart}
-                    className="absolute right-1 top-1 h-2 w-2 rounded-full bg-black/60"
-                  />
-                ) : null}
+                {day.fromException ? <MarqueurEcart /> : null}
+              </button>
+            ) : (
+              <div key={day.date} title={titre} className={classes}>
+                {Number(day.date.slice(8))}
+                {day.fromException ? <MarqueurEcart /> : null}
               </div>
             );
           })}
@@ -288,6 +321,16 @@ export function VueCoupDoeil({
           </span>
         ))}
       </section>
+
+      {capture && captureDate ? (
+        <PanneauCapture
+          key={captureDate}
+          date={captureDate}
+          ownException={capture.ownExceptions.find((e) => e.onDate === captureDate) ?? null}
+          handlers={capture.handlers}
+          onClose={() => setCaptureDate(null)}
+        />
+      ) : null}
     </main>
   );
 }
