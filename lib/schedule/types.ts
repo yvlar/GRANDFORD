@@ -24,6 +24,15 @@ export interface SleepWindow {
   readonly end: string;
 }
 
+/**
+ * Ajustement de la fenêtre de sommeil pour UNE date (FR-6, « au cas par cas »).
+ * Disponibilité partageable, comme la fenêtre par défaut — jamais un motif (R7).
+ */
+export interface SleepAdjustment {
+  readonly onDate: string; // 'YYYY-MM-DD'
+  readonly window: SleepWindow;
+}
+
 /** État affichable d'une journée pour le travailleur (pastille, semaine, mois). */
 export type DayStatusKind = "conge" | "jour" | "nuit" | "sommeil";
 

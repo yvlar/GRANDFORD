@@ -7,10 +7,10 @@
 
 | Champ | Valeur |
 |---|---|
-| **Version** | 0.6.0 |
+| **Version** | 0.7.0 |
 | **Phase active** | MVP |
-| **Sprint actif** | **Sprint 6 — Fenêtre de sommeil par défaut** |
-| **Dernier sprint complété** | Sprint 5 — Capture d'exception ≤ 3 taps ✅ |
+| **Sprint actif** | **Sprint 7 — Notifications** |
+| **Dernier sprint complété** | Sprint 6 — Fenêtre de sommeil par défaut ✅ |
 
 Note dépôt : branche d'intégration = **`dev`** (créée le 2026-06-11 depuis `claude/brave-pascal-5o9eiv`, première branche du dépôt — analyse + gouvernance). Chaque sprint : une branche `claude/sprintNN-<nom-court>` depuis `dev`, fusionnée par PR vers `dev`. Une `main` de production pourra naître de `dev` à la première mise en ligne (Sprint 8).
 
@@ -22,10 +22,7 @@ Note dépôt : branche d'intégration = **`dev`** (créée le 2026-06-11 depuis 
 
 ## Sprints MVP
 
-> Sprint 1 archivé : `docs/roadmap-archive.md`.
-
-### Sprint 2 — Schéma Postgres + RLS + tests d'isolation ✅
-**Livré** : 13 tables du domaine (toutes porteuses de `household_id`) en 2 migrations versionnées ; **RLS activée sur les 13** avec politique « membre du foyer » (helpers `SECURITY DEFINER` anti-récursion) ; **étanchéité du motif structurelle** — `exception_private` arrimé à l'exception parente par FK composites, lisible par le seul travailleur propriétaire (la conjointe obtient 0 ligne) ; types BD générés (`lib/database.types.ts`) ; **tests d'isolation** des 3 scénarios (isolation inter-foyers · motif étanche · révocation immédiate) contre un **vrai Postgres**. Gates mesurés : vitest **35** (27 moteur + 8 isolation), tsc 0, biome 0, build OK. Contrainte d'env : stack Docker Supabase indisponible (CDN d'images bloqué) → Postgres natif + impersonation de rôle (comme PostgREST), `scripts/local-db.sh` ; `supabase start` reste la voie normale ailleurs. Fondation de FR-12.
+> Sprints 1-2 archivés : `docs/roadmap-archive.md`.
 
 ### Sprint 3 — Auth sans mot de passe + foyer ✅
 **Livré** : client Supabase typé (`lib/supabase/` : navigateur, serveur, middleware — `@supabase/ssr`) ; pages connexion (lien magique + OAuth Google/Apple), callback, déconnexion ; onboarding (création foyer) ; page foyer (membres, invitation par lien à usage unique, révocation, quitter) — Server Components purs, chaînes dans `lib/i18n/fr.ts`. Migration `…_sprint03_auth_household.sql` : trigger `handle_new_user` (auth.users → profiles), RPC atomique `create_household_with_membership` (SECURITY INVOKER, sous RLS), table `invitations` (RLS propriétaire seul, expiration 7 j), RPC `redeem_invitation` (SECURITY DEFINER, refus par ERRCODE stables GF001-GF004) ; types régénérés. Gates mesurés : vitest **48** (35 + 13 cycle de vie foyer), tsc 0, biome 0, build OK. Contrainte d'env : GoTrue inexécutable localement (Docker bloqué, cf. Sprint 2) → flux d'auth validés **au niveau BD** (insert `auth.users` = effet GoTrue) ; la frontière GoTrue réelle (lien magique, OAuth) reste **à valider contre un projet Supabase Cloud** (au plus tard Sprint 8). Couvre FR-11, FR-12.
@@ -36,12 +33,12 @@ Note dépôt : branche d'intégration = **`dev`** (créée le 2026-06-11 depuis 
 ### Sprint 5 — Capture d'exception ≤ 3 taps ✅
 **Livré** : flux de capture complet (FR-4/FR-5/FR-7) — bouton accueil → 6 tuiles → confirmation ; jour par défaut = aujourd'hui ou jour tapé dans la grille ; **OT = 2 taps** (enregistré dès le tap de sa tuile, FR-7), autres tuiles = 3 taps — **comptés à l'écran** (Playwright sur `/demo/horaire?capture=1`, flux démo sans BD : mêmes composants + même sémantique pure, contrainte GoTrue des Sprints 2-4). Sémantique tranchée (`lib/schedule/capture.ts`, pur) : OT → `working_extra` au quart d'identité · congé/maladie/formation/vacances → `off` · échange → `shift_swap` au quart opposé ; motif = la tuile, vers `exception_private` seulement. **Écriture atomique** écart + motif par RPC `create_exception_with_motif` (SECURITY INVOKER sous RLS, doublon de jour → ERRCODE `GF005`) ; **annulation** = suppression par le propriétaire, cascade du motif constatée (0 orphelin). Le travailleur voit son motif (panneau détail) ; la conjointe : payload inspecté, **0 champ motif** (R7). Gates mesurés : vitest **95** (dont 14 mapping tuiles + 7 isolation du nouveau chemin RPC), tsc 0, biome 0, build OK. Note : E2E du chemin réel (actions serveur + revalidation) reste lié à la dette GoTrue → Sprint 8. Branche de session imposée `claude/prompt-executer-sprint-1z0e1d`.
 
-### Sprint 6 — Fenêtre de sommeil par défaut 🟡 ACTIF
-Configurée une fois, auto-appliquée à chaque quart de nuit, ajustable au cas par cas. Couvre FR-6.
-**Carte détaillée** : `prompt-mise-a-jour-roadmap.md`.
+### Sprint 6 — Fenêtre de sommeil par défaut ✅
+**Livré** : FR-6 complet. **Configuration unique** : formulaire « Fenêtre de sommeil » sur la page foyer (travailleur seulement), upsert `sleep_defaults`, valeurs proposées = fenêtre configurée sinon heuristique du gabarit. **Auto-application** : déjà câblée dans `dayStatuses` (vérifiée, pas réécrite). **Ajustement au cas par cas** (prémisse 3 de la carte tranchée : table dédiée) : nouvelle table `sleep_adjustments` — unique (foyer, travailleur, date), RLS « membre du foyer », migration `…_sprint06_sleep_adjustments.sql`, types régénérés — exposée dans le panneau du jour tapé quand c'est une journée de sommeil (bloc SOUS la capture : budget ≤ 3 taps des écarts intact, NFR-1) ; retirer l'ajustement ramène le jour au défaut. Priorité dans la couche pure : ajustement du jour > fenêtre configurée > heuristique 8 h ; un ajustement sur un jour sans sommeil est ignoré. La conjointe voit la fenêtre (disponibilité partagée), payload toujours sans motif (R7). Gates mesurés : vitest **103** (dont 15 isolation RLS — 3 nouveaux sur `sleep_adjustments`), tsc 0, biome 0, build OK ; preuve Playwright **11/11** sur `/demo/horaire` (fenêtre configurée affichée le jour post-nuit · repli heuristique 07:00-15:00 sans config · ajuster UN jour ne change pas les autres · retrait = retour au défaut · vue conjointe sans motif) — contrainte GoTrue inchangée (cf. Sprints 2-5). Branche de session imposée `claude/prompt-executer-sprint-kk603d`.
 
-### Sprint 7 — Notifications ⬜
-Web Push (VAPID) + repli courriel Resend ; planification 1 mois / 1 semaine / 1 jour via pg_cron + Edge Function (`architecture.md:119`). Couvre FR-10.
+### Sprint 7 — Notifications 🟡 ACTIF
+Web Push (VAPID) + repli courriel Resend ; planification 1 mois / 1 semaine / 1 jour via pg_cron + Edge Function (`architecture.md:121`). Couvre FR-10.
+**Carte détaillée** : `prompt-mise-a-jour-roadmap.md`.
 
 ### Sprint 8 — Mise en ligne + filets ⬜
 Déploiement Vercel + Supabase Cloud (CA/US-est) ; Sentry + UptimeRobot (uptime **et** réveil du projet gratuit) ; sauvegarde `pg_dump` quotidienne (GitHub Action) ; **test PWA installable + push sur l'iPhone réel** (R11/U-7, `architecture.md:130`).

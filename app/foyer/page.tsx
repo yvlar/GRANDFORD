@@ -1,6 +1,10 @@
 import { SelecteurEquipe } from "@/components/equipe/selecteur-equipe";
+import { FenetreSommeil } from "@/components/sommeil/fenetre-sommeil";
+import { GRANDFORD_CYCLE } from "@/lib/engine";
 import { fr } from "@/lib/i18n/fr";
 import { requestOrigin } from "@/lib/request-origin";
+import { parseSleepRow } from "@/lib/schedule/db-rows";
+import { defaultSleepWindow } from "@/lib/schedule/status";
 import { createClient } from "@/lib/supabase/server";
 import { equipeSchema } from "@/lib/validation";
 import { redirect } from "next/navigation";
@@ -13,6 +17,7 @@ const ERREURS: Record<string, string> = {
   invitation: fr.foyer.erreurInvitation,
   revocation: fr.foyer.erreurRevocation,
   equipe: fr.equipe.erreur,
+  sommeil: fr.sommeil.erreurEnregistrement,
 };
 
 export default async function FoyerPage({
@@ -39,8 +44,9 @@ export default async function FoyerPage({
     redirect("/onboarding");
   }
 
-  // L'équipe du travailleur (Sprint 4) : affichée et modifiable ici. Requête jointe
-  // au Promise.all (un aller-retour de moins sur le chemin chaud de la page).
+  // L'équipe du travailleur (Sprint 4) et sa fenêtre de sommeil (Sprint 6, FR-6) :
+  // affichées et modifiables ici. Requêtes jointes au Promise.all (moins
+  // d'allers-retours sur le chemin chaud de la page).
   const affectationQuery =
     monAdhesion.role === "worker"
       ? supabase
@@ -50,8 +56,17 @@ export default async function FoyerPage({
           .eq("profile_id", user.id)
           .maybeSingle()
       : null;
+  const sommeilQuery =
+    monAdhesion.role === "worker"
+      ? supabase
+          .from("sleep_defaults")
+          .select("start_time, end_time")
+          .eq("household_id", monAdhesion.household_id)
+          .eq("profile_id", user.id)
+          .maybeSingle()
+      : null;
 
-  const [{ data: foyer }, { data: membres }, { data: invitations }, affectationRes] =
+  const [{ data: foyer }, { data: membres }, { data: invitations }, affectationRes, sommeilRes] =
     await Promise.all([
       supabase
         .from("households")
@@ -73,6 +88,7 @@ export default async function FoyerPage({
         .gt("expires_at", new Date().toISOString())
         .order("created_at"),
       affectationQuery,
+      sommeilQuery,
     ]);
   if (!foyer) {
     redirect("/onboarding");
@@ -80,7 +96,11 @@ export default async function FoyerPage({
   if (affectationRes?.error) {
     throw affectationRes.error;
   }
+  if (sommeilRes?.error) {
+    throw sommeilRes.error;
+  }
   const monAffectation = affectationRes?.data ?? null;
+  const maFenetre = parseSleepRow(sommeilRes?.data ?? null);
 
   const estProprietaire = foyer.owner_id === user.id;
   const origin = await requestOrigin();
@@ -142,14 +162,24 @@ export default async function FoyerPage({
       </section>
 
       {monAdhesion.role === "worker" ? (
-        <section className="flex flex-col items-start gap-3">
-          <h2 className="text-xl font-semibold">{fr.equipe.actuelle}</h2>
-          <SelecteurEquipe
-            householdId={monAdhesion.household_id}
-            retour="/foyer"
-            equipeActuelle={monAffectation ? equipeSchema.parse(monAffectation.team) : null}
-          />
-        </section>
+        <>
+          <section className="flex flex-col items-start gap-3">
+            <h2 className="text-xl font-semibold">{fr.equipe.actuelle}</h2>
+            <SelecteurEquipe
+              householdId={monAdhesion.household_id}
+              retour="/foyer"
+              equipeActuelle={monAffectation ? equipeSchema.parse(monAffectation.team) : null}
+            />
+          </section>
+          <section className="flex flex-col items-start gap-3">
+            <h2 className="text-xl font-semibold">{fr.sommeil.titre}</h2>
+            <FenetreSommeil
+              householdId={monAdhesion.household_id}
+              fenetreActuelle={maFenetre}
+              fenetreProposee={defaultSleepWindow(GRANDFORD_CYCLE)}
+            />
+          </section>
+        </>
       ) : null}
 
       {estProprietaire ? (

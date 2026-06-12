@@ -1,9 +1,15 @@
 import { capturerEcart, supprimerEcart } from "@/app/ecarts/actions";
+import { ajusterSommeil, retirerAjustementSommeil } from "@/app/sommeil/actions";
 import { SelecteurEquipe } from "@/components/equipe/selecteur-equipe";
 import { VueCoupDoeil, type VueCoupDoeilProps } from "@/components/horaire/vue-coup-doeil";
 import { GRANDFORD_CYCLE, type Team } from "@/lib/engine";
 import { fr } from "@/lib/i18n/fr";
-import { parseExceptionRows, parseOwnExceptionRows, parseSleepRow } from "@/lib/schedule/db-rows";
+import {
+  parseExceptionRows,
+  parseOwnExceptionRows,
+  parseSleepAdjustmentRows,
+  parseSleepRow,
+} from "@/lib/schedule/db-rows";
 import { addDays } from "@/lib/schedule/status";
 import { todayCivil } from "@/lib/schedule/today";
 import { createClient } from "@/lib/supabase/server";
@@ -99,7 +105,7 @@ export default async function AccueilPage({
   const ecartsAu = addDays(today, 62);
   // R7 : `id` est partageable (la conjointe lit déjà la table sous RLS) ; le MOTIF,
   // lui, n'est demandé QUE dans la branche travailleur, plus bas — jamais ici.
-  const [exceptionsRes, sleepRes] = await Promise.all([
+  const [exceptionsRes, sleepRes, sleepAdjustmentsRes] = await Promise.all([
     supabase
       .from("exceptions")
       .select("id, on_date, effect, shift")
@@ -114,12 +120,25 @@ export default async function AccueilPage({
       .eq("household_id", householdId)
       .eq("profile_id", workerId)
       .maybeSingle(),
+    // Ajustements de sommeil (FR-6) : même fenêtre ±62 j que les écarts — c'est de
+    // la disponibilité partagée, les deux rôles la reçoivent (jamais un motif, R7).
+    supabase
+      .from("sleep_adjustments")
+      .select("on_date, start_time, end_time")
+      .eq("household_id", householdId)
+      .eq("profile_id", workerId)
+      .gte("on_date", ecartsDu)
+      .lte("on_date", ecartsAu)
+      .order("on_date"),
   ]);
   if (exceptionsRes.error) {
     throw exceptionsRes.error;
   }
   if (sleepRes.error) {
     throw sleepRes.error;
+  }
+  if (sleepAdjustmentsRes.error) {
+    throw sleepAdjustmentsRes.error;
   }
 
   // Branche TRAVAILLEUR : capture d'écart (Sprint 5) + ses propres motifs (badge du
@@ -145,6 +164,10 @@ export default async function AccueilPage({
         capturer: capturerEcart.bind(null, householdId),
         supprimer: supprimerEcart,
       },
+      sommeil: {
+        ajuster: ajusterSommeil.bind(null, householdId),
+        retirer: retirerAjustementSommeil.bind(null, householdId),
+      },
     };
   }
 
@@ -155,6 +178,7 @@ export default async function AccueilPage({
       template={GRANDFORD_CYCLE}
       exceptions={parseExceptionRows(exceptionsRes.data)}
       sleepDefault={parseSleepRow(sleepRes.data)}
+      sleepAdjustments={parseSleepAdjustmentRows(sleepAdjustmentsRes.data)}
       initialToday={today}
       workerName={workerName}
       exceptionsRange={{ from: ecartsDu, to: ecartsAu }}

@@ -183,4 +183,60 @@ describe.skipIf(!rlsAvailable)("Isolation RLS (Postgres réel)", () => {
       expect(rows[0]?.start_time).toBe("07:30:00");
     });
   });
+
+  describe("5. Ajustement de sommeil au cas par cas (Sprint 6, FR-6)", () => {
+    const insertAdjustment = () =>
+      asUser(FIX.workerA, (client) =>
+        client.query(
+          "insert into public.sleep_adjustments (household_id, profile_id, on_date, start_time, end_time) values ($1, $2, '2026-06-05', '09:00', '13:00')",
+          [FIX.householdA, FIX.workerA],
+        ),
+      );
+
+    it("le travailleur ajuste UN jour (upsert sous RLS) et la conjointe le lit (disponibilité)", async () => {
+      await insertAdjustment();
+      // Upsert : réajuster le même jour remplace, sans doublon.
+      await asUser(FIX.workerA, (client) =>
+        client.query(
+          `insert into public.sleep_adjustments (household_id, profile_id, on_date, start_time, end_time)
+           values ($1, $2, '2026-06-05', '10:00', '14:00')
+           on conflict (household_id, profile_id, on_date)
+           do update set start_time = excluded.start_time, end_time = excluded.end_time`,
+          [FIX.householdA, FIX.workerA],
+        ),
+      );
+      const rows = await queryAs<{ start_time: string }>(
+        FIX.spouseA,
+        "select start_time from public.sleep_adjustments where household_id = $1 and profile_id = $2 and on_date = '2026-06-05'",
+        [FIX.householdA, FIX.workerA],
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.start_time).toBe("10:00:00");
+    });
+
+    it("un membre d'un autre foyer ne lit jamais les ajustements du foyer A", async () => {
+      await insertAdjustment();
+      const rows = await queryAs(
+        FIX.workerB,
+        "select id from public.sleep_adjustments where household_id = $1",
+        [FIX.householdA],
+      );
+      expect(rows).toHaveLength(0);
+    });
+
+    it("un membre révoqué perd aussitôt l'accès aux ajustements", async () => {
+      await insertAdjustment();
+      await asUser(FIX.workerA, (client) =>
+        client.query("delete from public.memberships where household_id = $1 and profile_id = $2", [
+          FIX.householdA,
+          FIX.spouseA,
+        ]),
+      );
+      const rows = await queryAs<{ n: number }>(
+        FIX.spouseA,
+        "select count(*)::int as n from public.sleep_adjustments",
+      );
+      expect(rows[0]?.n).toBe(0);
+    });
+  });
 });

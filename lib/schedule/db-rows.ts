@@ -1,5 +1,5 @@
 import { type OwnException, TUILES } from "@/lib/schedule/capture";
-import type { ScheduleException, SleepWindow } from "@/lib/schedule/types";
+import type { ScheduleException, SleepAdjustment, SleepWindow } from "@/lib/schedule/types";
 import { z } from "zod";
 
 // Validation aux frontières (règle conventions-code-base.md) : les lignes Supabase
@@ -73,4 +73,17 @@ export function parseSleepRow(row: unknown): SleepWindow | null {
   }
   const parsed = sleepRowSchema.parse(row);
   return { start: parsed.start_time, end: parsed.end_time };
+}
+
+const sleepAdjustmentRowSchema = sleepRowSchema.extend({ on_date: z.string() });
+
+/** Lignes `sleep_adjustments` → ajustements par date (FR-6, Sprint 6). */
+export function parseSleepAdjustmentRows(rows: readonly unknown[]): SleepAdjustment[] {
+  return rows.map((row) => {
+    const parsed = sleepAdjustmentRowSchema.parse(row);
+    return {
+      onDate: parsed.on_date,
+      window: { start: parsed.start_time, end: parsed.end_time },
+    };
+  });
 }

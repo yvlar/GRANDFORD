@@ -1,5 +1,9 @@
 import { GRANDFORD_CYCLE } from "@/lib/engine";
-import { parseExceptionRows, parseSleepRow } from "@/lib/schedule/db-rows";
+import {
+  parseExceptionRows,
+  parseSleepAdjustmentRows,
+  parseSleepRow,
+} from "@/lib/schedule/db-rows";
 import {
   addDays,
   availabilityFor,
@@ -123,6 +127,45 @@ describe("statusForDate — superposition des écarts", () => {
   });
 });
 
+describe("ajustement de sommeil au cas par cas (FR-6, Sprint 6)", () => {
+  const AJUSTEMENT_5_JUIN = [{ onDate: "2026-06-05", window: { start: "09:00", end: "13:00" } }];
+
+  it("l'ajustement remplace la fenêtre configurée pour SA date seulement", () => {
+    const configuree = { start: "08:30", end: "16:00" };
+    // C dort le 5 (après ses nuits des 3-4) et le 10 (après ses nuits des 8-9).
+    const days = dayStatuses("C", "2026-06-05", "2026-06-10", T, AUCUN_ECART, configuree, [
+      ...AJUSTEMENT_5_JUIN,
+    ]);
+    expect(days[0]?.kind).toBe("sommeil");
+    expect(days[0]?.sleep).toEqual({ start: "09:00", end: "13:00" });
+    expect(days[5]?.kind).toBe("sommeil");
+    expect(days[5]?.sleep).toEqual(configuree);
+  });
+
+  it("sans fenêtre configurée, l'ajustement remplace l'heuristique pour SA date seulement", () => {
+    const ajuste = statusForDate("C", "2026-06-05", T, AUCUN_ECART, null, AJUSTEMENT_5_JUIN);
+    expect(ajuste.sleep).toEqual({ start: "09:00", end: "13:00" });
+    const autreJour = statusForDate("C", "2026-06-10", T, AUCUN_ECART, null, AJUSTEMENT_5_JUIN);
+    expect(autreJour.sleep).toEqual({ start: "07:00", end: "15:00" });
+  });
+
+  it("un ajustement sur un jour SANS sommeil est ignoré (pas de fenêtre inventée)", () => {
+    // Le 3 juin, C travaille de nuit — aucune fenêtre de sommeil ce jour-là.
+    const s = statusForDate("C", "2026-06-03", T, AUCUN_ECART, null, [
+      { onDate: "2026-06-03", window: { start: "09:00", end: "13:00" } },
+    ]);
+    expect(s.kind).toBe("nuit");
+    expect(s.sleep).toBeNull();
+  });
+
+  it("monthGrid applique l'ajustement au seul jour visé", () => {
+    const grid = monthGrid("C", "2026-06-11", T, AUCUN_ECART, null, AJUSTEMENT_5_JUIN);
+    const jours = new Map(grid.days.map((d) => [d.date, d]));
+    expect(jours.get("2026-06-05")?.sleep).toEqual({ start: "09:00", end: "13:00" });
+    expect(jours.get("2026-06-10")?.sleep).toEqual({ start: "07:00", end: "15:00" });
+  });
+});
+
 describe("dayStatuses — intervalle", () => {
   it("couvre chaque jour de l'intervalle, dans l'ordre", () => {
     const days = dayStatuses("A", "2026-06-01", "2026-06-30", T, AUCUN_ECART, null);
@@ -198,6 +241,15 @@ describe("frontières (db-rows, horloge)", () => {
       end: "16:00",
     });
     expect(parseSleepRow(null)).toBeNull();
+  });
+
+  it("parseSleepAdjustmentRows produit des ajustements datés, secondes tronquées", () => {
+    expect(
+      parseSleepAdjustmentRows([
+        { on_date: "2026-06-05", start_time: "09:00:00", end_time: "13:00:00" },
+      ]),
+    ).toEqual([{ onDate: "2026-06-05", window: { start: "09:00", end: "13:00" } }]);
+    expect(() => parseSleepAdjustmentRows([{ on_date: "2026-06-05" }])).toThrow();
   });
 
   it("todayCivil rend la date civile de Toronto (soirée UTC = même jour à Toronto)", () => {

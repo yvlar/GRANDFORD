@@ -5,6 +5,7 @@ import type { CycleTemplate, Team } from "@/lib/engine";
 import { fr } from "@/lib/i18n/fr";
 import type { CaptureHandlers, OwnException } from "@/lib/schedule/capture";
 import { FORMAT_JOUR_LONG, dateUTC } from "@/lib/schedule/format";
+import type { SommeilHandlers } from "@/lib/schedule/sommeil";
 import {
   addDays,
   availabilityFor,
@@ -19,6 +20,7 @@ import type {
   DayStatus,
   DayStatusKind,
   ScheduleException,
+  SleepAdjustment,
   SleepWindow,
 } from "@/lib/schedule/types";
 import Link from "next/link";
@@ -91,6 +93,8 @@ export interface VueCoupDoeilProps {
   readonly template: CycleTemplate;
   readonly exceptions: readonly ScheduleException[];
   readonly sleepDefault: SleepWindow | null;
+  /** Ajustements par date (FR-6) — disponibilité partagée, visibles des deux rôles. */
+  readonly sleepAdjustments?: readonly SleepAdjustment[];
   /** Date du rendu serveur ; resynchronisée sur l'horloge du client au montage. */
   readonly initialToday: string;
   /** Nom du travailleur (vue conjointe seulement). */
@@ -111,6 +115,8 @@ export interface VueCoupDoeilProps {
   readonly capture?: {
     readonly ownExceptions: readonly OwnException[];
     readonly handlers: CaptureHandlers;
+    /** Gestes d'ajustement du sommeil (FR-6) — proposés quand le jour tapé en est un. */
+    readonly sommeil?: SommeilHandlers | null;
   } | null;
 }
 
@@ -120,6 +126,7 @@ export function VueCoupDoeil({
   template,
   exceptions,
   sleepDefault,
+  sleepAdjustments = [],
   initialToday,
   workerName = null,
   exceptionsRange = null,
@@ -160,12 +167,45 @@ export function VueCoupDoeil({
     return null;
   };
 
-  const todayStatus = statusForDate(team, today, template, exceptions, sleepDefault);
-  const week = dayStatuses(team, today, addDays(today, 6), template, exceptions, sleepDefault);
-  const grid = monthGrid(team, monthAnchor, template, exceptions, sleepDefault);
+  const todayStatus = statusForDate(
+    team,
+    today,
+    template,
+    exceptions,
+    sleepDefault,
+    sleepAdjustments,
+  );
+  const week = dayStatuses(
+    team,
+    today,
+    addDays(today, 6),
+    template,
+    exceptions,
+    sleepDefault,
+    sleepAdjustments,
+  );
+  const grid = monthGrid(team, monthAnchor, template, exceptions, sleepDefault, sleepAdjustments);
   const pastille = affichagePour(todayStatus);
   const sousTitre = sousTitrePour(todayStatus);
   const legende = role === "worker" ? AFFICHAGE_TRAVAILLEUR : AFFICHAGE_CONJOINTE;
+
+  // Bloc d'ajustement du sommeil (FR-6) : proposé seulement si le jour tapé est une
+  // journée de SOMMEIL et que les gestes sont câblés (branche travailleur connectée).
+  const sommeilPourJour = (date: string) => {
+    const handlers = capture?.sommeil;
+    if (!handlers) {
+      return null;
+    }
+    const status = statusForDate(team, date, template, exceptions, sleepDefault, sleepAdjustments);
+    if (status.kind !== "sommeil" || status.sleep === null) {
+      return null;
+    }
+    return {
+      window: status.sleep,
+      ajuste: sleepAdjustments.some((a) => a.onDate === date),
+      handlers,
+    };
+  };
 
   const premierDuMois = `${grid.year}-${String(grid.month).padStart(2, "0")}-01`;
   const dernierDuMois = addDays(shiftMonth(premierDuMois, 1), -1);
@@ -328,6 +368,7 @@ export function VueCoupDoeil({
           date={captureDate}
           ownException={capture.ownExceptions.find((e) => e.onDate === captureDate) ?? null}
           handlers={capture.handlers}
+          sommeil={sommeilPourJour(captureDate)}
           onClose={() => setCaptureDate(null)}
         />
       ) : null}

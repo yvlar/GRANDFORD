@@ -575,6 +575,54 @@ export type Database = {
           },
         ]
       }
+      sleep_adjustments: {
+        Row: {
+          created_at: string
+          end_time: string
+          household_id: string
+          id: string
+          on_date: string
+          profile_id: string
+          start_time: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          end_time: string
+          household_id: string
+          id?: string
+          on_date: string
+          profile_id: string
+          start_time: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          end_time?: string
+          household_id?: string
+          id?: string
+          on_date?: string
+          profile_id?: string
+          start_time?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sleep_adjustments_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sleep_adjustments_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sleep_defaults: {
         Row: {
           created_at: string
