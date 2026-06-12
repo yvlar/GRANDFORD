@@ -7,10 +7,10 @@
 
 | Champ | Valeur |
 |---|---|
-| **Version** | 0.4.0 |
+| **Version** | 0.5.0 |
 | **Phase active** | MVP |
-| **Sprint actif** | **Sprint 4 — Vue « coup d'œil »** |
-| **Dernier sprint complété** | Sprint 3 — Auth sans mot de passe + foyer ✅ |
+| **Sprint actif** | **Sprint 5 — Capture d'exception ≤ 3 taps** |
+| **Dernier sprint complété** | Sprint 4 — Vue « coup d'œil » ✅ |
 
 Note dépôt : branche d'intégration = **`dev`** (créée le 2026-06-11 depuis `claude/brave-pascal-5o9eiv`, première branche du dépôt — analyse + gouvernance). Chaque sprint : une branche `claude/sprintNN-<nom-court>` depuis `dev`, fusionnée par PR vers `dev`. Une `main` de production pourra naître de `dev` à la première mise en ligne (Sprint 8).
 
@@ -31,12 +31,12 @@ Note dépôt : branche d'intégration = **`dev`** (créée le 2026-06-11 depuis 
 ### Sprint 3 — Auth sans mot de passe + foyer ✅
 **Livré** : client Supabase typé (`lib/supabase/` : navigateur, serveur, middleware — `@supabase/ssr`) ; pages connexion (lien magique + OAuth Google/Apple), callback, déconnexion ; onboarding (création foyer) ; page foyer (membres, invitation par lien à usage unique, révocation, quitter) — Server Components purs, chaînes dans `lib/i18n/fr.ts`. Migration `…_sprint03_auth_household.sql` : trigger `handle_new_user` (auth.users → profiles), RPC atomique `create_household_with_membership` (SECURITY INVOKER, sous RLS), table `invitations` (RLS propriétaire seul, expiration 7 j), RPC `redeem_invitation` (SECURITY DEFINER, refus par ERRCODE stables GF001-GF004) ; types régénérés. Gates mesurés : vitest **48** (35 + 13 cycle de vie foyer), tsc 0, biome 0, build OK. Contrainte d'env : GoTrue inexécutable localement (Docker bloqué, cf. Sprint 2) → flux d'auth validés **au niveau BD** (insert `auth.users` = effet GoTrue) ; la frontière GoTrue réelle (lien magique, OAuth) reste **à valider contre un projet Supabase Cloud** (au plus tard Sprint 8). Couvre FR-11, FR-12.
 
-### Sprint 4 — Vue « coup d'œil » 🟡 ACTIF
-Accueil : pastille Aujourd'hui (CONGÉ / JOUR / NUIT / SOMMEIL) + semaine + mois, lisible en < 2 s (NFR-1) ; vue conjointe = **disponibilité sans motif**. Couvre FR-2, FR-3.
-**Carte détaillée** : `prompt-mise-a-jour-roadmap.md`.
+### Sprint 4 — Vue « coup d'œil » ✅
+**Livré** : accueil connecté = vue « coup d'œil » (FR-2/FR-3) — pastille **Aujourd'hui** (CONGÉ/JOUR/NUIT/SOMMEIL, lisible < 2 s) + bande semaine + grille mois navigable, **moteur exécuté côté client** (hors-ligne constaté, NFR-4) ; écarts `exceptions` superposés (couche pure `lib/schedule/`, marqueur d'écart propagé au sommeil dérivé) ; sommeil après quart de nuit (`sleep_defaults`, sinon heuristique 8 h documentée) ; **vue conjointe = disponibilité (travaille/disponible/sommeil) sans motif** — payload réseau inspecté, 0 champ motif (R7) ; **sélection d'équipe A/B/C/D** (accueil 1re fois + page foyer, upsert `worker_assignments`) ; au-delà de ±62 j d'écarts chargés, la grille l'annonce (jamais de faux « horaire normal » silencieux). Décision : gabarit = `GRANDFORD_CYCLE` côté client (l'ensemencement `cycle_templates` attendra FR-17). Gates mesurés : vitest **74** (dont 12 isolation RLS, +4 sur les données de la vue), tsc 0, biome 0, build OK ; preuve Playwright sur les points réels validés (11 juin CONGÉ · 25 déc JOUR · écart sans motif · hors-ligne). Contrainte d'env (GoTrue indisponible, cf. Sprint 3) : preuve à l'écran via `/demo/horaire` (activable seulement par `GRANDFORD_DEMO=1`, données factices). Note : branche de session imposée `claude/prompt-executer-sprint-vgmvtn` (environnement distant) au lieu du nom standard.
 
-### Sprint 5 — Capture d'exception ≤ 3 taps ⬜
+### Sprint 5 — Capture d'exception ≤ 3 taps 🟡 ACTIF
 1 bouton → 6 tuiles (OT, congé, maladie, échange, formation, vacances) ; motif stocké côté privé seulement ; OT = geste le plus rapide de l'app. Couvre FR-4, FR-5, FR-7.
+**Carte détaillée** : `prompt-mise-a-jour-roadmap.md`.
 
 ### Sprint 6 — Fenêtre de sommeil par défaut ⬜
 Configurée une fois, auto-appliquée à chaque quart de nuit, ajustable au cas par cas. Couvre FR-6.

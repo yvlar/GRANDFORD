@@ -1,90 +1,83 @@
-# Carte d'embarquement — Sprint 4 : Vue « coup d'œil »
+# Carte d'embarquement — Sprint 5 : Capture d'exception ≤ 3 taps
 
 > Cette carte est **réécrite à chaque fin de sprint** pour le sprint suivant (règle : `.claude/rules/workflow-sprint.md`).
 > ⚠️ C'est une **prémisse à vérifier**, pas une vérité terrain : réconcilier chaque dépendance avec le code réel avant d'implémenter ; prémisse fausse → STOP + signalement.
 
 ## État
 
-Sprint 3 livré : auth sans mot de passe (lien magique + OAuth, validée au niveau BD), foyer complet (création, invitation à usage unique, révocation), client Supabase typé + middleware de session. État courant : voir la table en tête de `ROADMAP.md`. Ce sprint livre la **première valeur visible** : l'horaire « coup d'œil » (FR-2) et la vue conjointe sans motif (FR-3).
+Sprint 4 livré : vue « coup d'œil » (pastille + semaine + mois, moteur côté client, hors-ligne constaté), vue conjointe sans motif, sélection d'équipe. État courant : voir la table en tête de `ROADMAP.md`. Ce sprint livre le **cœur de la thèse produit** : capturer un écart en ≤ 3 taps (FR-4), motif privé (FR-5), OT = geste le plus rapide (FR-7).
 
 ## LECTURE OBLIGATOIRE
 
-1. `.claude/rules/moteur-pitman.md` — le moteur est **consommé**, jamais modifié ; golden intouchables ; date civile America/Toronto ; quart de nuit = date de **début**.
-2. `.claude/rules/conventions-frontend.md` — accueil lisible **< 2 s** (NFR-1), reconnaissance > rappel (pastilles/couleurs, pas de texte), hors-ligne (NFR-4 : le moteur tourne côté client), **la vue conjointe ne reçoit jamais le motif** (R7), chaînes dans `lib/i18n/fr.ts`.
+1. `.claude/rules/supabase-rls.md` — le motif vit dans `exception_private`, **travailleur propriétaire seul** ; toute écriture qui touche les deux tables doit rester étanche (R7) ; tests d'isolation obligatoires si schéma/policy/RPC touchés.
+2. `.claude/rules/conventions-frontend.md` — capture en **≤ 3 taps** (NFR-1), reconnaissance > rappel (6 grosses tuiles), chaînes dans `lib/i18n/fr.ts`, la conjointe ne reçoit JAMAIS le motif.
 3. `ROADMAP.md` (état + périmètre) ; les règles universelles s'appliquent toujours.
 
 ## Prémisses à réconcilier AVANT d'implémenter (vérifier dans la session)
 
-- **Moteur prêt et testé** (Sprint 1, vérifié) : `shiftForDate(team, date, template)` — `lib/engine/pitman.ts:101` ; `scheduleRange` — `lib/engine/pitman.ts:111` ; gabarit validé `GRANDFORD_CYCLE` — `lib/engine/cycle-template.ts`. Ne PAS toucher au moteur.
-- **Schéma prêt** (Sprint 2, vérifié) : `worker_assignments(team)` — `supabase/migrations/20260611192620_initial_schema.sql:81` ; `exceptions(effect, shift, on_date)` — `…:95` ; `sleep_defaults` — `…:138` ; `cycle_templates` — `…:65`. La conjointe lit `exceptions`, jamais `exception_private` (RLS, testée).
-- **⚠️ Aucune affectation d'équipe en UI** : `worker_assignments` n'a ni écran ni action (seul le seed des tests en crée). La vue a besoin de l'équipe du travailleur → prévoir la sélection d'équipe (onboarding ou page foyer) **à créer** ce sprint.
-- **⚠️ Aucun `cycle_templates` réel en BD hors seed des tests** : décider — ensemencer le gabarit du foyer à la création (`create_household_with_membership` étendue ou à l'affectation d'équipe), ou lire `GRANDFORD_CYCLE` côté client en attendant FR-17. Réconcilier avant d'implémenter.
-- **Hors-ligne (NFR-4)** : l'horaire de base se calcule **côté client** (moteur pur) ; seuls les écarts viennent du réseau. La pastille du jour ne doit jamais afficher un spinner réseau pour l'horaire normal.
+- **Schéma prêt, rien à migrer a priori** : `exceptions(on_date, effect, shift)` — `supabase/migrations/20260611192620_initial_schema.sql:95` (un écart par jour/travailleur :110 ; `effect in ('off','working','working_extra','shift_swap')` :102) ; `exception_private(motif, note)` — `…:120` (6 motifs des tuiles :125, FK composites d'étanchéité :132-133).
+- **La vue affiche déjà les écarts** : superposition pure — `lib/schedule/status.ts` (`dayStatuses`) ; chargement accueil (±62 j) — `app/page.tsx` ; marqueur visuel — `components/horaire/vue-coup-doeil.tsx`. Capturer = insérer en BD, la vue suit toute seule (revalidation à prévoir).
+- **⚠️ Aucune UI ni action d'écriture d'`exceptions`/`exception_private`** : seuls les seeds de test en créent (`supabase/tests/helpers.ts:144-153`). Tout le flux de capture est **à créer**.
+- **⚠️ Écriture atomique exceptions + motif** : deux inserts client ne sont pas transactionnels — prévoir une **RPC** (modèle : `create_household_with_membership`, SECURITY INVOKER sous RLS — `supabase/migrations/20260612005902_sprint03_auth_household.sql`) ou justifier explicitement l'alternative. Mapper tuile → (`effect`, `shift`, `motif`) : OT = `working_extra` sur jour de repos (FR-7) ; congé/maladie/vacances/formation = `off` ; échange = `shift_swap` (sémantique à trancher dans la session, sans réinventer le schéma).
+- **Actions serveur existantes comme modèle** : `app/foyer/actions.ts` (validation Zod en forme, RLS en droit, `revalidatePath`).
 
-## TÂCHE — Sprint 4
+## TÂCHE — Sprint 5
 
 ### Spécification
 
-1. **Affectation d'équipe (pré-requis de la vue)** : le travailleur choisit son équipe A/B/C/D (une fois) → `worker_assignments` ; modifiable dans la page foyer.
-2. **Vue travailleur (FR-2)** : accueil connecté = pastille **Aujourd'hui** (CONGÉ / JOUR / NUIT / SOMMEIL — gros, contrasté, lisible < 2 s) + bande **semaine** + grille **mois**. Moteur appelé côté client ; écarts (`exceptions`) superposés ; sommeil affiché après un quart de nuit (`sleep_defaults` si présents, sinon heuristique simple documentée).
-3. **Vue conjointe (FR-3)** : même accueil, mais sémantique **disponibilité** (travaille / disponible / sommeil) du travailleur du foyer ; aucune donnée de `exception_private` ne transite (ni payload, ni prop, ni log — R7).
-4. **Navigation** : l'accueil public actuel devient la porte d'entrée (connexion) ; l'usager connecté voit sa vue selon son rôle (`memberships.role`).
+1. **Geste de capture (FR-4)** : depuis l'accueil travailleur, 1 bouton → 6 tuiles (OT, congé, maladie, échange, formation, vacances) → choix du jour (défaut : aujourd'hui ou jour tapé dans la grille) → confirmation. **≤ 3 taps** pour le cas nominal ; OT le plus court (FR-7).
+2. **Persistance étanche (FR-5)** : `exceptions` (effet partageable) + `exception_private` (motif, propriétaire seul) écrits atomiquement ; jamais le motif dans `exceptions`, les logs ou l'URL.
+3. **Boucle de la vue** : après capture, la pastille/grille reflète l'écart (revalidation) ; le travailleur voit son motif (badge/détail), la conjointe seulement l'absence/présence.
+4. **Annulation** : pouvoir supprimer un écart saisi (erreur de doigt TDAH) — suppression cascade du motif (FK déjà en place).
 
 ### Tests / validation obligatoires (gates)
 
-- `pnpm vitest run` — moteur (golden intacts) + isolation RLS + logique critique d'UI (superposition écarts/sommeil en fonctions pures testées) ; compteur **mesuré**.
+- `pnpm vitest run` — mapping tuile → (effect, shift, motif) en fonctions pures testées ; **tests d'isolation étendus** si RPC/policy ajoutées (la conjointe ne peut ni lire ni écrire le motif via le nouveau chemin) ; compteur **mesuré**.
 - `pnpm tsc --noEmit` · `pnpm biome check .` · `pnpm build` — tous verts.
-- Si le sprint touche schéma/policy (ex. seed de `cycle_templates`) : tests d'isolation étendus.
 
 ### Preuve d'acceptation observable
 
-1. Captures/démo : pastille du jour correcte pour les **points réels validés** (2026-06-11 : équipe A **CONGÉ** ; 2026-12-25 : équipe A **JOUR**) — constaté à l'écran, pas seulement en test.
-2. Le travailleur avec une exception « off » voit CONGÉ ce jour-là ; sa conjointe voit « disponible/absent » **sans motif** — constaté (payload réseau inspecté : aucun champ motif).
-3. L'horaire du mois s'affiche sans réseau (moteur client) — constaté (mode hors-ligne).
+1. Capture d'un OT en ≤ 3 taps **comptés à l'écran** ; l'écart apparaît dans la grille avec son marqueur.
+2. Le travailleur voit le motif ; la conjointe voit l'absence **sans motif** — payload réseau inspecté (0 champ motif), et test d'isolation BD vert.
+3. Suppression d'un écart : la vue redevient l'horaire de base ; `exception_private` orphelin = 0 ligne (cascade constatée).
 
 ## SPRINTS SUGGÉRÉS
-
-### Sprint 5 — Capture d'exception ≤ 3 taps
-**Objectif** : 1 bouton → 6 tuiles (OT, congé, maladie, échange, formation, vacances) → confirmation ; motif côté privé seulement ; OT = geste le plus rapide.
-**Complexité** : Moyenne
-**Justification** : cœur de la thèse produit ; schéma prêt.
-**Référence** : `exceptions` — `supabase/migrations/20260611192620_initial_schema.sql:95` ; `exception_private` — `…:120` ; FR-4/5/7 — `docs/analyse/02-analyse/analyse.md:20-23`. Flux UI **à créer**.
 
 ### Sprint 6 — Fenêtre de sommeil par défaut
 **Objectif** : configurée une fois, auto-appliquée à chaque quart de nuit, ajustable au cas par cas.
 **Complexité** : Faible/Moyenne
-**Justification** : table prête ; la vue du Sprint 4 consomme déjà l'affichage sommeil.
-**Référence** : `sleep_defaults` — `supabase/migrations/20260611192620_initial_schema.sql:138` ; FR-6 — `analyse.md:22`. Logique d'application **à créer**.
+**Justification** : la vue consomme déjà `sleep_defaults` (heuristique de repli en place — `lib/schedule/status.ts`, `defaultSleepWindow`).
+**Référence** : `sleep_defaults` — `supabase/migrations/20260611192620_initial_schema.sql:138` ; FR-6 — `docs/analyse/02-analyse/analyse.md:22`. UI de configuration **à créer**.
 
 ### Sprint 7 — Notifications
 **Objectif** : Web Push (VAPID) + repli courriel Resend ; planification 1 mois / 1 sem. / 1 jour.
 **Complexité** : Élevée
-**Justification** : tables `reminders`/`push_subscriptions` prêtes (Sprint 2) ; pg_cron + Edge Function **à créer**.
-**Référence** : `architecture.md:119-123` ; FR-10.
+**Justification** : cœur « prothèse de mémoire » ; tables prêtes, déclenchement à bâtir.
+**Référence** : `reminders` — `supabase/migrations/20260611192620_initial_schema.sql:178` ; `push_subscriptions` — `…:204` ; pg_cron + Edge Function — `docs/analyse/03-architecture/architecture.md:121`. Tout le pipeline d'envoi **à créer**.
 
 ### Sprint 8 — Mise en ligne + filets
-**Objectif** : Vercel + Supabase Cloud (CA/US-est), Sentry/UptimeRobot, sauvegardes, test PWA + push sur l'iPhone réel (R11/U-7) — **et validation des flux GoTrue réels** (lien magique, OAuth) reportée du Sprint 3.
+**Objectif** : Vercel + Supabase Cloud (CA/US-est), Sentry/UptimeRobot, sauvegardes, test PWA + push sur l'iPhone réel (R11/U-7) — **et validation des flux GoTrue réels** (lien magique, OAuth) reportée des Sprints 3-4.
 **Complexité** : Moyenne
-**Justification** : la dette « GoTrue jamais exécuté » doit se solder contre un vrai projet.
-**Référence** : `architecture.md:130` ; contrainte documentée dans `ROADMAP.md` (Sprint 3).
+**Justification** : la dette « GoTrue jamais exécuté » doit se solder contre un vrai projet ; `GRANDFORD_DEMO` ne doit jamais y être défini.
+**Référence** : `architecture.md:130` ; contraintes documentées dans `ROADMAP.md` (Sprints 2-4).
 
 ## Template de démarrage (coller tel quel dans une nouvelle session)
 
 ```
 Lis CLAUDE.md, ROADMAP.md et prompt-mise-a-jour-roadmap.md, puis exécute le
-Sprint 4 (Vue « coup d'œil ») en suivant
+Sprint 5 (Capture d'exception ≤ 3 taps) en suivant
 .claude/prompts/prompt-executer-sprint.md — Phase A.
 
-Branche : claude/sprint04-vue-coup-doeil (à créer depuis dev).
+Branche : claude/sprint05-capture-exception (à créer depuis dev).
 
 Rappels non négociables :
 - Réconcilier la carte avec le code réel AVANT d'implémenter — en particulier
-  l'absence d'affectation d'équipe et de cycle_templates réels (trancher d'abord).
+  l'atomicité exceptions + exception_private (RPC à trancher d'abord).
+- Le motif ne sort JAMAIS vers la conjointe — ni payload, ni log, ni URL (R7).
+- ≤ 3 taps constatés à l'écran (NFR-1) ; OT = geste le plus rapide (FR-7).
 - Le moteur (lib/engine/) ne se modifie PAS ; golden intouchables.
-- La vue conjointe ne reçoit JAMAIS le motif (R7) — vérifier le payload réseau.
-- L'horaire s'affiche sans réseau (NFR-4) ; accueil lisible < 2 s (NFR-1).
 - Toute capacité affirmée existante porte une référence fichier:ligne vérifiée en session.
-- Gates : pnpm vitest run + pnpm tsc --noEmit + pnpm biome check . + pnpm build, tous verts.
-- Preuve d'acceptation observable (écran réel, mode hors-ligne), compteurs mesurés.
+- Gates : pnpm vitest run + pnpm tsc --noEmit + pnpm biome check . + pnpm build,
+  tous verts ; tests d'isolation étendus si RPC/policy ajoutées.
 - Fin de sprint = ROADMAP à jour + nouvelle carte + commit. PAS de push sans me demander.
 ```
