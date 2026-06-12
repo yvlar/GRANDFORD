@@ -1,8 +1,9 @@
+import { capturerEcart, supprimerEcart } from "@/app/ecarts/actions";
 import { SelecteurEquipe } from "@/components/equipe/selecteur-equipe";
-import { VueCoupDoeil } from "@/components/horaire/vue-coup-doeil";
+import { VueCoupDoeil, type VueCoupDoeilProps } from "@/components/horaire/vue-coup-doeil";
 import { GRANDFORD_CYCLE, type Team } from "@/lib/engine";
 import { fr } from "@/lib/i18n/fr";
-import { parseExceptionRows, parseSleepRow } from "@/lib/schedule/db-rows";
+import { parseExceptionRows, parseOwnExceptionRows, parseSleepRow } from "@/lib/schedule/db-rows";
 import { addDays } from "@/lib/schedule/status";
 import { todayCivil } from "@/lib/schedule/today";
 import { createClient } from "@/lib/supabase/server";
@@ -96,10 +97,12 @@ export default async function AccueilPage({
   // exception_private, ni ici ni dans le payload hydraté au client.
   const ecartsDu = addDays(today, -62);
   const ecartsAu = addDays(today, 62);
+  // R7 : `id` est partageable (la conjointe lit déjà la table sous RLS) ; le MOTIF,
+  // lui, n'est demandé QUE dans la branche travailleur, plus bas — jamais ici.
   const [exceptionsRes, sleepRes] = await Promise.all([
     supabase
       .from("exceptions")
-      .select("on_date, effect, shift")
+      .select("id, on_date, effect, shift")
       .eq("household_id", householdId)
       .eq("profile_id", workerId)
       .gte("on_date", ecartsDu)
@@ -119,6 +122,32 @@ export default async function AccueilPage({
     throw sleepRes.error;
   }
 
+  // Branche TRAVAILLEUR : capture d'écart (Sprint 5) + ses propres motifs (badge du
+  // détail). La RLS d'exception_private (propriétaire seul) garantit que cette
+  // requête ne renvoie que les siens ; la conjointe ne passe jamais par ici.
+  let capture: VueCoupDoeilProps["capture"] = null;
+  if (membership.role === "worker") {
+    // Borné aux écarts déjà chargés (exception_private n'a pas de date propre) :
+    // sans ce filtre, la requête rapporterait TOUS les motifs depuis toujours.
+    const motifsRes = await supabase
+      .from("exception_private")
+      .select("exception_id, motif")
+      .in(
+        "exception_id",
+        exceptionsRes.data.map((row) => row.id),
+      );
+    if (motifsRes.error) {
+      throw motifsRes.error;
+    }
+    capture = {
+      ownExceptions: parseOwnExceptionRows(exceptionsRes.data, motifsRes.data),
+      handlers: {
+        capturer: capturerEcart.bind(null, householdId),
+        supprimer: supprimerEcart,
+      },
+    };
+  }
+
   return (
     <VueCoupDoeil
       role={membership.role === "worker" ? "worker" : "spouse"}
@@ -129,6 +158,7 @@ export default async function AccueilPage({
       initialToday={today}
       workerName={workerName}
       exceptionsRange={{ from: ecartsDu, to: ecartsAu }}
+      capture={capture}
     />
   );
 }

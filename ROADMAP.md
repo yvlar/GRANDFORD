@@ -7,10 +7,10 @@
 
 | Champ | Valeur |
 |---|---|
-| **Version** | 0.5.0 |
+| **Version** | 0.6.0 |
 | **Phase active** | MVP |
-| **Sprint actif** | **Sprint 5 — Capture d'exception ≤ 3 taps** |
-| **Dernier sprint complété** | Sprint 4 — Vue « coup d'œil » ✅ |
+| **Sprint actif** | **Sprint 6 — Fenêtre de sommeil par défaut** |
+| **Dernier sprint complété** | Sprint 5 — Capture d'exception ≤ 3 taps ✅ |
 
 Note dépôt : branche d'intégration = **`dev`** (créée le 2026-06-11 depuis `claude/brave-pascal-5o9eiv`, première branche du dépôt — analyse + gouvernance). Chaque sprint : une branche `claude/sprintNN-<nom-court>` depuis `dev`, fusionnée par PR vers `dev`. Une `main` de production pourra naître de `dev` à la première mise en ligne (Sprint 8).
 
@@ -22,8 +22,7 @@ Note dépôt : branche d'intégration = **`dev`** (créée le 2026-06-11 depuis 
 
 ## Sprints MVP
 
-### Sprint 1 — Échafaudage + moteur Pitman ✅
-**Livré** : dépôt Next.js (App Router, TS strict + `noUncheckedIndexedAccess`, pnpm, Biome, Tailwind, shadcn/ui init, Serwist PWA — manifest + `sw.js`), scaffold `supabase/` prêt pour migrations (sans tables), et le **moteur Pitman pur** (`lib/engine/`) testé en premier — golden encodant les points réels validés (`docs/analyse/01-decouverte/02-cas-utilisation.md:108`) : ancre 3 juin, 11 juin congé A, 25 déc. A travaille, table complète de juin. Gates verts (vitest 27, tsc 0, biome 0, build OK). Couvre FR-1.
+> Sprint 1 archivé : `docs/roadmap-archive.md`.
 
 ### Sprint 2 — Schéma Postgres + RLS + tests d'isolation ✅
 **Livré** : 13 tables du domaine (toutes porteuses de `household_id`) en 2 migrations versionnées ; **RLS activée sur les 13** avec politique « membre du foyer » (helpers `SECURITY DEFINER` anti-récursion) ; **étanchéité du motif structurelle** — `exception_private` arrimé à l'exception parente par FK composites, lisible par le seul travailleur propriétaire (la conjointe obtient 0 ligne) ; types BD générés (`lib/database.types.ts`) ; **tests d'isolation** des 3 scénarios (isolation inter-foyers · motif étanche · révocation immédiate) contre un **vrai Postgres**. Gates mesurés : vitest **35** (27 moteur + 8 isolation), tsc 0, biome 0, build OK. Contrainte d'env : stack Docker Supabase indisponible (CDN d'images bloqué) → Postgres natif + impersonation de rôle (comme PostgREST), `scripts/local-db.sh` ; `supabase start` reste la voie normale ailleurs. Fondation de FR-12.
@@ -34,12 +33,12 @@ Note dépôt : branche d'intégration = **`dev`** (créée le 2026-06-11 depuis 
 ### Sprint 4 — Vue « coup d'œil » ✅
 **Livré** : accueil connecté = vue « coup d'œil » (FR-2/FR-3) — pastille **Aujourd'hui** (CONGÉ/JOUR/NUIT/SOMMEIL, lisible < 2 s) + bande semaine + grille mois navigable, **moteur exécuté côté client** (hors-ligne constaté, NFR-4) ; écarts `exceptions` superposés (couche pure `lib/schedule/`, marqueur d'écart propagé au sommeil dérivé) ; sommeil après quart de nuit (`sleep_defaults`, sinon heuristique 8 h documentée) ; **vue conjointe = disponibilité (travaille/disponible/sommeil) sans motif** — payload réseau inspecté, 0 champ motif (R7) ; **sélection d'équipe A/B/C/D** (accueil 1re fois + page foyer, upsert `worker_assignments`) ; au-delà de ±62 j d'écarts chargés, la grille l'annonce (jamais de faux « horaire normal » silencieux). Décision : gabarit = `GRANDFORD_CYCLE` côté client (l'ensemencement `cycle_templates` attendra FR-17). Gates mesurés : vitest **74** (dont 12 isolation RLS, +4 sur les données de la vue), tsc 0, biome 0, build OK ; preuve Playwright sur les points réels validés (11 juin CONGÉ · 25 déc JOUR · écart sans motif · hors-ligne). Contrainte d'env (GoTrue indisponible, cf. Sprint 3) : preuve à l'écran via `/demo/horaire` (activable seulement par `GRANDFORD_DEMO=1`, données factices). Note : branche de session imposée `claude/prompt-executer-sprint-vgmvtn` (environnement distant) au lieu du nom standard.
 
-### Sprint 5 — Capture d'exception ≤ 3 taps 🟡 ACTIF
-1 bouton → 6 tuiles (OT, congé, maladie, échange, formation, vacances) ; motif stocké côté privé seulement ; OT = geste le plus rapide de l'app. Couvre FR-4, FR-5, FR-7.
-**Carte détaillée** : `prompt-mise-a-jour-roadmap.md`.
+### Sprint 5 — Capture d'exception ≤ 3 taps ✅
+**Livré** : flux de capture complet (FR-4/FR-5/FR-7) — bouton accueil → 6 tuiles → confirmation ; jour par défaut = aujourd'hui ou jour tapé dans la grille ; **OT = 2 taps** (enregistré dès le tap de sa tuile, FR-7), autres tuiles = 3 taps — **comptés à l'écran** (Playwright sur `/demo/horaire?capture=1`, flux démo sans BD : mêmes composants + même sémantique pure, contrainte GoTrue des Sprints 2-4). Sémantique tranchée (`lib/schedule/capture.ts`, pur) : OT → `working_extra` au quart d'identité · congé/maladie/formation/vacances → `off` · échange → `shift_swap` au quart opposé ; motif = la tuile, vers `exception_private` seulement. **Écriture atomique** écart + motif par RPC `create_exception_with_motif` (SECURITY INVOKER sous RLS, doublon de jour → ERRCODE `GF005`) ; **annulation** = suppression par le propriétaire, cascade du motif constatée (0 orphelin). Le travailleur voit son motif (panneau détail) ; la conjointe : payload inspecté, **0 champ motif** (R7). Gates mesurés : vitest **95** (dont 14 mapping tuiles + 7 isolation du nouveau chemin RPC), tsc 0, biome 0, build OK. Note : E2E du chemin réel (actions serveur + revalidation) reste lié à la dette GoTrue → Sprint 8. Branche de session imposée `claude/prompt-executer-sprint-1z0e1d`.
 
-### Sprint 6 — Fenêtre de sommeil par défaut ⬜
+### Sprint 6 — Fenêtre de sommeil par défaut 🟡 ACTIF
 Configurée une fois, auto-appliquée à chaque quart de nuit, ajustable au cas par cas. Couvre FR-6.
+**Carte détaillée** : `prompt-mise-a-jour-roadmap.md`.
 
 ### Sprint 7 — Notifications ⬜
 Web Push (VAPID) + repli courriel Resend ; planification 1 mois / 1 semaine / 1 jour via pg_cron + Edge Function (`architecture.md:119`). Couvre FR-10.

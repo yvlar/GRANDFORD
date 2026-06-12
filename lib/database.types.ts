@@ -667,6 +667,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_exception_with_motif: {
+        Args: {
+          p_effect: string
+          p_household_id: string
+          p_motif: string
+          p_on_date: string
+          p_shift?: string
+        }
+        Returns: string
+      }
       create_household_with_membership: {
         Args: { p_name: string }
         Returns: string

@@ -1,3 +1,4 @@
+import { DemoCapture } from "@/app/demo/horaire/demo-capture";
 import { VueCoupDoeil } from "@/components/horaire/vue-coup-doeil";
 import { GRANDFORD_CYCLE } from "@/lib/engine";
 import { todayCivil } from "@/lib/schedule/today";
@@ -14,12 +15,15 @@ import { z } from "zod";
 //
 //   /demo/horaire?equipe=A&date=2026-06-11            → pastille du travailleur
 //   /demo/horaire?role=spouse&ecart=2026-06-12        → vue conjointe, écart factice
+//   /demo/horaire?capture=1&date=2026-06-11           → flux de capture (Sprint 5),
+//                                                       persistance en état local
 
 const parametresSchema = z.object({
   equipe: equipeSchema.default("A"),
   date: dateCivileSchema.optional(),
   role: z.enum(["worker", "spouse"]).default("worker"),
   ecart: dateCivileSchema.optional(),
+  capture: z.literal("1").optional(),
 });
 
 export default async function DemoHorairePage({
@@ -36,6 +40,9 @@ export default async function DemoHorairePage({
     notFound();
   }
   const params = lecture.data;
+  if (params.capture === "1") {
+    return <DemoCapture team={params.equipe} initialToday={params.date ?? todayCivil()} />;
+  }
   const ecarts: ScheduleException[] = params.ecart
     ? [{ onDate: params.ecart, effect: "off", shift: null }]
     : [];

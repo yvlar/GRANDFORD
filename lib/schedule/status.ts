@@ -9,6 +9,7 @@ import {
   scheduleRange,
   weekdayIndex,
 } from "@/lib/engine";
+import { identityShift } from "@/lib/schedule/capture";
 import type {
   Availability,
   DayStatus,
@@ -76,9 +77,9 @@ export function dayStatuses(
   // Un jour de plus en amont : le statut « sommeil » dépend du quart de la VEILLE.
   const days = scheduleRange(team, addDays(from, -1), to, template);
   const window = sleepDefault ?? defaultSleepWindow(template);
-  // Identité fixe des équipes (A,B = jour · C,D = nuit — lib/engine/types.ts) :
-  // nécessaire car le moteur n'expose le quart que les jours travaillés.
-  const identityFallback: Shift = team === "A" || team === "B" ? "jour" : "nuit";
+  // Quart d'identité de l'équipe : nécessaire car le moteur n'expose le quart que
+  // les jours travaillés.
+  const identityFallback = identityShift(team);
 
   const out: DayStatus[] = [];
   let previousShift: Shift | null = null;
