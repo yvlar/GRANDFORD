@@ -16,6 +16,7 @@
 | État courant (version, phase, sprint) | `ROADMAP.md` (table en tête) |
 | Carte du prochain sprint | `prompt-mise-a-jour-roadmap.md` |
 | Procédure d'exécution d'un sprint | `.claude/prompts/prompt-executer-sprint.md` |
+| Audit de la gouvernance (CLAUDE.md, règles, prompts) | `.claude/prompts/prompt-audit-gouvernance.md` |
 | Sprints archivés (rotation) | `docs/roadmap-archive.md` (créé à la 1re rotation) |
 
 ## Stack (détail : `architecture.md:180` ; versions exactes : `package.json` — à créer au Sprint 1)
