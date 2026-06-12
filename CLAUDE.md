@@ -19,7 +19,7 @@
 | Audit de la gouvernance (CLAUDE.md, règles, prompts) | `.claude/prompts/prompt-audit-gouvernance.md` |
 | Sprints archivés (rotation) | `docs/roadmap-archive.md` (créé à la 1re rotation) |
 
-## Stack (détail : `architecture.md:180` ; versions exactes : `package.json` — à créer au Sprint 1)
+## Stack (détail : `architecture.md:180` ; versions exactes : `package.json`)
 
 | Couche | Choix |
 |---|---|
@@ -36,11 +36,11 @@
 | Hébergement | Vercel Hobby + Supabase Cloud (région CA/US-est) |
 | Monitoring | Sentry + UptimeRobot |
 
-## Structure cible du dépôt (créée au Sprint 1)
+## Structure cible du dépôt (mise en place depuis le Sprint 1)
 
 ```
 app/                  # Routes Next.js (App Router)
-components/           # UI (shadcn/ui + composants maison)
+components/           # UI (shadcn/ui + composants maison) — à créer au premier composant partagé
 lib/engine/           # Moteur Pitman — fonctions pures, zéro I/O
 lib/                  # Client Supabase, helpers
 supabase/             # Migrations SQL, policies RLS, Edge Functions
