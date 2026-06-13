@@ -79,6 +79,19 @@ export const fr = {
     retirer: "Revenir à ma fenêtre habituelle",
     erreurAjustement: "L'ajustement a échoué. Réessayez.",
   },
+  rappels: {
+    titre: "Rappels",
+    consigne: "Un rappel 1 mois, 1 semaine et la veille de chaque écart — sur cet appareil.",
+    activer: "Activer les rappels sur cet appareil",
+    desactiver: "Désactiver sur cet appareil",
+    actifs: "Rappels activés sur cet appareil.",
+    verification: "Vérification…",
+    nonSupporte:
+      "Ce navigateur ne supporte pas les notifications. Sur iPhone : installez d'abord GRANDFORD sur l'écran d'accueil.",
+    refuse: "Les notifications sont bloquées pour ce site dans les réglages du navigateur.",
+    nonConfigure: "Les rappels ne sont pas encore configurés sur ce serveur.",
+    erreur: "L'activation des rappels a échoué. Réessayez.",
+  },
   connexion: {
     titre: "Connexion",
     sousTitre: "Sans mot de passe : un lien par courriel, ou un compte existant.",

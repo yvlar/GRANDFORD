@@ -1,4 +1,5 @@
 import { SelecteurEquipe } from "@/components/equipe/selecteur-equipe";
+import { ActiverRappels } from "@/components/notifications/activer-rappels";
 import { FenetreSommeil } from "@/components/sommeil/fenetre-sommeil";
 import { GRANDFORD_CYCLE } from "@/lib/engine";
 import { fr } from "@/lib/i18n/fr";
@@ -159,6 +160,15 @@ export default async function FoyerPage({
             </li>
           ))}
         </ul>
+      </section>
+
+      {/* FR-10 est bidirectionnel : travailleur ET conjoint(e) activent leurs rappels. */}
+      <section className="flex flex-col items-start gap-3">
+        <h2 className="text-xl font-semibold">{fr.rappels.titre}</h2>
+        <ActiverRappels
+          householdId={monAdhesion.household_id}
+          clePubliqueVapid={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null}
+        />
       </section>
 
       {monAdhesion.role === "worker" ? (
