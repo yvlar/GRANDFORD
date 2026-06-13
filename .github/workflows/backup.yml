@@ -1,0 +1,84 @@
+name: Sauvegarde BD
+
+# Sauvegarde quotidienne de la base Supabase Cloud (NFR-11). pg_dump au format
+# « custom » (compressé, restaurable par pg_restore) -> artefact daté + somme SHA-256.
+# Le couple dump/restore est prouvé hors-ligne sur le schéma réel par
+# scripts/verifier-restauration.sh ; ce workflow l'exécute contre le Cloud.
+#
+# Pré-requis : secret de dépôt SUPABASE_DB_URL = chaîne de connexion Postgres du
+# projet Cloud, sslmode=require (voir docs/mise-en-ligne.md). Sans lui, le job
+# échoue tôt et clairement plutôt que de produire un artefact vide.
+on:
+  schedule:
+    # 08:00 UTC = 03:00/04:00 America/Toronto : creux d'activité, AVANT les envois de
+    # rappels (09:00 locale, send-reminders) et hors du pg_cron horaire (minute 5).
+    - cron: "0 8 * * *"
+  # Déclenchement manuel (test de la chaîne, restauration ponctuelle NFR-11).
+  workflow_dispatch: {}
+
+# Jamais deux sauvegardes en parallèle ; on ne coupe pas une sauvegarde en cours.
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+# Lecture seule du dépôt : ce job ne pousse rien, il ne lit que la BD distante.
+permissions:
+  contents: read
+
+jobs:
+  dump:
+    name: pg_dump quotidien
+    runs-on: ubuntu-latest
+    steps:
+      - name: Client PostgreSQL 16 (major ≥ serveur Supabase)
+        # pg_dump du client doit être ≥ au major du serveur. Le runner ubuntu-latest
+        # fournit déjà le client 16 ; on n'installe (réseau + apt) QUE s'il manque —
+        # évite une dépendance réseau quotidienne, tout en gardant le filet si une
+        # future image de runner cessait de livrer le client 16.
+        run: |
+          if [ ! -x /usr/lib/postgresql/16/bin/pg_dump ]; then
+            sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+            curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client-16
+          fi
+
+      - name: Vérifier le secret de connexion
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "::error::Secret SUPABASE_DB_URL manquant (voir docs/mise-en-ligne.md)."
+            exit 1
+          fi
+
+      - name: pg_dump (format custom, compressé)
+        env:
+          # Via env, jamais en clair dans la ligne de commande (process list, logs).
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+          horodatage="$(date -u +%Y%m%dT%H%M%SZ)"
+          fichier="grandford-${horodatage}.dump"
+          # --no-owner : la propriété des objets diffère d'un projet Supabase à l'autre.
+          # On GARDE les privilèges (PAS de --no-privileges) : les GRANT à
+          # anon/authenticated/service_role sont la base sur laquelle la RLS s'applique
+          # — sans eux, un projet restauré renvoie « permission denied » malgré les
+          # policies. Ces rôles existent sur tout projet Supabase, le GRANT se rejoue.
+          /usr/lib/postgresql/16/bin/pg_dump "$SUPABASE_DB_URL" \
+            --format=custom --compress=9 --no-owner \
+            --file="$fichier"
+          sha256sum "$fichier" > "$fichier.sha256"
+          echo "FICHIER_SAUVEGARDE=$fichier" >> "$GITHUB_ENV"
+          ls -lh "$fichier"
+
+      - name: Téléverser l'artefact daté
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.FICHIER_SAUVEGARDE }}
+          path: |
+            ${{ env.FICHIER_SAUVEGARDE }}
+            ${{ env.FICHIER_SAUVEGARDE }}.sha256
+          # Rétention par défaut d'Actions = 90 j. Durabilité au-delà : voir runbook.
+          retention-days: 30
+          if-no-files-found: error
