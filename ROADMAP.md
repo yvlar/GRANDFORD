@@ -38,6 +38,7 @@ Note dépôt : branche d'intégration = **`dev`** (créée le 2026-06-11 depuis 
 
 ### Sprint 8 — Mise en ligne + filets 🟡 ACTIF
 Déploiement Vercel + Supabase Cloud (CA/US-est) ; Edge Function + pg_cron actifs ; solde de la **dette GoTrue/Edge réelle** (Sprints 3-7) ; Sentry + UptimeRobot (uptime **et** réveil du projet gratuit) ; sauvegarde `pg_dump` quotidienne (GitHub Action) ; **test PWA installable + push sur l'iPhone réel** (R11/U-7, `architecture.md:130`).
+**Livré (filets) — partiel** : CI GitHub Actions (`.github/workflows/ci.yml`) — 4 portes (`biome` · `tsc` · `vitest` avec **service Postgres 16 → isolation RLS réelle** · `build`) sur push `dev`/`main` et PR ; conteneurisation — `Dockerfile` (sortie Next « standalone », image non-root) + `docker-compose.yml` (Postgres 16 sur `:54322`, la cible des tests RLS). Gates verts en session : **133/133** (dont 15 isolation RLS). **Version tenue à 0.8.0** : le bump mineur n'intervient qu'à la **clôture** du sprint (règle `workflow-sprint.md`) — déploiement, Edge/pg_cron réels, dette GoTrue, Sentry/UptimeRobot, `pg_dump` quotidien et test iPhone restent à faire.
 **Carte détaillée** : `prompt-mise-a-jour-roadmap.md`.
 
 ## Horizons post-MVP (non planifiés en sprints)

@@ -11,6 +11,9 @@ const withSerwist = withSerwistInit({
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // WHY: sortie « standalone » (serveur Node minimal + traçage des dépendances) pour une
+  // image Docker légère et non-root. Sans effet sur Vercel, qui utilise son propre build.
+  output: "standalone",
 };
 
 export default withSerwist(nextConfig);
