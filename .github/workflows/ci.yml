@@ -1,0 +1,67 @@
+name: CI
+
+# Portes de qualité du projet (.claude/rules/tests-vitest.md) :
+# biome · tsc · vitest (moteur + isolation RLS) · build Next.
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+
+# Un seul run par branche/PR : annule les exécutions devenues obsolètes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualite:
+    name: Lint · Types · Tests · Build
+    runs-on: ubuntu-latest
+
+    # Postgres 16 = cible réelle des tests d'isolation RLS (livrable de 1re classe,
+    # .claude/rules/supabase-rls.md). global-setup.ts y crée la base de test, applique
+    # le bootstrap + les migrations. Port hôte 54322 = celui codé en dur côté tests.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 54322:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+
+      - name: Activer pnpm (version épinglée par package.json)
+        uses: pnpm/action-setup@v4
+
+      - name: Node 22 + cache pnpm
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Installer les dépendances
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint + format (Biome)
+        run: pnpm biome check .
+
+      - name: Vérification de types (tsc strict)
+        run: pnpm tsc --noEmit
+
+      - name: Tests (Vitest — moteur, purs, isolation RLS)
+        run: pnpm vitest run
+
+      - name: Build Next.js (production)
+        run: pnpm build
+        env:
+          # Publiques par design : placeholders pour un build déterministe sans secret.
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+          NEXT_PUBLIC_VAPID_PUBLIC_KEY: placeholder-vapid-public-key

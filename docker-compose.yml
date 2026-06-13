@@ -1,0 +1,51 @@
+# GRANDFORD — orchestration locale.
+#
+# But premier : fournir le Postgres 16 sur 127.0.0.1:54322 qu'attendent les tests
+# d'isolation RLS (supabase/tests/global-setup.ts) — sans la stack Docker Supabase
+# complète (images parfois bloquées en egress restreint). Repli sans Docker : scripts/local-db.sh.
+#
+#   docker compose up -d db                     # Postgres pour `pnpm test` (RLS incluses)
+#   docker compose --profile app up --build     # + image de prod Next.js sur http://localhost:3000
+
+services:
+  db:
+    image: postgres:16
+    container_name: grandford-db
+    # trust : les tests se connectent en `postgres` SANS mot de passe
+    # (postgresql://postgres@127.0.0.1:54322/postgres). LOCAL / TESTS UNIQUEMENT.
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      # Hôte 54322 -> conteneur 5432 : le port attendu par global-setup.ts.
+      - "54322:5432"
+    volumes:
+      - grandford-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    # Optionnel : démarrer avec `--profile app`. Le DB ci-dessus suffit pour les tests.
+    profiles: ["app"]
+    container_name: grandford-app
+    build:
+      context: .
+      args:
+        # Placeholders publics par design : surcharger pour viser une vraie instance.
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-https://placeholder.supabase.co}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-placeholder-anon-key}
+        NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${NEXT_PUBLIC_VAPID_PUBLIC_KEY:-placeholder-vapid-public-key}
+    # Variables SERVEUR (service role, VAPID privé, Resend…) au runtime via .env si présent.
+    env_file:
+      - path: .env
+        required: false
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+volumes:
+  grandford-db-data:

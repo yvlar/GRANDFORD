@@ -1,0 +1,39 @@
+# Contexte de build minimal : on n'envoie au démon Docker que le nécessaire.
+# Le build réinstalle les deps et recompile — ne jamais copier d'artefacts locaux.
+
+# Dépendances & sorties de build (régénérés dans l'image)
+node_modules
+.next
+out
+coverage
+*.tsbuildinfo
+next-env.d.ts
+
+# Service worker généré par Serwist au build (source : app/sw.ts)
+public/sw.js
+public/sw.js.map
+
+# Secrets — ne JAMAIS entrer dans le contexte de build (cf. securite-secrets.md)
+.env
+.env.local
+.env*.local
+
+# Git & métadonnées
+.git
+.gitignore
+.github
+
+# Outillage local / docs non nécessaires au runtime
+Dockerfile
+.dockerignore
+docker-compose.yml
+*.md
+docs
+.claude
+supabase/.temp
+supabase/.branches
+
+# Divers
+.vercel
+.DS_Store
+*.log
