@@ -134,6 +134,14 @@ export const fr = {
     erreurInvitation: "La création de l'invitation a échoué. Réessayez.",
     erreurRevocation: "La révocation a échoué. Réessayez.",
   },
+  erreurGlobale: {
+    titre: "Quelque chose a déraillé",
+    // Reconnaissance > rappel (NFR-12) : un message court et une action, pas de
+    // détail technique (qui pourrait par ailleurs porter une donnée sensible, R7).
+    consigne: "Une erreur inattendue est survenue. Réessayez — vos données sont intactes.",
+    reessayer: "Réessayer",
+    accueil: "Retour à l'accueil",
+  },
   invitation: {
     titre: "Invitation à un foyer",
     sousTitre:
