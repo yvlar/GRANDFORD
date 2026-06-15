@@ -106,6 +106,7 @@ export const fr = {
     erreurEnvoi: "L'envoi du lien a échoué. Réessayez dans un instant.",
     erreurOAuth: "La connexion a échoué. Réessayez.",
     erreurCallback: "Ce lien de connexion est invalide ou expiré. Demandez-en un nouveau.",
+    detailTechnique: "Détail technique",
   },
   onboarding: {
     titre: "Créer votre foyer",
