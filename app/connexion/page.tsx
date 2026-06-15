@@ -13,11 +13,17 @@ const ERREURS: Record<string, string> = {
 export default async function ConnexionPage({
   searchParams,
 }: {
-  searchParams: Promise<{ erreur?: string; envoye?: string; suivant?: string }>;
+  searchParams: Promise<{
+    erreur?: string;
+    envoye?: string;
+    suivant?: string;
+    detail?: string;
+  }>;
 }) {
   const t = fr.connexion;
   const params = await searchParams;
   const erreur = params.erreur ? ERREURS[params.erreur] : undefined;
+  const detail = params.detail;
   const suivant = params.suivant ?? "";
 
   return (
@@ -28,9 +34,16 @@ export default async function ConnexionPage({
       </header>
 
       {erreur ? (
-        <p role="alert" className="max-w-sm rounded-lg bg-red-950 px-4 py-3 text-red-200">
-          {erreur}
-        </p>
+        <div className="max-w-sm">
+          <p role="alert" className="rounded-lg bg-red-950 px-4 py-3 text-red-200">
+            {erreur}
+          </p>
+          {detail ? (
+            <p className="mt-2 text-xs text-neutral-500">
+              {t.detailTechnique} : <code className="text-neutral-400">{detail.slice(0, 120)}</code>
+            </p>
+          ) : null}
+        </div>
       ) : null}
       {params.envoye ? (
         <output className="max-w-sm rounded-lg bg-emerald-950 px-4 py-3 text-emerald-200">
