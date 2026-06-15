@@ -119,6 +119,7 @@ export const fr = {
   },
   foyer: {
     titre: "Mon foyer",
+    monHoraire: "Mon horaire",
     membres: "Membres",
     roleWorker: "Travailleur",
     roleSpouse: "Conjoint(e)",
