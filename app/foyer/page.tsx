@@ -8,6 +8,7 @@ import { parseSleepRow } from "@/lib/schedule/db-rows";
 import { defaultSleepWindow } from "@/lib/schedule/status";
 import { createClient } from "@/lib/supabase/server";
 import { equipeSchema } from "@/lib/validation";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { annulerInvitation, creerInvitation, quitterFoyer, revoquerMembre } from "./actions";
 
@@ -110,6 +111,14 @@ export default async function FoyerPage({
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-lg flex-col gap-8 bg-neutral-950 p-6 text-neutral-50">
+      {/* Retour vers la vue « coup d'œil » (l'accueil = l'horaire) : sans ce lien, un
+          nouveau membre arrivé sur /foyer après l'onboarding n'a aucun chemin vers son horaire. */}
+      <Link
+        href="/"
+        className="inline-flex items-center gap-1 self-start text-sm font-semibold text-emerald-400 hover:text-emerald-300"
+      >
+        ← {t.monHoraire}
+      </Link>
       <header className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">{foyer.name}</h1>
         <form action="/auth/deconnexion" method="post">
