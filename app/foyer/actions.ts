@@ -4,6 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import { cheminInterneSchema, equipeSchema, uuidSchema } from "@/lib/validation";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { z } from "zod";
+
+const nomProfilSchema = z.string().trim().max(120);
 
 // Toutes ces actions s'exécutent sous le rôle authenticated : la RLS du Sprint 2/3
 // est la vraie barrière (propriétaire seul pour inviter/révoquer/annuler ; soi-même
@@ -93,6 +96,29 @@ export async function definirEquipe(
   }
   revalidatePath("/");
   revalidatePath("/foyer");
+}
+
+export async function mettreAJourNom(formData: FormData): Promise<void> {
+  const raw = nomProfilSchema.safeParse(formData.get("nom"));
+  if (!raw.success) {
+    redirect("/foyer?erreur=nom");
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/connexion");
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ full_name: raw.data || null })
+    .eq("id", user.id);
+  if (error) {
+    redirect("/foyer?erreur=nom");
+  }
+  revalidatePath("/foyer");
+  revalidatePath("/");
 }
 
 export async function revoquerMembre(membershipId: string): Promise<void> {

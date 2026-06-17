@@ -11,7 +11,13 @@ import { createClient } from "@/lib/supabase/server";
 import { equipeSchema } from "@/lib/validation";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { annulerInvitation, creerInvitation, quitterFoyer, revoquerMembre } from "./actions";
+import {
+  annulerInvitation,
+  creerInvitation,
+  mettreAJourNom,
+  quitterFoyer,
+  revoquerMembre,
+} from "./actions";
 
 // Gestion du foyer (FR-12) : membres, invitation à usage unique, révocation.
 // Tout ce que cette page voit passe par la RLS — les invitations, par exemple,
@@ -21,6 +27,7 @@ const ERREURS: Record<string, string> = {
   revocation: fr.foyer.erreurRevocation,
   equipe: fr.equipe.erreur,
   sommeil: fr.sommeil.erreurEnregistrement,
+  nom: fr.foyer.erreurNom,
 };
 
 export default async function FoyerPage({
@@ -106,6 +113,10 @@ export default async function FoyerPage({
   const maFenetre = parseSleepRow(sommeilRes?.data ?? null);
 
   const estProprietaire = foyer.owner_id === user.id;
+  const monMembre = (membres ?? []).find((m) => m.profile_id === user.id);
+  const monNom = monMembre?.profiles?.full_name ?? null;
+  const nomTravailleur =
+    (membres ?? []).find((m) => m.role === "worker")?.profiles?.full_name ?? null;
   const origin = await requestOrigin();
   const params = await searchParams;
   const erreur = params.erreur ? ERREURS[params.erreur] : undefined;
@@ -202,6 +213,32 @@ export default async function FoyerPage({
           </a>
         ) : (
           <p className="text-sm text-neutral-500">{fr.rappels.nonConfigure}</p>
+        )}
+      </section>
+
+      {/* Section Travailleur : nom visible pour les deux rôles (travailleur = éditable,
+          conjointe = lecture seule). Permet de saisir le nom quand OAuth ne l'a pas fourni. */}
+      <section className="flex flex-col gap-3">
+        <h2 className="text-xl font-semibold">{t.roleWorker}</h2>
+        {monAdhesion.role === "worker" ? (
+          <form action={mettreAJourNom} className="flex flex-col gap-2">
+            <input
+              name="nom"
+              type="text"
+              defaultValue={monNom ?? ""}
+              placeholder={t.nomPlaceholder}
+              maxLength={120}
+              className="rounded-lg border border-neutral-700 bg-neutral-900 px-4 py-3 text-base placeholder:text-neutral-500"
+            />
+            <button
+              type="submit"
+              className="self-start rounded-lg border border-neutral-700 px-4 py-2 text-sm font-semibold text-neutral-200 hover:bg-neutral-900"
+            >
+              {t.enregistrerNom}
+            </button>
+          </form>
+        ) : (
+          <p className="text-lg font-semibold text-emerald-300">{nomTravailleur ?? t.sansNom}</p>
         )}
       </section>
 
