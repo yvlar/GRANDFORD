@@ -13,10 +13,16 @@ const CLES_ERREUR: Record<string, string> = {
   GF004: "deja-membre",
 };
 
-export async function accepterInvitation(code: string): Promise<void> {
+export async function accepterInvitation(code: string, formData: FormData): Promise<void> {
   const parsed = uuidSchema.safeParse(code);
   if (!parsed.success) {
     redirect("/onboarding");
+  }
+
+  // Validation du consentement côté serveur (Loi 25 / PIPEDA) — la checkbox HTML
+  // `required` bloque le navigateur, mais un appel direct à l'action contournerait ça.
+  if (!formData.get("consent")) {
+    redirect(`/invitation/${parsed.data}?erreur=consentement`);
   }
 
   const supabase = await createClient();

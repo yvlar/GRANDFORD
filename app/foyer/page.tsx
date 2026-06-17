@@ -3,6 +3,7 @@ import { ActiverRappels } from "@/components/notifications/activer-rappels";
 import { FenetreSommeil } from "@/components/sommeil/fenetre-sommeil";
 import { GRANDFORD_CYCLE } from "@/lib/engine";
 import { fr } from "@/lib/i18n/fr";
+import { signIcalToken } from "@/lib/ical/generate";
 import { requestOrigin } from "@/lib/request-origin";
 import { parseSleepRow } from "@/lib/schedule/db-rows";
 import { defaultSleepWindow } from "@/lib/schedule/status";
@@ -109,6 +110,11 @@ export default async function FoyerPage({
   const params = await searchParams;
   const erreur = params.erreur ? ERREURS[params.erreur] : undefined;
 
+  const icalSecret = process.env.ICAL_SECRET ?? null;
+  const icalToken = icalSecret
+    ? signIcalToken(monAdhesion.household_id, monAdhesion.role as "worker" | "spouse", icalSecret)
+    : null;
+
   return (
     <main className="mx-auto flex min-h-dvh max-w-lg flex-col gap-8 bg-neutral-950 p-6 text-neutral-50">
       {/* Retour vers la vue « coup d'œil » (l'accueil = l'horaire) : sans ce lien, un
@@ -178,6 +184,25 @@ export default async function FoyerPage({
           householdId={monAdhesion.household_id}
           clePubliqueVapid={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null}
         />
+      </section>
+
+      {/* FR-14 — Export iCal (travailleur ET conjointe). Token HMAC stateless. */}
+      <section className="flex flex-col items-start gap-3">
+        <h2 className="text-xl font-semibold">{fr.ical.titre}</h2>
+        <p className="text-sm text-neutral-400">{fr.ical.consigne}</p>
+        {icalToken ? (
+          <a
+            href={`/api/ical/${icalToken}`}
+            download="grandford.ics"
+            className="rounded-lg border border-neutral-700 px-4 py-2 text-sm font-semibold text-neutral-200 hover:bg-neutral-900"
+          >
+            {monAdhesion.role === "worker"
+              ? fr.ical.telechargerTravailleur
+              : fr.ical.telechargerConjointe}
+          </a>
+        ) : (
+          <p className="text-sm text-neutral-500">{fr.rappels.nonConfigure}</p>
+        )}
       </section>
 
       {monAdhesion.role === "worker" ? (

@@ -223,4 +223,66 @@ describe.skipIf(!rlsAvailable)("Cycle de vie du foyer (Postgres réel)", () => {
       expect(after[0]?.n).toBe(0);
     });
   });
+
+  describe("5. Suppression de compte — cascade (Loi 25 / droit à l'oubli)", () => {
+    it("supprimer la conjointe (non-propriétaire) efface sa membership en cascade", async () => {
+      const before = await queryAs<{ n: number }>(
+        FIX.spouseA,
+        "select count(*)::int as n from public.memberships where profile_id = $1",
+        [FIX.spouseA],
+      );
+      expect(before[0]?.n).toBe(1);
+
+      // Suppression via auth.users (CASCADE → profiles → memberships)
+      await asAdmin((client) =>
+        client.query("delete from auth.users where id = $1", [FIX.spouseA]),
+      );
+
+      const after = await asAdmin(async (client) => {
+        const r = await client.query<{ n: number }>(
+          "select count(*)::int as n from public.memberships where profile_id = $1",
+          [FIX.spouseA],
+        );
+        return r.rows;
+      });
+      expect(after[0]?.n).toBe(0);
+    });
+
+    it("supprimer un foyer efface en cascade exceptions, motifs, notes, reminders, memberships", async () => {
+      // Garantir qu'il y a au moins une exception avant la suppression
+      const beforeExc = await asAdmin(async (client) => {
+        const r = await client.query<{ n: number }>(
+          "select count(*)::int as n from public.exceptions where household_id = $1",
+          [FIX.householdA],
+        );
+        return r.rows[0]?.n ?? 0;
+      });
+      expect(beforeExc).toBeGreaterThan(0);
+
+      // Suppression du foyer (propriétaire doit faire ça avant de supprimer son compte)
+      await asAdmin((client) =>
+        client.query("delete from public.households where id = $1", [FIX.householdA]),
+      );
+
+      // 0 données résiduelles pour toutes les tables de foyer
+      const tables = [
+        "public.exceptions",
+        "public.exception_private",
+        "public.memberships",
+        "public.reminders",
+        "public.notes",
+        "public.requests",
+      ];
+      for (const table of tables) {
+        const after = await asAdmin(async (client) => {
+          const r = await client.query<{ n: number }>(
+            `select count(*)::int as n from ${table} where household_id = $1`,
+            [FIX.householdA],
+          );
+          return r.rows[0]?.n ?? -1;
+        });
+        expect(after, `${table} doit être vide après suppression du foyer`).toBe(0);
+      }
+    });
+  });
 });

@@ -1,5 +1,6 @@
 import { fr } from "@/lib/i18n/fr";
 import { uuidSchema } from "@/lib/validation";
+import Link from "next/link";
 import { accepterInvitation } from "./actions";
 
 // Rachat d'une invitation (FR-12) : la conjointe arrive par le lien à usage unique.
@@ -10,6 +11,7 @@ const ERREURS: Record<string, string> = {
   "deja-utilisee": fr.invitation.erreurDejaUtilisee,
   expiree: fr.invitation.erreurExpiree,
   "deja-membre": fr.invitation.erreurDejaMembre,
+  consentement: fr.invitation.erreurConsentement,
   generique: fr.invitation.erreurGenerique,
 };
 
@@ -44,7 +46,29 @@ export default async function InvitationPage({
       ) : null}
 
       {codeValide.success ? (
-        <form action={accepterInvitation.bind(null, codeValide.data)}>
+        <form
+          action={accepterInvitation.bind(null, codeValide.data)}
+          className="flex flex-col gap-4"
+        >
+          {/* Consentement éclairé — Loi 25 / PIPEDA (securite-secrets.md) */}
+          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-800 bg-neutral-900 px-4 py-3">
+            <input
+              type="checkbox"
+              name="consent"
+              required
+              className="mt-1 shrink-0 accent-emerald-500"
+            />
+            <span className="text-sm text-neutral-300">
+              {t.consentementLabel}{" "}
+              <Link
+                href="/politique"
+                target="_blank"
+                className="text-emerald-400 underline hover:text-emerald-300"
+              >
+                {t.lirePolitique}
+              </Link>
+            </span>
+          </label>
           <button
             type="submit"
             className="rounded-lg bg-emerald-600 px-8 py-4 text-xl font-semibold hover:bg-emerald-500"
