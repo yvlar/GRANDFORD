@@ -239,4 +239,123 @@ describe.skipIf(!rlsAvailable)("Isolation RLS (Postgres réel)", () => {
       expect(rows[0]?.n).toBe(0);
     });
   });
+
+  describe("6. Notes (Sprint 9, FR-8)", () => {
+    const insertNoteA = () =>
+      asUser(FIX.workerA, (client) =>
+        client.query(
+          "insert into public.notes (household_id, author_id, on_date, body) values ($1, $2, '2026-07-01', 'réunion famille')",
+          [FIX.householdA, FIX.workerA],
+        ),
+      );
+
+    it("le membre foyer A voit ses propres notes", async () => {
+      await insertNoteA();
+      const rows = await queryAs<{ n: number }>(
+        FIX.workerA,
+        "select count(*)::int as n from public.notes where household_id = $1",
+        [FIX.householdA],
+      );
+      expect(rows[0]?.n).toBe(1);
+    });
+
+    it("la conjointe du même foyer voit aussi la note (partagée dans le foyer)", async () => {
+      await insertNoteA();
+      const rows = await queryAs<{ body: string }>(
+        FIX.spouseA,
+        "select body from public.notes where household_id = $1",
+        [FIX.householdA],
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.body).toBe("réunion famille");
+    });
+
+    it("un membre du foyer B ne lit jamais les notes du foyer A", async () => {
+      await insertNoteA();
+      const rows = await queryAs(
+        FIX.workerB,
+        "select id from public.notes where household_id = $1",
+        [FIX.householdA],
+      );
+      expect(rows).toHaveLength(0);
+    });
+  });
+
+  describe("7. Requêtes (Sprint 9, FR-9)", () => {
+    const insertRequestA = () =>
+      asUser(FIX.spouseA, (client) =>
+        client.query(
+          "insert into public.requests (household_id, requester_id, target_profile_id, on_date, body) values ($1, $2, $3, '2026-07-01', 'es-tu libre ?')",
+          [FIX.householdA, FIX.spouseA, FIX.workerA],
+        ),
+      );
+
+    it("les membres du foyer A voient les requêtes du foyer A", async () => {
+      await insertRequestA();
+      const rows = await queryAs<{ n: number }>(
+        FIX.workerA,
+        "select count(*)::int as n from public.requests where household_id = $1",
+        [FIX.householdA],
+      );
+      expect(rows[0]?.n).toBe(1);
+    });
+
+    it("un membre du foyer B ne lit jamais les requêtes du foyer A", async () => {
+      await insertRequestA();
+      const rows = await queryAs(
+        FIX.workerB,
+        "select id from public.requests where household_id = $1",
+        [FIX.householdA],
+      );
+      expect(rows).toHaveLength(0);
+    });
+
+    it("la conjointe ne peut pas modifier le statut d'une requête (UPDATE réservé au travailleur cible)", async () => {
+      await insertRequestA();
+      const reqRows = await queryAs<{ id: string }>(
+        FIX.workerA,
+        "select id from public.requests where household_id = $1",
+        [FIX.householdA],
+      );
+      const reqId = reqRows[0]?.id;
+      expect(reqId).toBeTruthy();
+
+      // La conjointe tente de s'auto-approuver : doit être refusé (0 lignes modifiées).
+      const result = await asUser(FIX.spouseA, async (client) => {
+        const res = await client.query(
+          "update public.requests set status = 'approved' where id = $1",
+          [reqId],
+        );
+        return res.rowCount;
+      });
+      expect(result).toBe(0);
+
+      // Vérifier que le statut est resté 'pending'.
+      const check = await queryAs<{ status: string }>(
+        FIX.workerA,
+        "select status from public.requests where id = $1",
+        [reqId],
+      );
+      expect(check[0]?.status).toBe("pending");
+    });
+
+    it("le travailleur cible peut approuver la requête", async () => {
+      await insertRequestA();
+      const reqRows = await queryAs<{ id: string }>(
+        FIX.workerA,
+        "select id from public.requests where household_id = $1",
+        [FIX.householdA],
+      );
+      const reqId = reqRows[0]?.id;
+      await asUser(FIX.workerA, (client) =>
+        client.query("update public.requests set status = 'approved' where id = $1", [reqId]),
+      );
+      const check = await queryAs<{ status: string }>(
+        FIX.workerA,
+        "select status from public.requests where id = $1",
+        [reqId],
+      );
+      expect(check[0]?.status).toBe("approved");
+    });
+  });
 });

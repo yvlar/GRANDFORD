@@ -1,4 +1,5 @@
 import { type OwnException, TUILES } from "@/lib/schedule/capture";
+import type { Note, Requete, StatusRequete } from "@/lib/schedule/coplanification";
 import type { ScheduleException, SleepAdjustment, SleepWindow } from "@/lib/schedule/types";
 import { z } from "zod";
 
@@ -84,6 +85,47 @@ export function parseSleepAdjustmentRows(rows: readonly unknown[]): SleepAdjustm
     return {
       onDate: parsed.on_date,
       window: { start: parsed.start_time, end: parsed.end_time },
+    };
+  });
+}
+
+// ── Co-planification (FR-8 notes, FR-9 requêtes, Sprint 9) ──────────────────
+
+const noteRowSchema = z.object({
+  id: z.uuid(),
+  on_date: z.string(),
+  body: z.string(),
+  author_id: z.uuid(),
+});
+
+/** Lignes `notes` → notes consommables par la vue (partagées dans le foyer). */
+export function parseNoteRows(rows: readonly unknown[]): Note[] {
+  return rows.map((row) => {
+    const parsed = noteRowSchema.parse(row);
+    return { id: parsed.id, onDate: parsed.on_date, body: parsed.body, authorId: parsed.author_id };
+  });
+}
+
+const requeteRowSchema = z.object({
+  id: z.uuid(),
+  on_date: z.string(),
+  body: z.string(),
+  status: z.enum(["pending", "approved", "declined"]),
+  requester_id: z.uuid(),
+  target_profile_id: z.uuid(),
+});
+
+/** Lignes `requests` → requêtes consommables par la vue. */
+export function parseRequeteRows(rows: readonly unknown[]): Requete[] {
+  return rows.map((row) => {
+    const parsed = requeteRowSchema.parse(row);
+    return {
+      id: parsed.id,
+      onDate: parsed.on_date,
+      body: parsed.body,
+      status: parsed.status as StatusRequete,
+      requesterId: parsed.requester_id,
+      targetProfileId: parsed.target_profile_id,
     };
   });
 }

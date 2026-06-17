@@ -1,4 +1,6 @@
 import { capturerEcart, supprimerEcart } from "@/app/ecarts/actions";
+import { creerNote, supprimerNote } from "@/app/notes/actions";
+import { approuverRequete, refuserRequete, soumettreRequete } from "@/app/requetes/actions";
 import { ajusterSommeil, retirerAjustementSommeil } from "@/app/sommeil/actions";
 import { SelecteurEquipe } from "@/components/equipe/selecteur-equipe";
 import { VueCoupDoeil, type VueCoupDoeilProps } from "@/components/horaire/vue-coup-doeil";
@@ -6,7 +8,9 @@ import { GRANDFORD_CYCLE, type Team } from "@/lib/engine";
 import { fr } from "@/lib/i18n/fr";
 import {
   parseExceptionRows,
+  parseNoteRows,
   parseOwnExceptionRows,
+  parseRequeteRows,
   parseSleepAdjustmentRows,
   parseSleepRow,
 } from "@/lib/schedule/db-rows";
@@ -97,15 +101,13 @@ export default async function AccueilPage({
   }
 
   const today = todayCivil();
-  // Écarts : fenêtre de ±62 jours — couvre la grille du mois et sa navigation
-  // proche (au-delà, la vue annonce « écarts non chargés »). R7 : colonnes
-  // PARTAGEABLES uniquement (on_date, effect, shift) — jamais de jointure vers
-  // exception_private, ni ici ni dans le payload hydraté au client.
+  // Fenêtre ±62 jours pour les données calendaires.
   const ecartsDu = addDays(today, -62);
   const ecartsAu = addDays(today, 62);
-  // R7 : `id` est partageable (la conjointe lit déjà la table sous RLS) ; le MOTIF,
-  // lui, n'est demandé QUE dans la branche travailleur, plus bas — jamais ici.
-  const [exceptionsRes, sleepRes, sleepAdjustmentsRes] = await Promise.all([
+
+  // R7 : colonnes PARTAGEABLES uniquement (on_date, effect, shift) — jamais de
+  // jointure vers exception_private, ni ici ni dans le payload hydraté au client.
+  const [exceptionsRes, sleepRes, sleepAdjustmentsRes, notesRes, requetesRes] = await Promise.all([
     supabase
       .from("exceptions")
       .select("id, on_date, effect, shift")
@@ -120,13 +122,29 @@ export default async function AccueilPage({
       .eq("household_id", householdId)
       .eq("profile_id", workerId)
       .maybeSingle(),
-    // Ajustements de sommeil (FR-6) : même fenêtre ±62 j que les écarts — c'est de
-    // la disponibilité partagée, les deux rôles la reçoivent (jamais un motif, R7).
+    // Ajustements de sommeil (FR-6) : disponibilité partagée, deux rôles (jamais un motif, R7).
     supabase
       .from("sleep_adjustments")
       .select("on_date, start_time, end_time")
       .eq("household_id", householdId)
       .eq("profile_id", workerId)
+      .gte("on_date", ecartsDu)
+      .lte("on_date", ecartsAu)
+      .order("on_date"),
+    // Notes (FR-8, Sprint 9) : partagées dans le foyer, même fenêtre ±62 j.
+    supabase
+      .from("notes")
+      .select("id, on_date, body, author_id")
+      .eq("household_id", householdId)
+      .gte("on_date", ecartsDu)
+      .lte("on_date", ecartsAu)
+      .order("on_date"),
+    // Requêtes (FR-9, Sprint 9) : visibles des deux rôles. Fenêtre ±62 j.
+    // R7 : body = demande de la conjointe, pas un motif d'absence.
+    supabase
+      .from("requests")
+      .select("id, on_date, body, status, requester_id, target_profile_id")
+      .eq("household_id", householdId)
       .gte("on_date", ecartsDu)
       .lte("on_date", ecartsAu)
       .order("on_date"),
@@ -140,11 +158,25 @@ export default async function AccueilPage({
   if (sleepAdjustmentsRes.error) {
     throw sleepAdjustmentsRes.error;
   }
+  if (notesRes.error) {
+    throw notesRes.error;
+  }
+  if (requetesRes.error) {
+    throw requetesRes.error;
+  }
+
+  const notes = parseNoteRows(notesRes.data);
+  const requetes = parseRequeteRows(requetesRes.data);
+  const noteHandlers: VueCoupDoeilProps["noteHandlers"] = {
+    creer: creerNote.bind(null, householdId),
+    supprimer: supprimerNote,
+  };
 
   // Branche TRAVAILLEUR : capture d'écart (Sprint 5) + ses propres motifs (badge du
   // détail). La RLS d'exception_private (propriétaire seul) garantit que cette
   // requête ne renvoie que les siens ; la conjointe ne passe jamais par ici.
   let capture: VueCoupDoeilProps["capture"] = null;
+  let coplanification: VueCoupDoeilProps["coplanification"] = null;
   if (membership.role === "worker") {
     // Borné aux écarts déjà chargés (exception_private n'a pas de date propre) :
     // sans ce filtre, la requête rapporterait TOUS les motifs depuis toujours.
@@ -168,6 +200,18 @@ export default async function AccueilPage({
         ajuster: ajusterSommeil.bind(null, householdId),
         retirer: retirerAjustementSommeil.bind(null, householdId),
       },
+      // FR-9 (Sprint 9) : le travailleur voit les requêtes en attente et peut les traiter.
+      requetes,
+      requeteHandlers: {
+        approuver: approuverRequete.bind(null, householdId),
+        refuser: refuserRequete,
+      },
+    };
+  } else {
+    // Branche CONJOINTE : peut soumettre des requêtes (FR-9).
+    coplanification = {
+      requetes,
+      soumettre: soumettreRequete.bind(null, householdId, workerId),
     };
   }
 
@@ -183,6 +227,9 @@ export default async function AccueilPage({
       workerName={workerName}
       exceptionsRange={{ from: ecartsDu, to: ecartsAu }}
       capture={capture}
+      notes={notes}
+      noteHandlers={noteHandlers}
+      coplanification={coplanification}
     />
   );
 }
