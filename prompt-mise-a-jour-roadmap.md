@@ -1,11 +1,11 @@
-# Carte d'embarquement — Sprint 11 : Journal des changements (FR-13)
+# Carte d'embarquement — Sprint 12 : Journal des changements (FR-13)
 
 > Cette carte est **réécrite à chaque fin de sprint** pour le sprint suivant (règle : `.claude/rules/workflow-sprint.md`).
 > ⚠️ C'est une **prémisse à vérifier**, pas une vérité terrain : réconcilier chaque dépendance avec le code réel avant d'implémenter ; prémisse fausse → STOP + signalement.
 
 ## État
 
-Sprint 10 livré : export iCal (FR-14) + conformité Loi 25 de base. Version 0.11.0. État courant : voir la table en tête de `ROADMAP.md`. Ce sprint complète la **phase v1.1** avec le journal des changements (FR-13) : traçabilité partagée dans le couple — chaque écart saisi, modifié ou supprimé laisse une trace lisible dans le foyer.
+Sprint 11 livré : section « Travailleur » dans `/foyer` — nom affiché et éditable. Version 0.11.1. État courant : voir la table en tête de `ROADMAP.md`. Ce sprint complète la **phase v1.1** avec le journal des changements (FR-13) : traçabilité partagée dans le couple — chaque écart saisi, modifié ou supprimé laisse une trace lisible dans le foyer.
 
 ## LECTURE OBLIGATOIRE
 
@@ -21,11 +21,11 @@ Sprint 10 livré : export iCal (FR-14) + conformité Loi 25 de base. Version 0.1
 - **Contenu de `metadata`** : ne jamais inclure le motif (colonne `motif` de `exception_private`) — seul `on_date`, `effect`, `shift` sont autorisés (`R7`).
 - **Vue historique** : aucune page d'historique n'existe actuellement (à vérifier en session) — **à créer**.
 
-## TÂCHE — Sprint 11
+## TÂCHE — Sprint 12
 
 ### Sous-tâche 1 : Alimentation de `audit_log` via trigger Postgres
 
-1. Migration `…_sprint11_audit_trigger.sql` : trigger `AFTER INSERT OR UPDATE OR DELETE ON public.exceptions` → `log_exception_change()` (SECURITY INVOKER, `set search_path = ''`) — insère une ligne dans `audit_log` avec `action` = `'exception_created'` / `'exception_updated'` / `'exception_deleted'`, `entity = 'exception'`, `entity_id = exceptions.id::text`, `metadata = jsonb_build_object('on_date', NEW.on_date, 'effect', NEW.effect, 'shift', NEW.shift)`. **Jamais** le motif dans `metadata`.
+1. Migration `…_sprint12_audit_trigger.sql` : trigger `AFTER INSERT OR UPDATE OR DELETE ON public.exceptions` → `log_exception_change()` (SECURITY INVOKER, `set search_path = ''`) — insère une ligne dans `audit_log` avec `action` = `'exception_created'` / `'exception_updated'` / `'exception_deleted'`, `entity = 'exception'`, `entity_id = exceptions.id::text`, `metadata = jsonb_build_object('on_date', NEW.on_date, 'effect', NEW.effect, 'shift', NEW.shift)`. **Jamais** le motif dans `metadata`.
 2. Vérifier que le trigger ne double-logue pas les rappels (trigger Sprint 9 existe déjà sur `exceptions`).
 3. Types régénérés si un nouveau champ s'ajoute.
 
@@ -54,7 +54,7 @@ Sprint 10 livré : export iCal (FR-14) + conformité Loi 25 de base. Version 0.1
 
 ## SPRINTS SUGGÉRÉS
 
-### v1.1 — Journal des changements (FR-13) [recommandé pour Sprint 11]
+### v1.1 — Journal des changements (FR-13) [recommandé pour Sprint 12]
 **Objectif** : alimenter `audit_log` à chaque exception + vue « Historique » dans le foyer.
 **Complexité** : Faible-Moyenne (trigger BD + Server Component + i18n)
 **Justification** : dernier livrable v1.1 ; traçabilité partagée dans le couple.
@@ -82,9 +82,9 @@ Sprint 10 livré : export iCal (FR-14) + conformité Loi 25 de base. Version 0.1
 
 ```
 Lis CLAUDE.md, ROADMAP.md et prompt-mise-a-jour-roadmap.md, puis exécute le
-Sprint 11 (Journal des changements — FR-13) en suivant .claude/prompts/prompt-executer-sprint.md — Phase A.
+Sprint 12 (Journal des changements — FR-13) en suivant .claude/prompts/prompt-executer-sprint.md — Phase A.
 
-Branche : claude/sprint11-journal (à créer depuis dev).
+Branche : claude/sprint12-journal (à créer depuis dev).
 
 Rappels non négociables :
 - Réconcilier en premier : existence et colonnes de audit_log (supabase/migrations/20260611192620_initial_schema.sql:190),
