@@ -163,6 +163,45 @@ export const fr = {
     erreurApprobation: "L'approbation a échoué. Réessayez.",
     erreurRefus: "Le refus a échoué. Réessayez.",
   },
+  ical: {
+    titre: "Exporter vers mon calendrier",
+    consigne:
+      "Importez votre horaire dans l'application Calendrier de votre téléphone. Le lien se met à jour automatiquement avec vos écarts.",
+    telechargerTravailleur: "Télécharger mon horaire (.ics)",
+    telechargerConjointe: "Télécharger l'horaire du partenaire (.ics)",
+  },
+  politique: {
+    titre: "Politique de confidentialité",
+    dateEntreeVigueur: "En vigueur depuis le 17 juin 2026",
+    responsable: "Responsable des renseignements personnels",
+    responsableCourriel: "ivess49@gmail.com",
+    intro:
+      "GRANDFORD collecte et utilise vos renseignements personnels dans le seul but de vous fournir le service décrit ci-dessous, conformément à la Loi 25 (Québec) et à la LPRPDE (Canada).",
+    donnees: "Données collectées",
+    donneesListe: [
+      "Adresse courriel (authentification sans mot de passe)",
+      "Nom complet (optionnel, affiché dans le foyer)",
+      "Équipe de travail (A, B, C ou D)",
+      "Écarts d'horaire : présence, absence, temps supplémentaire — jamais le motif dans la vue partagée",
+      "Fenêtre de sommeil (optionnelle)",
+      "Abonnement aux notifications push (appareil uniquement)",
+    ],
+    finalites: "Finalités",
+    finalitesListe: [
+      "Afficher votre horaire de quart Pitman 2-2-3",
+      "Partager votre disponibilité (présent / absent) avec votre conjoint(e) — sans jamais révéler le motif",
+      "Envoyer des rappels d'écarts 1 mois, 1 semaine et 1 jour à l'avance",
+    ],
+    droits: "Vos droits",
+    droitsTexte:
+      "Vous pouvez accéder à vos données, les corriger ou demander leur suppression à tout moment. La suppression de votre compte entraîne l'effacement réel de toutes vos données personnelles (droit à l'oubli). Contactez-nous à l'adresse ci-dessous.",
+    retention:
+      "Les données sont conservées tant que votre compte est actif. À la suppression du compte, toutes les données sont effacées de façon permanente.",
+    region:
+      "Données hébergées sur des serveurs en région Canada / États-Unis Est (Supabase Cloud).",
+    contact: "Contact",
+    retourAccueil: "Retour à l'accueil",
+  },
   erreurGlobale: {
     titre: "Quelque chose a déraillé",
     // Reconnaissance > rappel (NFR-12) : un message court et une action, pas de
@@ -176,6 +215,10 @@ export const fr = {
     sousTitre:
       "On vous invite à suivre l'horaire de votre conjoint(e). Acceptez pour voir ses présences et absences — jamais leurs motifs.",
     accepter: "Accepter l'invitation",
+    consentementLabel:
+      "J'accepte la politique de confidentialité de GRANDFORD et je comprends que mes données seront utilisées pour afficher mon horaire partagé.",
+    lirePolitique: "Lire la politique de confidentialité",
+    erreurConsentement: "Veuillez accepter la politique de confidentialité avant de continuer.",
     erreurInvalide: "Cette invitation est invalide.",
     erreurDejaUtilisee: "Cette invitation a déjà été utilisée.",
     erreurExpiree: "Cette invitation est expirée. Demandez-en une nouvelle.",
