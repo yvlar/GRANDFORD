@@ -1,9 +1,11 @@
 "use client";
 
 import { PanneauCapture } from "@/components/capture/panneau-capture";
+import { PanneauJourConjointe } from "@/components/requetes/panneau-jour-conjointe";
 import type { CycleTemplate, Team } from "@/lib/engine";
 import { fr } from "@/lib/i18n/fr";
 import type { CaptureHandlers, OwnException } from "@/lib/schedule/capture";
+import type { Note, NoteHandlers, Requete, RequeteHandlers } from "@/lib/schedule/coplanification";
 import { FORMAT_JOUR_LONG, dateUTC } from "@/lib/schedule/format";
 import type { SommeilHandlers } from "@/lib/schedule/sommeil";
 import {
@@ -117,6 +119,23 @@ export interface VueCoupDoeilProps {
     readonly handlers: CaptureHandlers;
     /** Gestes d'ajustement du sommeil (FR-6) — proposés quand le jour tapé en est un. */
     readonly sommeil?: SommeilHandlers | null;
+    /** Requêtes en attente (FR-9, Sprint 9) — le travailleur approuve / refuse. */
+    readonly requetes?: readonly Requete[];
+    readonly requeteHandlers?: RequeteHandlers | null;
+  } | null;
+  /** Notes du foyer (FR-8, Sprint 9) — partagées, visibles des deux rôles. */
+  readonly notes?: readonly Note[];
+  readonly noteHandlers?: NoteHandlers | null;
+  /**
+   * Co-planification conjointe (FR-9, Sprint 9) — branche CONJOINTE seulement :
+   * ses requêtes soumises + handler pour en créer. Le travailleur n'a pas cette prop.
+   */
+  readonly coplanification?: {
+    readonly requetes: readonly Requete[];
+    readonly soumettre: (
+      onDate: string,
+      body: string,
+    ) => Promise<{ ok: boolean; erreur: string | null }>;
   } | null;
 }
 
@@ -132,12 +151,15 @@ export function VueCoupDoeil({
   exceptionsRange = null,
   clockFrozen = false,
   capture = null,
+  notes = [],
+  noteHandlers = null,
+  coplanification = null,
 }: VueCoupDoeilProps) {
   const t = fr.horaire;
   const [today, setToday] = useState(initialToday);
   const [monthAnchor, setMonthAnchor] = useState(initialToday);
-  // Jour ciblé par le panneau de capture (null = panneau fermé). La clé du panneau
-  // est ce jour : rouvrir sur un autre jour repart d'un état neuf.
+  // Jour ciblé par le panneau (capture pour le travailleur, jour pour la conjointe).
+  // null = panneau fermé. La clé du panneau est ce jour.
   const [captureDate, setCaptureDate] = useState<string | null>(null);
   useEffect(() => {
     // WHY: l'accueil peut être servi depuis le cache PWA (hors-ligne) avec un
@@ -327,9 +349,10 @@ export function VueCoupDoeil({
             const classes = `relative flex h-10 items-center justify-center rounded-lg text-base font-bold ${aff.classes} ${
               day.date === today ? "ring-2 ring-white" : ""
             }`;
-            // Travailleur : chaque jour de la grille est un point de capture (le jour
-            // tapé devient le jour par défaut du panneau) ou d'accès au détail/suppression.
-            return capture ? (
+            // Travailleur et conjointe (si coplanification câblée) : tap sur un jour
+            // ouvre le panneau correspondant au rôle.
+            const interactif = capture != null || coplanification != null;
+            return interactif ? (
               <button
                 key={day.date}
                 type="button"
@@ -369,6 +392,25 @@ export function VueCoupDoeil({
           ownException={capture.ownExceptions.find((e) => e.onDate === captureDate) ?? null}
           handlers={capture.handlers}
           sommeil={sommeilPourJour(captureDate)}
+          notes={notes}
+          noteHandlers={noteHandlers}
+          pendingRequete={
+            capture.requetes?.find((r) => r.onDate === captureDate && r.status === "pending") ??
+            null
+          }
+          requeteHandlers={capture.requeteHandlers ?? null}
+          onClose={() => setCaptureDate(null)}
+        />
+      ) : null}
+
+      {coplanification && captureDate && role === "spouse" ? (
+        <PanneauJourConjointe
+          key={captureDate}
+          date={captureDate}
+          notes={notes}
+          noteHandlers={noteHandlers}
+          requetes={coplanification.requetes}
+          soumettre={coplanification.soumettre}
           onClose={() => setCaptureDate(null)}
         />
       ) : null}

@@ -136,6 +136,33 @@ export const fr = {
     erreurInvitation: "La création de l'invitation a échoué. Réessayez.",
     erreurRevocation: "La révocation a échoué. Réessayez.",
   },
+  notes: {
+    titre: "Notes",
+    ajouter: "Ajouter une note",
+    placeholder: "Note pour cette date…",
+    enregistrer: "Ajouter",
+    supprimer: "Supprimer",
+    vide: "Aucune note pour cette date.",
+    erreurCreation: "L'ajout de la note a échoué. Réessayez.",
+    erreurSuppression: "La suppression de la note a échoué. Réessayez.",
+  },
+  requetes: {
+    titre: "Demandes",
+    demander: "Demander une disponibilité",
+    placeholder: "Décrivez votre demande…",
+    envoyer: "Envoyer la demande",
+    approuver: "Approuver",
+    refuser: "Refuser",
+    statuts: {
+      pending: "En attente",
+      approved: "Approuvée",
+      declined: "Refusée",
+    },
+    aucune: "Aucune demande pour cette date.",
+    erreurSoumission: "L'envoi de la demande a échoué. Réessayez.",
+    erreurApprobation: "L'approbation a échoué. Réessayez.",
+    erreurRefus: "Le refus a échoué. Réessayez.",
+  },
   erreurGlobale: {
     titre: "Quelque chose a déraillé",
     // Reconnaissance > rappel (NFR-12) : un message court et une action, pas de

@@ -1,5 +1,6 @@
 "use client";
 
+import { NoteDuJour } from "@/components/notes/note-du-jour";
 import { fr } from "@/lib/i18n/fr";
 import {
   type CaptureHandlers,
@@ -7,6 +8,7 @@ import {
   TUILES,
   type Tuile,
 } from "@/lib/schedule/capture";
+import type { Note, NoteHandlers, Requete, RequeteHandlers } from "@/lib/schedule/coplanification";
 import { FORMAT_JOUR_LONG, dateUTC } from "@/lib/schedule/format";
 import type { SommeilHandlers } from "@/lib/schedule/sommeil";
 import type { SleepWindow } from "@/lib/schedule/types";
@@ -46,6 +48,12 @@ export interface PanneauCaptureProps {
     readonly ajuste: boolean;
     readonly handlers: SommeilHandlers;
   } | null;
+  /** Notes du foyer (FR-8, Sprint 9) — partagées, affichées sous la capture. */
+  readonly notes?: readonly Note[];
+  readonly noteHandlers?: NoteHandlers | null;
+  /** Requête en attente pour ce jour (FR-9, Sprint 9) — approuver / refuser. */
+  readonly pendingRequete?: Requete | null;
+  readonly requeteHandlers?: RequeteHandlers | null;
   readonly onClose: () => void;
 }
 
@@ -54,6 +62,10 @@ export function PanneauCapture({
   ownException,
   handlers,
   sommeil = null,
+  notes = [],
+  noteHandlers = null,
+  pendingRequete = null,
+  requeteHandlers = null,
   onClose,
 }: PanneauCaptureProps) {
   const t = fr.capture;
@@ -198,6 +210,21 @@ export function PanneauCapture({
             }}
           />
         ) : null}
+
+        {/* Notes partagées (FR-8, Sprint 9) */}
+        {noteHandlers ? <NoteDuJour notes={notes} onDate={date} handlers={noteHandlers} /> : null}
+
+        {/* Requête en attente (FR-9, Sprint 9) — approuver / refuser */}
+        {pendingRequete && requeteHandlers ? (
+          <SectionRequete
+            requete={pendingRequete}
+            handlers={requeteHandlers}
+            pending={pending}
+            onErreur={setErreur}
+            startTransition={startTransition}
+            onClose={onClose}
+          />
+        ) : null}
       </dialog>
     </div>
   );
@@ -274,6 +301,64 @@ function AjusterSommeil({
           {t.retirer}
         </button>
       ) : null}
+    </section>
+  );
+}
+
+/** Requête en attente à approuver/refuser (FR-9, Sprint 9). */
+function SectionRequete({
+  requete,
+  handlers,
+  pending,
+  onErreur,
+  startTransition,
+  onClose,
+}: {
+  requete: Requete;
+  handlers: RequeteHandlers;
+  pending: boolean;
+  onErreur: (e: string | null) => void;
+  startTransition: ReturnType<typeof useTransition>[1];
+  onClose: () => void;
+}) {
+  const t = fr.requetes;
+
+  const agir = (action: () => Promise<{ ok: boolean; erreur: string | null }>) => {
+    startTransition(async () => {
+      const etat = await action();
+      if (etat.ok) {
+        onClose();
+      } else {
+        onErreur(etat.erreur);
+      }
+    });
+  };
+
+  return (
+    <section
+      aria-label={t.titre}
+      className="mt-4 flex flex-col gap-3 border-t border-neutral-800 pt-4"
+    >
+      <h3 className="text-lg font-bold">📋 {t.titre}</h3>
+      <p className="rounded-lg bg-neutral-950 px-3 py-2 text-sm text-neutral-100">{requete.body}</p>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => agir(() => handlers.approuver(requete.id, requete.onDate, "off"))}
+          className="flex-1 rounded-xl bg-emerald-600 px-4 py-3 font-bold hover:bg-emerald-500 disabled:opacity-50"
+        >
+          ✅ {t.approuver}
+        </button>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => agir(() => handlers.refuser(requete.id))}
+          className="flex-1 rounded-xl bg-red-700 px-4 py-3 font-bold hover:bg-red-600 disabled:opacity-50"
+        >
+          ✗ {t.refuser}
+        </button>
+      </div>
     </section>
   );
 }

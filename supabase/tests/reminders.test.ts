@@ -183,6 +183,66 @@ describe.skipIf(!rlsAvailable)("Rappels — génération à la capture (Sprint 7
   });
 });
 
+describe.skipIf(!rlsAvailable)("Rappels — génération via trigger (Sprint 9)", () => {
+  beforeEach(async () => {
+    await seed();
+    // Libérer l'exception seed de workerA (date fixe 2026-06-15) pour les tests relatifs.
+    await asAdmin((client) =>
+      client.query("delete from public.exceptions where id = $1", [FIX.exceptionA]),
+    );
+  });
+  afterAll(closePool);
+
+  it("INSERT direct dans exceptions à J+40 génère 3 rappels via trigger (sans passer par la RPC)", async () => {
+    const today = await todayToronto();
+    const onDate = addDays(today, 40);
+    const exId = "e9999999-9999-4999-8999-999999999901";
+
+    await asUser(FIX.workerA, (client) =>
+      client.query(
+        "insert into public.exceptions (id, household_id, profile_id, on_date, effect, created_by) values ($1, $2, $3, $4, 'off', $3)",
+        [exId, FIX.householdA, FIX.workerA, onDate],
+      ),
+    );
+
+    const rows = await remindersOf(FIX.workerA, exId);
+    expect(rows).toHaveLength(3);
+    expect(rows.map((r) => r.lead)).toEqual(["month", "week", "day"]);
+    // Parité avec la couche pure.
+    expect(rows.map((r) => ({ lead: r.lead, date: r.local_at.slice(0, 10) }))).toEqual([
+      ...reminderSchedule(onDate, today),
+    ]);
+  });
+
+  it("INSERT direct dans exceptions à J-1 ne génère aucun rappel (trigger respecte la borne future)", async () => {
+    const today = await todayToronto();
+    const onDate = addDays(today, -1);
+    const exId = "e9999999-9999-4999-8999-999999999902";
+
+    await asAdmin((client) =>
+      client.query(
+        "insert into public.exceptions (id, household_id, profile_id, on_date, effect, created_by) values ($1, $2, $3, $4, 'off', $3)",
+        [exId, FIX.householdA, FIX.workerA, onDate],
+      ),
+    );
+
+    const rows = await remindersOf(FIX.workerA, exId);
+    expect(rows).toHaveLength(0);
+  });
+
+  it("via RPC à J+40 : exactement 3 rappels (pas 6 — 0 doublement RPC + trigger)", async () => {
+    const today = await todayToronto();
+    const onDate = addDays(today, 40);
+    const id = await captureAt(onDate);
+
+    const rows = await remindersOf(FIX.workerA, id);
+    expect(rows).toHaveLength(3);
+    // Vérifier qu'il n'y a aucun doublon de lead.
+    const leads = rows.map((r) => r.lead);
+    expect(new Set(leads).size).toBe(leads.length);
+  });
+});
+
 describe.skipIf(!rlsAvailable)("push_subscriptions — appareils strictement personnels", () => {
   beforeEach(seed);
   afterAll(closePool);
