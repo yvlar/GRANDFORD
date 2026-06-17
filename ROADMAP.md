@@ -36,6 +36,27 @@ Note dépôt : branche d'intégration = **`dev`** (créée le 2026-06-11 depuis 
 ### Sprint 10 — Export iCal + conformité Loi 25 ✅
 **Livré** : FR-14 (export `.ics` pour iPhone/Google Calendrier) + conformité Loi 25 de base. **Tokens HMAC stateless** (`ICAL_SECRET` serveur seulement, ajouté à `.env.example` et `securite-secrets.md`) : `signIcalToken` / `verifyIcalToken` (`lib/ical/generate.ts`) — comparaison timing-safe, zéro table requise. **Génération `.ics` pure** (RFC 5545) : travailleur = quarts du moteur + écarts (libellé « Absent » uniquement pour `off`, jamais le motif, R7) ; conjointe = libellés génériques uniquement (« Partenaire en quart / disponible »). DTSTAMP dynamique, `buildVcalendar` sans ligne vide, CRLF. **Route `GET /api/ical/[token]`** : `SUPABASE_SERVICE_ROLE` stateless (pas de GoTrue) ; lookup `memberships` → `profile_id` travailleur → `worker_assignments` + `exceptions` filtrées par `profile_id` (R7 structurel : jamais d'exception d'un autre membre) ; Zod à la frontière BD (team + effect + shift). **Page `/politique`** : accessible sans auth, politique de confidentialité Loi 25 (données collectées, finalités, droits, responsable RVP). **Consentement invitation** : case à cocher + lien `/politique` dans `app/invitation/[code]` ; validation côté serveur dans l'action (contourne le bypass HTML). **Cascade Loi 25** : 2 tests BD — suppression conjointe (auth.users → membership cascade, 0 résidu) ; suppression foyer → 6 tables = 0 résidu. Gates mesurés : vitest **175** (+20 : 18 purs `.ics` + 2 cascade Loi 25), tsc 0, biome 0. Branche : `claude/sprint09-coplanification`.
 
+## Branches exploratoires (hors sprint)
+
+| Branche | Objectif | État |
+|---|---|---|
+| `ui` | Refonte UX/UI de l'écran d'accueil — audit complet + direction design | 🔬 Actif |
+
+### `ui` — Refonte écran d'accueil
+
+**Contexte** : audit UX mené en session (17 juin 2026) — problème central = grille mensuelle sur l'accueil crée une surcharge cognitive incompatible avec l'objectif "coup d'œil < 2 s" (NFR-1).
+
+**Changements livrés sur cette branche** :
+- `components/horaire/vue-coup-doeil.tsx` : pastille `min-h-[52vh]` (héroïque), FAB fixe `bottom-6 right-6`, bande semaine tappable, carte « Prochain écart » conditionnelle, suppression grille mensuelle + légende
+- `lib/i18n/fr.ts` : ajout `fr.horaire.prochainEcart`
+
+**Direction UX complète** (wireframes + audit + 8 sections) : voir conversation du 17 juin 2026.
+
+**Prochaines étapes suggérées si la direction est validée** :
+1. Intégrer dans un sprint `claude/sprint12-refonte-ui` depuis `dev`
+2. Créer l'onglet Cycle (grille mensuelle déplacée, non supprimée)
+3. Différencier vraiment la vue conjointe (pastille TRAVAILLE/DISPONIBLE dominante)
+
 ## Horizons post-MVP (non planifiés en sprints)
 
 - **v1.1 restant** : journal des changements (FR-13).
