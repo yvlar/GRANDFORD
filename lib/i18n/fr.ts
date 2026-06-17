@@ -32,6 +32,7 @@ export const fr = {
     moisPrecedent: "Mois précédent",
     moisSuivant: "Mois suivant",
     monFoyer: "Mon foyer",
+    prochainEcart: "Prochain écart",
     horaireDe: (nom: string) => `Horaire de ${nom}`,
   },
   capture: {
