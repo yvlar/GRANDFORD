@@ -40,3 +40,11 @@ enabled = true
 
 [storage]
 enabled = true
+
+# WHY verify_jwt = false : la fonction fait sa propre auth (bearer === SERVICE_ROLE,
+# index.ts:52). Le JWT de passerelle est redondant ET bloquant — les appels pg_cron
+# via net.http_post n'envoient pas un JWT signé Supabase mais la clé service brute,
+# que verify_jwt ne reconnaît pas → 401 sans log. La sécurité reste intacte :
+# toute requête sans la clé service exacte est rejetée par le code (ligne 52-54).
+[functions.send-reminders]
+verify_jwt = false

@@ -13,7 +13,7 @@
 // courriel, ni endpoint, ni date d'écart — des compteurs et des ids, rien d'autre.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
-import { type ReminderLead, reminderPayload } from "../../../lib/notifications/payload.ts";
+import { type ReminderLead, reminderPayload } from "../_shared/payload.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
