@@ -100,6 +100,7 @@ export const fr = {
     courrielPlaceholder: "vous@exemple.com",
     envoyerLien: "Recevoir mon lien de connexion",
     lienEnvoye: "Lien envoyé ! Ouvrez votre courriel et touchez le lien pour entrer.",
+    reessayer: "← Essayer un autre courriel",
     ou: "ou",
     continuerGoogle: "Continuer avec Google",
     continuerApple: "Continuer avec Apple",
