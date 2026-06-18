@@ -238,14 +238,14 @@ export default async function AccueilPage({
 function LandingPage() {
   const t = fr.landing;
   return (
-    <div className="min-h-dvh bg-white text-slate-900 antialiased">
+    <div className="min-h-dvh bg-slate-950 text-slate-50 antialiased">
       {/* ─── Navbar ─────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/95 backdrop-blur-sm">
+      <header className="sticky top-0 z-50 border-b border-slate-800 bg-slate-950/95 backdrop-blur-sm">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
-          <span className="text-lg font-bold tracking-tight text-blue-600">{t.marque}</span>
+          <span className="text-lg font-bold tracking-tight text-blue-400">{t.marque}</span>
           <Link
             href="/connexion"
-            className="cursor-pointer rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition-colors duration-200 hover:bg-orange-600"
+            className="cursor-pointer rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition-colors duration-200 hover:bg-orange-400"
           >
             {t.nav.seConnecter}
           </Link>
@@ -291,19 +291,19 @@ function LandingPage() {
       </section>
 
       {/* ─── Stats bar — scannable en < 2 s (NFR-12 TDAH) ──────── */}
-      <section className="border-b border-slate-100 bg-slate-50 py-6">
+      <section className="border-b border-slate-800 bg-slate-900/50 py-6">
         <div className="mx-auto grid max-w-4xl grid-cols-3 gap-4 px-4 text-center sm:px-6">
           <div>
-            <span className="block text-3xl font-bold text-blue-600">≤ 3</span>
-            <span className="mt-1 block text-sm leading-tight text-slate-600">{t.stats.taps}</span>
+            <span className="block text-3xl font-bold text-blue-400">≤ 3</span>
+            <span className="mt-1 block text-sm leading-tight text-slate-400">{t.stats.taps}</span>
           </div>
           <div>
-            <span className="block text-3xl font-bold text-blue-600">Pitman</span>
-            <span className="mt-1 block text-sm leading-tight text-slate-600">{t.stats.cycle}</span>
+            <span className="block text-3xl font-bold text-blue-400">Pitman</span>
+            <span className="mt-1 block text-sm leading-tight text-slate-400">{t.stats.cycle}</span>
           </div>
           <div>
-            <span className="block text-3xl font-bold text-blue-600">0 %</span>
-            <span className="mt-1 block text-sm leading-tight text-slate-600">
+            <span className="block text-3xl font-bold text-blue-400">0 %</span>
+            <span className="mt-1 block text-sm leading-tight text-slate-400">
               {t.stats.motifs}
             </span>
           </div>
@@ -313,17 +313,17 @@ function LandingPage() {
       {/* ─── Problème ────────────────────────────────────────────── */}
       <section className="py-16 sm:py-24">
         <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
-          <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">{t.probleme.titre}</h2>
-          <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-slate-600">
+          <h2 className="text-2xl font-bold text-slate-50 sm:text-3xl">{t.probleme.titre}</h2>
+          <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-slate-400">
             {t.probleme.corps}
           </p>
         </div>
       </section>
 
       {/* ─── Bento Grid Fonctionnalités ──────────────────────────── */}
-      <section className="bg-slate-50 py-16 sm:py-24">
+      <section className="bg-slate-900/50 py-16 sm:py-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <h2 className="mb-10 text-center text-2xl font-bold text-slate-900 sm:text-3xl">
+          <h2 className="mb-10 text-center text-2xl font-bold text-slate-50 sm:text-3xl">
             {t.fonctionnalites.titre}
           </h2>
           {/*
@@ -364,7 +364,7 @@ function LandingPage() {
             </div>
 
             {/* Rappels */}
-            <div className="rounded-2xl border-2 border-slate-200 bg-white p-7 transition-colors duration-200 hover:border-blue-200 hover:bg-blue-50">
+            <div className="rounded-2xl border border-slate-700 bg-slate-900 p-7 transition-colors duration-200 hover:border-blue-700 hover:bg-blue-950/50">
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 text-white">
                 <svg
                   viewBox="0 0 24 24"
@@ -379,16 +379,14 @@ function LandingPage() {
                   <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                 </svg>
               </div>
-              <h3 className="text-xl font-bold text-slate-900">
-                {t.fonctionnalites.rappels.titre}
-              </h3>
-              <p className="mt-2 leading-relaxed text-slate-600">
+              <h3 className="text-xl font-bold text-slate-50">{t.fonctionnalites.rappels.titre}</h3>
+              <p className="mt-2 leading-relaxed text-slate-400">
                 {t.fonctionnalites.rappels.corps}
               </p>
             </div>
 
             {/* Confidentialité */}
-            <div className="rounded-2xl border-2 border-orange-100 bg-orange-50 p-7 transition-colors duration-200 hover:border-orange-200 hover:bg-orange-100">
+            <div className="rounded-2xl border border-orange-900/50 bg-orange-950/30 p-7 transition-colors duration-200 hover:border-orange-800 hover:bg-orange-950/50">
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-orange-500 text-white">
                 <svg
                   viewBox="0 0 24 24"
@@ -404,10 +402,10 @@ function LandingPage() {
                   <path d="M7 11V7a5 5 0 0110 0v4" />
                 </svg>
               </div>
-              <h3 className="text-xl font-bold text-slate-900">
+              <h3 className="text-xl font-bold text-slate-50">
                 {t.fonctionnalites.confidentialite.titre}
               </h3>
-              <p className="mt-2 leading-relaxed text-slate-700">
+              <p className="mt-2 leading-relaxed text-slate-300">
                 {t.fonctionnalites.confidentialite.corps}
               </p>
             </div>
@@ -418,10 +416,10 @@ function LandingPage() {
       {/* ─── Pour qui — deux personas côte à côte ────────────────── */}
       <section className="py-16 sm:py-24">
         <div className="mx-auto max-w-5xl px-4 sm:px-6">
-          <h2 className="mb-4 text-center text-2xl font-bold text-slate-900 sm:text-3xl">
+          <h2 className="mb-4 text-center text-2xl font-bold text-slate-50 sm:text-3xl">
             {t.pourQui.titre}
           </h2>
-          <p className="mx-auto mb-10 max-w-xl text-center text-lg leading-relaxed text-slate-600">
+          <p className="mx-auto mb-10 max-w-xl text-center text-lg leading-relaxed text-slate-400">
             {t.pourQui.corps}
           </p>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
@@ -448,7 +446,7 @@ function LandingPage() {
               </p>
             </div>
             {/* Conjoint(e) */}
-            <div className="rounded-2xl bg-slate-900 p-8 text-white">
+            <div className="rounded-2xl border border-slate-700 bg-slate-800 p-8 text-white">
               <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20">
                 <svg
                   viewBox="0 0 24 24"
@@ -491,18 +489,18 @@ function LandingPage() {
       </section>
 
       {/* ─── Footer ──────────────────────────────────────────────── */}
-      <footer className="border-t border-slate-200 py-8">
+      <footer className="border-t border-slate-800 py-8">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 sm:px-6">
-          <span className="text-sm font-bold text-blue-600">{t.marque}</span>
+          <span className="text-sm font-bold text-blue-400">{t.marque}</span>
           <span className="text-sm text-slate-500">{t.footer.copyright}</span>
           <div className="flex gap-4">
             <Link
               href="/politique"
-              className="cursor-pointer text-sm text-slate-500 underline transition-colors duration-200 hover:text-slate-700"
+              className="cursor-pointer text-sm text-slate-400 underline transition-colors duration-200 hover:text-slate-200"
             >
               {t.footer.politique}
             </Link>
-            <span className="text-sm text-slate-400">{t.footer.loi25}</span>
+            <span className="text-sm text-slate-500">{t.footer.loi25}</span>
           </div>
         </div>
       </footer>
@@ -514,10 +512,10 @@ function LandingPage() {
 function ChoisirEquipe({ householdId, enErreur }: { householdId: string; enErreur: boolean }) {
   const t = fr.equipe;
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center gap-6 bg-neutral-950 p-6 text-neutral-50">
+    <main className="flex min-h-dvh flex-col items-center justify-center gap-6 bg-slate-950 p-6 text-slate-50">
       <header className="text-center">
         <h1 className="text-3xl font-bold tracking-tight">{t.titre}</h1>
-        <p className="mt-2 max-w-prose text-neutral-300">{t.consigne}</p>
+        <p className="mt-2 max-w-prose text-slate-300">{t.consigne}</p>
       </header>
       {enErreur ? (
         <p role="alert" className="max-w-sm rounded-lg bg-red-950 px-4 py-3 text-red-200">
@@ -533,10 +531,10 @@ function ChoisirEquipe({ householdId, enErreur }: { householdId: string; enErreu
 function AttenteTravailleur() {
   const t = fr.equipe;
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-neutral-950 p-8 text-center text-neutral-50">
+    <main className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-slate-950 p-8 text-center text-slate-50">
       <h1 className="text-3xl font-bold tracking-tight">{fr.accueil.titre}</h1>
-      <p className="max-w-prose text-lg text-neutral-300">{t.attenteTravailleur}</p>
-      <Link href="/foyer" className="text-sm text-neutral-400 underline hover:text-neutral-200">
+      <p className="max-w-prose text-lg text-slate-300">{t.attenteTravailleur}</p>
+      <Link href="/foyer" className="text-sm text-slate-400 underline hover:text-slate-200">
         {fr.accueil.monFoyer}
       </Link>
     </main>

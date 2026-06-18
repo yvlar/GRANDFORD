@@ -29,7 +29,7 @@ export default async function ConnexionPage({
   const suivant = params.suivant ?? "";
 
   return (
-    <div className="min-h-dvh bg-white">
+    <div className="min-h-dvh bg-slate-950">
       <div className="flex min-h-dvh">
         {/* ─── Panneau gauche : identité de marque (md+) ──────────── */}
         <aside className="hidden flex-col justify-between bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 p-10 text-white md:flex md:w-5/12 lg:w-2/5">
@@ -77,21 +77,21 @@ export default async function ConnexionPage({
           {/* Marque visible sur mobile seulement */}
           <Link
             href="/"
-            className="mb-10 text-xl font-bold tracking-tight text-blue-600 transition-colors duration-200 hover:text-blue-700 md:hidden"
+            className="mb-10 text-xl font-bold tracking-tight text-blue-400 transition-colors duration-200 hover:text-blue-300 md:hidden"
           >
             {tl.marque}
           </Link>
 
           <div className="w-full max-w-sm">
             <header className="mb-8">
-              <h1 className="text-2xl font-bold text-slate-900">{t.titre}</h1>
-              <p className="mt-2 leading-relaxed text-slate-600">{t.sousTitre}</p>
+              <h1 className="text-2xl font-bold text-slate-50">{t.titre}</h1>
+              <p className="mt-2 leading-relaxed text-slate-400">{t.sousTitre}</p>
             </header>
 
             {/* ── État : lien envoyé ─────────────────────────────── */}
             {params.envoye ? (
-              <div className="rounded-xl border-2 border-emerald-200 bg-emerald-50 px-5 py-5">
-                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100">
+              <div className="rounded-xl border border-emerald-800 bg-emerald-950/50 px-5 py-5">
+                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-900">
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"
@@ -99,16 +99,16 @@ export default async function ConnexionPage({
                     strokeWidth="2.5"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    className="h-5 w-5 text-emerald-600"
+                    className="h-5 w-5 text-emerald-400"
                     aria-hidden="true"
                   >
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
                 </div>
-                <p className="font-semibold text-emerald-800">{t.lienEnvoye}</p>
+                <p className="font-semibold text-emerald-300">{t.lienEnvoye}</p>
                 <Link
                   href={`/connexion${suivant ? `?suivant=${encodeURIComponent(suivant)}` : ""}`}
-                  className="mt-3 inline-block text-sm text-emerald-700 underline transition-colors duration-200 hover:text-emerald-900"
+                  className="mt-3 inline-block text-sm text-emerald-400 underline transition-colors duration-200 hover:text-emerald-300"
                 >
                   {t.reessayer}
                 </Link>
@@ -119,13 +119,13 @@ export default async function ConnexionPage({
                 {erreur ? (
                   <div
                     role="alert"
-                    className="mb-6 rounded-xl border-2 border-red-200 bg-red-50 px-5 py-4"
+                    className="mb-6 rounded-xl border border-red-800 bg-red-950/50 px-5 py-4"
                   >
-                    <p className="font-semibold text-red-800">{erreur}</p>
+                    <p className="font-semibold text-red-300">{erreur}</p>
                     {detail ? (
-                      <p className="mt-1 text-xs text-red-500">
+                      <p className="mt-1 text-xs text-red-400">
                         {t.detailTechnique} :{" "}
-                        <code className="text-red-400">{detail.slice(0, 120)}</code>
+                        <code className="text-red-300">{detail.slice(0, 120)}</code>
                       </p>
                     ) : null}
                   </div>
@@ -134,7 +134,7 @@ export default async function ConnexionPage({
                 {/* ── Formulaire lien magique ─────────────────────── */}
                 <form action={envoyerLienMagique} className="flex flex-col gap-3">
                   <input type="hidden" name="suivant" value={suivant} />
-                  <label htmlFor="courriel" className="text-sm font-medium text-slate-700">
+                  <label htmlFor="courriel" className="text-sm font-medium text-slate-300">
                     {t.courrielLabel}
                   </label>
                   <input
@@ -144,7 +144,7 @@ export default async function ConnexionPage({
                     required
                     autoComplete="email"
                     placeholder={t.courrielPlaceholder}
-                    className="rounded-lg border-2 border-slate-200 bg-white px-4 py-3 text-base text-slate-900 placeholder:text-slate-400 transition-colors duration-200 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    className="rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-base text-slate-50 placeholder:text-slate-500 transition-colors duration-200 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                   />
                   <button
                     type="submit"
@@ -156,9 +156,9 @@ export default async function ConnexionPage({
 
                 {/* ── Séparateur ─────────────────────────────────── */}
                 <div className="my-6 flex items-center gap-3">
-                  <div className="flex-1 border-t border-slate-200" />
-                  <span className="text-sm text-slate-400">{t.ou}</span>
-                  <div className="flex-1 border-t border-slate-200" />
+                  <div className="flex-1 border-t border-slate-700" />
+                  <span className="text-sm text-slate-500">{t.ou}</span>
+                  <div className="flex-1 border-t border-slate-700" />
                 </div>
 
                 {/* ── OAuth ──────────────────────────────────────── */}
@@ -167,7 +167,7 @@ export default async function ConnexionPage({
                     <input type="hidden" name="suivant" value={suivant} />
                     <button
                       type="submit"
-                      className="flex w-full cursor-pointer items-center justify-center gap-3 rounded-lg border-2 border-slate-200 bg-white px-4 py-3 text-base font-semibold text-slate-700 transition-colors duration-200 hover:border-slate-300 hover:bg-slate-50"
+                      className="flex w-full cursor-pointer items-center justify-center gap-3 rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-base font-semibold text-slate-300 transition-colors duration-200 hover:border-slate-600 hover:bg-slate-800"
                     >
                       {/* Google G — couleurs officielles */}
                       <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" aria-hidden="true">
@@ -196,7 +196,7 @@ export default async function ConnexionPage({
                     <input type="hidden" name="suivant" value={suivant} />
                     <button
                       type="submit"
-                      className="flex w-full cursor-pointer items-center justify-center gap-3 rounded-lg border-2 border-slate-200 bg-white px-4 py-3 text-base font-semibold text-slate-700 transition-colors duration-200 hover:border-slate-300 hover:bg-slate-50"
+                      className="flex w-full cursor-pointer items-center justify-center gap-3 rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-base font-semibold text-slate-300 transition-colors duration-200 hover:border-slate-600 hover:bg-slate-800"
                     >
                       {/* Apple logo */}
                       <svg
