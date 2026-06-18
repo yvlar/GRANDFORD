@@ -7,10 +7,10 @@
 
 | Champ | Valeur |
 |---|---|
-| **Version** | 0.11.1 |
+| **Version** | 0.12.0 |
 | **Phase active** | v1.1 |
-| **Sprint actif** | **Sprint 12 — à définir** |
-| **Dernier sprint complété** | Sprint 11 — Nom du travailleur page foyer ✅ |
+| **Sprint actif** | **Sprint 13 — à définir** |
+| **Dernier sprint complété** | Sprint 12 — Landing page SaaS ✅ |
 
 Note dépôt : branche d'intégration = **`dev`** (créée le 2026-06-11 depuis `claude/brave-pascal-5o9eiv`, première branche du dépôt — analyse + gouvernance). Chaque sprint : une branche `claude/sprintNN-<nom-court>` depuis `dev`, fusionnée par PR vers `dev`. Une `main` de production pourra naître de `dev` à la première mise en ligne (Sprint 8).
 
@@ -20,12 +20,9 @@ Note dépôt : branche d'intégration = **`dev`** (créée le 2026-06-11 depuis 
 - **v1.1** = FR-8 (notes), FR-9 (requêtes), FR-13 (journal), FR-14 (export iCal/PDF).
 - **v2+** = FR-15 (Dayforce), FR-16 (facturation SaaS), FR-17 (multi-usines).
 
-## Sprints MVP
+## Sprints v1.1
 
-> Sprints 1-7 archivés : `docs/roadmap-archive.md`.
-
-### Sprint 8 — Mise en ligne + filets ✅
-**Livré** : MVP **en ligne**. Supabase Cloud (CA/US-est) : migrations appliquées, types régénérés, secrets Edge posés, `send-reminders` déployée (v4) ; pg_cron planifié (`:05`), opérationnel. Vercel : projet lié, variables d'env posées (sans `GRANDFORD_DEMO`), build de prod vert, domaine de prod. **Dette GoTrue soldée** : lien magique reçu et connexion réussie sur le site réel ; OAuth Google validé. **Push reçu sur l'iPhone réel** (PWA installée), payload sans motif (R7 ✅) ; courriel de repli Resend reçu. **Sentry** : DSN réel branché (`NEXT_PUBLIC_SENTRY_DSN` + `SENTRY_DSN` sur Vercel), événement de test reçu sans courriel ni motif (R7 ✅). **UptimeRobot** : moniteur HTTP(s) sur le site de prod (uptime + réveil du projet gratuit). **Sauvegarde** : secret `SUPABASE_DB_URL` posé, 1er run réel de `backup.yml` → artefact `pg_dump` daté vérifié (NFR-11). Filets locaux déjà livrés (session précédente) : CI 4 gates · Dockerfile + docker-compose · `scripts/verifier-restauration.sh` (round-trip 15 tables, 44 fonctions, policies + GRANT, données cœur) · `docs/mise-en-ligne.md` · scaffolding Sentry R7-strict (`lib/monitoring/scrub.ts`) · correction Edge (`verify_jwt = false`, `_shared/payload.ts`, secret Vault). Gates mesurés : vitest **145** (dont 15 isolation RLS + 12 purs scrubber Sentry), tsc 0, biome 0, build OK. Branche de session : `claude/sprint08-mise-en-ligne`.
+> Sprints 1-8 archivés : `docs/roadmap-archive.md`.
 
 ### Sprint 9 — Co-planification conjointe ✅
 **Livré** : FR-8 (notes de couple partagées dans le foyer) + FR-9 (requêtes disponibilité : conjointe soumet → travailleur approuve / refuse) + **trigger génération rappels** (prérequis Sprint 7 soldé). **Trigger** : migration `…_sprint09_trigger_reminders.sql` — `generate_reminders_for_exception()` (SECURITY INVOKER, `set search_path = ''`) + `trg_generate_reminders` (AFTER INSERT ON exceptions) ; `create_exception_with_motif` allégée (INSERT reminders retiré) — 0 doublement garanti par test. **RLS requests granulaire** : migration `…_sprint09_notes_requests_rls.sql` — `requests_all` trop permissive remplacée par 4 policies ; UPDATE réservé à `target_profile_id` (travailleur ciblé, conjointe bloquée en test). **Server actions** : `creerNote` / `supprimerNote` (`app/notes/actions.ts`) + `soumettreRequete` / `approuverRequete` / `refuserRequete` (`app/requetes/actions.ts`) — approbation appelle la RPC (`motif = 'requete'` → `exception_private`, R7) puis met à jour `requests.status`. **Composants** : `NoteDuJour` (saisie inline + liste + suppression) ; `PanneauJourConjointe` (modal conjointe : notes + formulaire demande + `StatusBadge` pending/approved/declined) ; `PanneauCapture` étendu (section notes + section requête pendante pour le travailleur). **Câblage** `app/page.tsx` : notes + requêtes chargés en parallèle (±62 j), `parseNoteRows` / `parseRequeteRows` aux frontières Zod ; `requests.body` jamais dans Sentry ni logs (R7). Gates mesurés : vitest **155** (+10 : 7 isolation RLS sprint 9 + 3 trigger), tsc 0, biome 0, build OK. Migrations appliquées sur Supabase Cloud. Branche : `claude/sprint09-coplanification`.
@@ -36,26 +33,8 @@ Note dépôt : branche d'intégration = **`dev`** (créée le 2026-06-11 depuis 
 ### Sprint 10 — Export iCal + conformité Loi 25 ✅
 **Livré** : FR-14 (export `.ics` pour iPhone/Google Calendrier) + conformité Loi 25 de base. **Tokens HMAC stateless** (`ICAL_SECRET` serveur seulement, ajouté à `.env.example` et `securite-secrets.md`) : `signIcalToken` / `verifyIcalToken` (`lib/ical/generate.ts`) — comparaison timing-safe, zéro table requise. **Génération `.ics` pure** (RFC 5545) : travailleur = quarts du moteur + écarts (libellé « Absent » uniquement pour `off`, jamais le motif, R7) ; conjointe = libellés génériques uniquement (« Partenaire en quart / disponible »). DTSTAMP dynamique, `buildVcalendar` sans ligne vide, CRLF. **Route `GET /api/ical/[token]`** : `SUPABASE_SERVICE_ROLE` stateless (pas de GoTrue) ; lookup `memberships` → `profile_id` travailleur → `worker_assignments` + `exceptions` filtrées par `profile_id` (R7 structurel : jamais d'exception d'un autre membre) ; Zod à la frontière BD (team + effect + shift). **Page `/politique`** : accessible sans auth, politique de confidentialité Loi 25 (données collectées, finalités, droits, responsable RVP). **Consentement invitation** : case à cocher + lien `/politique` dans `app/invitation/[code]` ; validation côté serveur dans l'action (contourne le bypass HTML). **Cascade Loi 25** : 2 tests BD — suppression conjointe (auth.users → membership cascade, 0 résidu) ; suppression foyer → 6 tables = 0 résidu. Gates mesurés : vitest **175** (+20 : 18 purs `.ics` + 2 cascade Loi 25), tsc 0, biome 0. Branche : `claude/sprint09-coplanification`.
 
-## Branches exploratoires (hors sprint)
-
-| Branche | Objectif | État |
-|---|---|---|
-| `ui` | Refonte UX/UI de l'écran d'accueil — audit complet + direction design | 🔬 Actif |
-
-### `ui` — Refonte écran d'accueil
-
-**Contexte** : audit UX mené en session (17 juin 2026) — problème central = grille mensuelle sur l'accueil crée une surcharge cognitive incompatible avec l'objectif "coup d'œil < 2 s" (NFR-1).
-
-**Changements livrés sur cette branche** :
-- `components/horaire/vue-coup-doeil.tsx` : pastille `min-h-[52vh]` (héroïque), FAB fixe `bottom-6 right-6`, bande semaine tappable, carte « Prochain écart » conditionnelle, suppression grille mensuelle + légende
-- `lib/i18n/fr.ts` : ajout `fr.horaire.prochainEcart`
-
-**Direction UX complète** (wireframes + audit + 8 sections) : voir conversation du 17 juin 2026.
-
-**Prochaines étapes suggérées si la direction est validée** :
-1. Intégrer dans un sprint `claude/sprint12-refonte-ui` depuis `dev`
-2. Créer l'onglet Cycle (grille mensuelle déplacée, non supprimée)
-3. Différencier vraiment la vue conjointe (pastille TRAVAILLE/DISPONIBLE dominante)
+### Sprint 12 — Landing page SaaS ✅
+**Livré** : page publique d'accueil pour les visiteurs non connectés — remplace l'ancienne `PorteEntree` minimaliste. **Design system** généré via skill `ui-ux-pro-max` (Flat Design, couleurs Primary `#2563EB` / CTA `#F97316`, typographie Plus Jakarta Sans). **Sections** : Navbar sticky + Hero (titre + CTA orange → `/connexion` + lien démo) + Problème (Pitman prévisible, écarts non) + Fonctionnalités (3 cartes : Capture 3 taps · Rappels automatiques · Confidentialité structurelle) + Pour qui (travailleur + conjoint(e)) + CTA final + Footer (© + politique de confidentialité + Loi 25). **Technique** : Server Component pur (pas de `use client`), `Plus_Jakarta_Sans` via `next/font/google` dans le layout global, toutes les chaînes dans `fr.landing` (`lib/i18n/fr.ts`), SVG inline (pas de lib d'icônes), aucun nouveau package. R7 : aucun motif ni donnée personnelle exposés. Gates mesurés : vitest **175** (inchangé), tsc 0, biome 0. Branche : `claude/sprint12-landing-page`.
 
 ## Horizons post-MVP (non planifiés en sprints)
 
