@@ -8,14 +8,7 @@ import type { CaptureHandlers, OwnException } from "@/lib/schedule/capture";
 import type { Note, NoteHandlers, Requete, RequeteHandlers } from "@/lib/schedule/coplanification";
 import { FORMAT_JOUR_LONG, dateUTC } from "@/lib/schedule/format";
 import type { SommeilHandlers } from "@/lib/schedule/sommeil";
-import {
-  addDays,
-  availabilityFor,
-  dayStatuses,
-  monthGrid,
-  shiftMonth,
-  statusForDate,
-} from "@/lib/schedule/status";
+import { addDays, availabilityFor, dayStatuses, statusForDate } from "@/lib/schedule/status";
 import { todayCivil } from "@/lib/schedule/today";
 import type {
   Availability,
@@ -63,31 +56,10 @@ const AFFICHAGE_CONJOINTE: Record<Availability, Affichage> = {
 
 // Dates affichées : les chaînes civiles 'YYYY-MM-DD' sont formatées en UTC pour ne
 // pas glisser d'un jour selon le fuseau du navigateur (la date civile est la vérité).
-const FORMAT_MOIS = new Intl.DateTimeFormat("fr-CA", {
-  month: "long",
-  year: "numeric",
-  timeZone: "UTC",
-});
 const FORMAT_LETTRE_JOUR = new Intl.DateTimeFormat("fr-CA", {
   weekday: "narrow",
   timeZone: "UTC",
 });
-
-/** Point « écart à l'horaire » d'une case de la grille (même rendu pour les deux rôles). */
-function MarqueurEcart() {
-  return (
-    <span
-      aria-label={fr.horaire.ecart}
-      className="absolute right-1 top-1 h-2 w-2 rounded-full bg-black/60"
-    />
-  );
-}
-
-// Lettres D L M M J V S : dérivées d'une semaine réelle commençant un dimanche
-// (2023-01-01), pour rester alignées sur la locale plutôt que codées en dur.
-const LETTRES_SEMAINE = Array.from({ length: 7 }, (_, i) =>
-  FORMAT_LETTRE_JOUR.format(dateUTC("2023-01-01").getTime() + i * 86_400_000),
-);
 
 export interface VueCoupDoeilProps {
   readonly role: Role;
@@ -157,7 +129,6 @@ export function VueCoupDoeil({
 }: VueCoupDoeilProps) {
   const t = fr.horaire;
   const [today, setToday] = useState(initialToday);
-  const [monthAnchor, setMonthAnchor] = useState(initialToday);
   // Jour ciblé par le panneau (capture pour le travailleur, jour pour la conjointe).
   // null = panneau fermé. La clé du panneau est ce jour.
   const [captureDate, setCaptureDate] = useState<string | null>(null);
@@ -165,9 +136,7 @@ export function VueCoupDoeil({
     // WHY: l'accueil peut être servi depuis le cache PWA (hors-ligne) avec un
     // « aujourd'hui » périmé — l'horloge du client fait foi après hydratation.
     if (!clockFrozen) {
-      const clientToday = todayCivil();
-      setToday(clientToday);
-      setMonthAnchor(clientToday);
+      setToday(todayCivil());
     }
   }, [clockFrozen]);
 
@@ -189,6 +158,8 @@ export function VueCoupDoeil({
     return null;
   };
 
+  const interactif = capture != null || coplanification != null;
+
   const todayStatus = statusForDate(
     team,
     today,
@@ -206,10 +177,14 @@ export function VueCoupDoeil({
     sleepDefault,
     sleepAdjustments,
   );
-  const grid = monthGrid(team, monthAnchor, template, exceptions, sleepDefault, sleepAdjustments);
   const pastille = affichagePour(todayStatus);
   const sousTitre = sousTitrePour(todayStatus);
-  const legende = role === "worker" ? AFFICHAGE_TRAVAILLEUR : AFFICHAGE_CONJOINTE;
+
+  // Première exception dans le futur : alerte douce sans motif (R7).
+  const prochainEcart =
+    [...exceptions]
+      .filter((e) => e.onDate > today)
+      .sort((a, b) => a.onDate.localeCompare(b.onDate))[0] ?? null;
 
   // Bloc d'ajustement du sommeil (FR-6) : proposé seulement si le jour tapé est une
   // journée de SOMMEIL et que les gestes sont câblés (branche travailleur connectée).
@@ -229,15 +204,8 @@ export function VueCoupDoeil({
     };
   };
 
-  const premierDuMois = `${grid.year}-${String(grid.month).padStart(2, "0")}-01`;
-  const dernierDuMois = addDays(shiftMonth(premierDuMois, 1), -1);
-  const etiquetteMois = FORMAT_MOIS.format(dateUTC(premierDuMois));
-  const ecartsIncomplets =
-    exceptionsRange !== null &&
-    (premierDuMois < exceptionsRange.from || dernierDuMois > exceptionsRange.to);
-
   return (
-    <main className="mx-auto flex min-h-dvh max-w-lg flex-col gap-6 bg-neutral-950 p-4 text-neutral-50">
+    <main className="mx-auto flex min-h-dvh max-w-lg flex-col gap-4 bg-neutral-950 p-4 pb-24 text-neutral-50">
       <header className="flex items-start justify-between">
         <div>
           <p className="text-sm font-bold tracking-widest text-neutral-400">GRANDFORD</p>
@@ -248,142 +216,129 @@ export function VueCoupDoeil({
         </Link>
       </header>
 
-      {/* Pastille « Aujourd'hui » : l'état du jour, lisible en < 2 s (NFR-1). */}
+      {/* Pastille « Aujourd'hui » — héroïque : occupe la moitié de l'écran.
+          Lisible en < 2 s sans chercher (NFR-1) ; couleur + emoji + label = triple
+          encodage de l'état (NFR-12 : reconnaissance > rappel). */}
       <section
         aria-label={t.aujourdhui}
-        className={`flex flex-col items-center gap-1 rounded-3xl px-6 py-8 text-center ${pastille.classes}`}
+        className={`flex min-h-[52vh] flex-col items-center justify-center gap-2 rounded-3xl text-center ${pastille.classes}`}
       >
-        <p className="text-sm font-bold uppercase tracking-wide opacity-80">
-          {t.aujourdhui} · {FORMAT_JOUR_LONG.format(dateUTC(today))}
+        <p className="text-xs font-bold uppercase tracking-widest opacity-60">
+          {FORMAT_JOUR_LONG.format(dateUTC(today))}
         </p>
-        <p className="text-6xl" aria-hidden="true">
+        <p className="text-8xl" aria-hidden="true">
           {pastille.emoji}
         </p>
-        <p className="text-5xl font-black uppercase tracking-tight">{pastille.etiquette}</p>
-        {sousTitre ? <p className="text-2xl font-semibold">{sousTitre}</p> : null}
+        <p className="text-6xl font-black uppercase tracking-tight">{pastille.etiquette}</p>
+        {sousTitre ? <p className="text-3xl font-semibold opacity-80">{sousTitre}</p> : null}
         {todayStatus.fromException ? (
-          <p className="mt-2 rounded-full bg-black/25 px-3 py-1 text-sm font-semibold">{t.ecart}</p>
+          <span className="mt-3 rounded-full bg-black/25 px-4 py-1.5 text-sm font-bold uppercase tracking-wide">
+            {t.ecart}
+          </span>
         ) : null}
       </section>
 
-      {/* Capture d'écart (FR-4) : LE geste central — tap 1 du budget ≤ 3 taps. */}
-      {capture ? (
-        <button
-          type="button"
-          onClick={() => setCaptureDate(today)}
-          className="rounded-2xl bg-emerald-600 px-6 py-4 text-xl font-bold hover:bg-emerald-500"
-        >
-          ➕ {fr.capture.saisirEcart}
-        </button>
-      ) : null}
-
-      {/* Bande semaine : aujourd'hui + 6 jours. */}
+      {/* Bande semaine : aujourd'hui + 6 jours.
+          Tappable quand le rôle est interactif — remplace la grille mensuelle pour
+          accéder à un jour précis (la grille vit dans l'onglet Cycle, pas ici). */}
       <section aria-label={t.semaine}>
         <ul className="grid grid-cols-7 gap-1">
           {week.map((day) => {
             const aff = affichagePour(day);
+            const cellClasses = `flex w-full flex-col items-center gap-0.5 rounded-xl py-2 ${aff.classes} ${
+              day.date === today ? "ring-2 ring-white" : ""
+            }`;
+            const titre = `${FORMAT_JOUR_LONG.format(dateUTC(day.date))} : ${aff.etiquette}`;
             return (
               <li key={day.date}>
-                <div
-                  title={`${FORMAT_JOUR_LONG.format(dateUTC(day.date))} : ${aff.etiquette}`}
-                  className={`flex flex-col items-center gap-0.5 rounded-xl py-2 ${aff.classes} ${
-                    day.date === today ? "ring-2 ring-white" : ""
-                  }`}
-                >
-                  <span className="text-xs font-bold uppercase">
-                    {FORMAT_LETTRE_JOUR.format(dateUTC(day.date))}
-                  </span>
-                  <span className="text-lg font-black">{Number(day.date.slice(8))}</span>
-                  <span className="text-base" aria-hidden="true">
-                    {aff.emoji}
-                  </span>
-                </div>
+                {interactif ? (
+                  <button
+                    type="button"
+                    title={titre}
+                    onClick={() => setCaptureDate(day.date)}
+                    className={cellClasses}
+                  >
+                    <span className="text-xs font-bold uppercase">
+                      {FORMAT_LETTRE_JOUR.format(dateUTC(day.date))}
+                    </span>
+                    <span className="text-lg font-black">{Number(day.date.slice(8))}</span>
+                    <span className="text-base" aria-hidden="true">
+                      {aff.emoji}
+                    </span>
+                  </button>
+                ) : (
+                  <div title={titre} className={cellClasses}>
+                    <span className="text-xs font-bold uppercase">
+                      {FORMAT_LETTRE_JOUR.format(dateUTC(day.date))}
+                    </span>
+                    <span className="text-lg font-black">{Number(day.date.slice(8))}</span>
+                    <span className="text-base" aria-hidden="true">
+                      {aff.emoji}
+                    </span>
+                  </div>
+                )}
               </li>
             );
           })}
         </ul>
       </section>
 
-      {/* Grille mois, navigable hors-ligne (tout est calculé côté client). */}
-      <section aria-label={etiquetteMois}>
-        <div className="mb-2 flex items-center justify-between">
-          <button
-            type="button"
-            aria-label={t.moisPrecedent}
-            onClick={() => setMonthAnchor(shiftMonth(monthAnchor, -1))}
-            className="rounded-lg border border-neutral-700 px-4 py-2 text-xl leading-none hover:bg-neutral-800"
-          >
-            ‹
-          </button>
-          <h2 className="text-xl font-bold capitalize">{etiquetteMois}</h2>
-          <button
-            type="button"
-            aria-label={t.moisSuivant}
-            onClick={() => setMonthAnchor(shiftMonth(monthAnchor, 1))}
-            className="rounded-lg border border-neutral-700 px-4 py-2 text-xl leading-none hover:bg-neutral-800"
-          >
-            ›
-          </button>
-        </div>
-        {ecartsIncomplets ? (
-          <p className="mb-2 rounded-lg bg-amber-950 px-3 py-2 text-sm text-amber-200">
-            {t.ecartsNonCharges}
-          </p>
-        ) : null}
-        <div className="grid grid-cols-7 gap-1">
-          {LETTRES_SEMAINE.map((lettre, i) => (
-            <span
-              // WHY index en clé : deux « M » (mardi/mercredi) rendent la lettre non unique.
-              key={`entete-${i.toString()}`}
-              className="py-1 text-center text-xs font-bold uppercase text-neutral-400"
+      {/* Carte « Prochain écart » — conditionnelle, jamais un motif (R7).
+          Signal proactif : l'utilisateur n'a pas à scanner la semaine pour savoir
+          si quelque chose arrive. Tappable pour ouvrir le panneau du jour concerné. */}
+      {prochainEcart ? (
+        <section aria-label={t.prochainEcart}>
+          {interactif ? (
+            <button
+              type="button"
+              onClick={() => setCaptureDate(prochainEcart.onDate)}
+              className="flex w-full items-center gap-3 rounded-2xl border border-neutral-800 bg-neutral-900 px-4 py-3 text-left hover:bg-neutral-800"
             >
-              {lettre}
-            </span>
-          ))}
-          {Array.from({ length: grid.leadingBlanks }, (_, i) => (
-            <span key={`vide-${i.toString()}`} aria-hidden="true" />
-          ))}
-          {grid.days.map((day) => {
-            const aff = affichagePour(day);
-            const titre = `${FORMAT_JOUR_LONG.format(dateUTC(day.date))} : ${aff.etiquette}`;
-            const classes = `relative flex h-10 items-center justify-center rounded-lg text-base font-bold ${aff.classes} ${
-              day.date === today ? "ring-2 ring-white" : ""
-            }`;
-            // Travailleur et conjointe (si coplanification câblée) : tap sur un jour
-            // ouvre le panneau correspondant au rôle.
-            const interactif = capture != null || coplanification != null;
-            return interactif ? (
-              <button
-                key={day.date}
-                type="button"
-                title={titre}
-                onClick={() => setCaptureDate(day.date)}
-                className={classes}
-              >
-                {Number(day.date.slice(8))}
-                {day.fromException ? <MarqueurEcart /> : null}
-              </button>
-            ) : (
-              <div key={day.date} title={titre} className={classes}>
-                {Number(day.date.slice(8))}
-                {day.fromException ? <MarqueurEcart /> : null}
+              <span className="text-2xl" aria-hidden="true">
+                ⚡
+              </span>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest text-neutral-400">
+                  {t.prochainEcart}
+                </p>
+                <p className="font-semibold">
+                  {FORMAT_JOUR_LONG.format(dateUTC(prochainEcart.onDate))}
+                </p>
               </div>
-            );
-          })}
-        </div>
-      </section>
+              <span className="ml-auto text-neutral-400" aria-hidden="true">
+                ›
+              </span>
+            </button>
+          ) : (
+            <div className="flex items-center gap-3 rounded-2xl border border-neutral-800 bg-neutral-900 px-4 py-3">
+              <span className="text-2xl" aria-hidden="true">
+                ⚡
+              </span>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest text-neutral-400">
+                  {t.prochainEcart}
+                </p>
+                <p className="font-semibold">
+                  {FORMAT_JOUR_LONG.format(dateUTC(prochainEcart.onDate))}
+                </p>
+              </div>
+            </div>
+          )}
+        </section>
+      ) : null}
 
-      {/* Légende : mêmes couleurs/pictos que les cases (reconnaissance, NFR-12). */}
-      <section className="flex flex-wrap gap-2">
-        {Object.values(legende).map((aff) => (
-          <span
-            key={aff.etiquette}
-            className={`rounded-full px-3 py-1 text-sm font-semibold ${aff.classes}`}
-          >
-            {aff.emoji} {aff.etiquette}
-          </span>
-        ))}
-      </section>
+      {/* FAB de capture (FR-4) — fixe, toujours visible même en scroll.
+          Tap 1 du budget ≤ 3 taps (NFR-1) : ouvre la capture pour aujourd'hui. */}
+      {capture ? (
+        <button
+          type="button"
+          onClick={() => setCaptureDate(today)}
+          aria-label={fr.capture.saisirEcart}
+          className="fixed bottom-6 right-6 z-10 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-600 text-3xl shadow-xl transition-transform hover:bg-emerald-500 active:scale-95"
+        >
+          +
+        </button>
+      ) : null}
 
       {capture && captureDate ? (
         <PanneauCapture
