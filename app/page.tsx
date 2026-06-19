@@ -252,8 +252,8 @@ function LandingPage() {
         </div>
       </header>
 
-      {/* ─── Hero — gradient bleu, formes géométriques ────────── */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 px-4 py-20 text-white sm:px-6 sm:py-32">
+      {/* ─── Hero — gradient bleu, split 2 colonnes sur lg ──────── */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 px-4 py-16 text-white sm:px-6 sm:py-20 lg:py-24">
         {/* Accents décoratifs — purs, pas d'impact layout */}
         <div
           className="pointer-events-none absolute -right-32 -top-32 h-[28rem] w-[28rem] rounded-full bg-blue-500/25"
@@ -263,29 +263,118 @@ function LandingPage() {
           className="pointer-events-none absolute -bottom-20 -left-20 h-72 w-72 rounded-full bg-indigo-400/20"
           aria-hidden="true"
         />
-        <div className="relative mx-auto max-w-4xl text-center">
-          <span className="mb-6 inline-block rounded-full bg-white/10 px-4 py-1.5 text-sm font-semibold text-blue-100 ring-1 ring-inset ring-white/20">
-            {t.hero.badge}
-          </span>
-          <h1 className="mt-4 text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
-            {t.hero.titre}
-          </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-blue-100">
-            {t.hero.sous}
-          </p>
-          <div className="mt-10 flex flex-wrap justify-center gap-4">
-            <Link
-              href="/connexion"
-              className="cursor-pointer rounded-lg bg-orange-500 px-8 py-4 text-lg font-semibold text-white transition-colors duration-200 hover:bg-orange-400"
-            >
-              {t.hero.cta}
-            </Link>
-            <Link
-              href="/demo/horaire"
-              className="cursor-pointer rounded-lg border-2 border-white/30 bg-white/10 px-8 py-4 text-lg font-semibold text-white transition-colors duration-200 hover:bg-white/20"
-            >
-              {t.hero.demo}
-            </Link>
+
+        <div className="relative mx-auto max-w-6xl">
+          <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
+            {/* Texte — centré mobile, aligné gauche desktop */}
+            <div className="text-center lg:text-left">
+              <span className="mb-6 inline-block rounded-full bg-white/10 px-4 py-1.5 text-sm font-semibold text-blue-100 ring-1 ring-inset ring-white/20">
+                {t.hero.badge}
+              </span>
+              <h1 className="mt-4 text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
+                {t.hero.titre}
+              </h1>
+              <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-blue-100 lg:mx-0">
+                {t.hero.sous}
+              </p>
+              <div className="mt-10 flex flex-wrap justify-center gap-4 lg:justify-start">
+                <Link
+                  href="/connexion"
+                  className="cursor-pointer rounded-lg bg-orange-500 px-8 py-4 text-lg font-semibold text-white transition-colors duration-200 hover:bg-orange-400"
+                >
+                  {t.hero.cta}
+                </Link>
+                <Link
+                  href="/demo/horaire"
+                  className="cursor-pointer rounded-lg border-2 border-white/30 bg-white/10 px-8 py-4 text-lg font-semibold text-white transition-colors duration-200 hover:bg-white/20"
+                >
+                  {t.hero.demo}
+                </Link>
+              </div>
+            </div>
+
+            {/* Aperçu de l'app — desktop seulement */}
+            <div className="hidden lg:flex lg:justify-center">
+              <div className="w-full max-w-[280px] rounded-3xl border border-white/20 bg-slate-950 p-5 shadow-2xl shadow-indigo-900/60">
+                {/* Header mini */}
+                <div className="mb-4 flex items-center justify-between">
+                  <span className="text-xs font-bold tracking-widest text-blue-400">
+                    {t.marque}
+                  </span>
+                  <span className="rounded-full border border-slate-800 px-2.5 py-0.5 text-xs text-slate-400">
+                    Mon foyer
+                  </span>
+                </div>
+                {/* Pastille du jour */}
+                <div className="mb-3 rounded-2xl bg-amber-400 px-4 py-4">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="mb-1 h-6 w-6 text-amber-900"
+                    aria-hidden="true"
+                  >
+                    <circle cx="12" cy="12" r="5" />
+                    <line x1="12" y1="1" x2="12" y2="3" />
+                    <line x1="12" y1="21" x2="12" y2="23" />
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                    <line x1="1" y1="12" x2="3" y2="12" />
+                    <line x1="21" y1="12" x2="23" y2="12" />
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                  </svg>
+                  <p className="font-bold text-amber-950">Quart de jour</p>
+                  <p className="text-sm text-amber-800">07:00 – 19:00</p>
+                </div>
+                {/* Bande 7 jours */}
+                <div className="mb-3 grid grid-cols-7 gap-1">
+                  {[
+                    {
+                      key: "j",
+                      l: "J",
+                      s: "bg-amber-400 text-amber-950 font-bold ring-2 ring-white ring-offset-1 ring-offset-slate-950",
+                    },
+                    { key: "v", l: "V", s: "bg-amber-400 text-amber-950" },
+                    { key: "s", l: "S", s: "bg-amber-400 text-amber-950" },
+                    { key: "d", l: "D", s: "bg-emerald-500 text-emerald-950" },
+                    { key: "l", l: "L", s: "bg-emerald-500 text-emerald-950" },
+                    { key: "m1", l: "M", s: "bg-emerald-500 text-emerald-950" },
+                    { key: "m2", l: "M", s: "bg-indigo-500 text-indigo-50" },
+                  ].map(({ key, l, s }) => (
+                    <div key={key} className={`rounded-xl py-2 text-center text-xs ${s}`}>
+                      {l}
+                    </div>
+                  ))}
+                </div>
+                {/* Prochain écart */}
+                <div className="flex items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900 px-3 py-3">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-orange-500/15">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-4 w-4 text-orange-400"
+                      aria-hidden="true"
+                    >
+                      <path d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  </span>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                      Prochain écart
+                    </p>
+                    <p className="text-sm font-semibold text-slate-50">Dimanche 21 juin</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
