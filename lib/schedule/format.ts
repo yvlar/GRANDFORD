@@ -17,3 +17,11 @@ export const FORMAT_JOUR_LONG = new Intl.DateTimeFormat("fr-CA", {
   month: "long",
   timeZone: "UTC",
 });
+
+/** « 3 juin 2026 » — utilisé dans l'historique des écarts du foyer (FR-13). */
+export const FORMAT_DATE_COURTE = new Intl.DateTimeFormat("fr-CA", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: "UTC",
+});
