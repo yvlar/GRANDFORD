@@ -281,7 +281,52 @@ describe.skipIf(!rlsAvailable)("Isolation RLS (Postgres réel)", () => {
     });
   });
 
-  describe("7. Requêtes (Sprint 9, FR-9)", () => {
+  describe("7. Gabarits de cycle (Sprint 13, FR-17)", () => {
+    it("un membre du foyer A ne lit jamais le gabarit du foyer B", async () => {
+      const rows = await queryAs(
+        FIX.workerA,
+        "select id from public.cycle_templates where household_id = $1",
+        [FIX.householdB],
+      );
+      expect(rows).toHaveLength(0);
+    });
+
+    it("un membre du foyer A voit son propre gabarit (anchor_date correcte)", async () => {
+      // WHY ::text : pg sérialise les colonnes `date` en Date JS ; on compare en texte.
+      const rows = await queryAs<{ anchor_date: string }>(
+        FIX.workerA,
+        "select anchor_date::text from public.cycle_templates where household_id = $1",
+        [FIX.householdA],
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.anchor_date).toBe("2026-06-03");
+    });
+
+    it("la conjointe voit le gabarit de son foyer (template partagé dans le foyer)", async () => {
+      const rows = await queryAs<{ anchor_date: string }>(
+        FIX.spouseA,
+        "select anchor_date from public.cycle_templates where household_id = $1",
+        [FIX.householdA],
+      );
+      expect(rows).toHaveLength(1);
+    });
+
+    it("un membre révoqué perd aussitôt l'accès au gabarit", async () => {
+      await asUser(FIX.workerA, (client) =>
+        client.query("delete from public.memberships where household_id = $1 and profile_id = $2", [
+          FIX.householdA,
+          FIX.spouseA,
+        ]),
+      );
+      const rows = await queryAs<{ n: number }>(
+        FIX.spouseA,
+        "select count(*)::int as n from public.cycle_templates",
+      );
+      expect(rows[0]?.n).toBe(0);
+    });
+  });
+
+  describe("8. Requêtes (Sprint 9, FR-9)", () => {
     const insertRequestA = () =>
       asUser(FIX.spouseA, (client) =>
         client.query(
@@ -356,6 +401,51 @@ describe.skipIf(!rlsAvailable)("Isolation RLS (Postgres réel)", () => {
         [reqId],
       );
       expect(check[0]?.status).toBe("approved");
+    });
+  });
+
+  describe("9. Gabarit — contrôle propriétaire (Sprint 14, FR-17)", () => {
+    it("la conjointe ne peut pas modifier le gabarit du foyer (0 lignes modifiées)", async () => {
+      const rowCount = await asUser(FIX.spouseA, async (client) => {
+        const res = await client.query(
+          "update public.cycle_templates set name = 'Hacked' where household_id = $1 and is_active = true",
+          [FIX.householdA],
+        );
+        return res.rowCount;
+      });
+      expect(rowCount).toBe(0);
+
+      // Le nom est resté inchangé — la RLS a protégé la ligne.
+      const check = await queryAs<{ name: string }>(
+        FIX.workerA,
+        "select name from public.cycle_templates where household_id = $1 and is_active = true",
+        [FIX.householdA],
+      );
+      expect(check[0]?.name).toBe("Pitman 2-2-3");
+    });
+
+    it("le propriétaire peut modifier le gabarit (UPDATE sous RLS owner)", async () => {
+      await asUser(FIX.workerA, (client) =>
+        client.query(
+          "update public.cycle_templates set name = 'Pitman 2-2-3 (alt.)' where household_id = $1 and is_active = true",
+          [FIX.householdA],
+        ),
+      );
+      const check = await queryAs<{ name: string }>(
+        FIX.workerA,
+        "select name from public.cycle_templates where household_id = $1 and is_active = true",
+        [FIX.householdA],
+      );
+      expect(check[0]?.name).toBe("Pitman 2-2-3 (alt.)");
+    });
+
+    it("la conjointe lit toujours le gabarit après l'affinage RLS", async () => {
+      const rows = await queryAs<{ name: string }>(
+        FIX.spouseA,
+        "select name from public.cycle_templates where household_id = $1 and is_active = true",
+        [FIX.householdA],
+      );
+      expect(rows).toHaveLength(1);
     });
   });
 

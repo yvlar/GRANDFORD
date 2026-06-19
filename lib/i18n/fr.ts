@@ -147,6 +147,12 @@ export const fr = {
         exception_deleted: "Écart retiré",
       },
     },
+    gabarit: {
+      titre: "Gabarit de cycle",
+      actuel: "Gabarit actif",
+      confirmer: "Modifier le gabarit",
+      erreur: "La modification du gabarit a échoué. Réessayez.",
+    },
   },
   notes: {
     titre: "Notes",

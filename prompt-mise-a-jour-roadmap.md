@@ -1,99 +1,91 @@
-# Carte d'embarquement — Sprint 13 : Gabarits multi-usines (FR-17)
+# Carte d'embarquement — Sprint 15 : Notifications E2E prod + nettoyage push
 
 > Cette carte est **réécrite à chaque fin de sprint** pour le sprint suivant (règle : `.claude/rules/workflow-sprint.md`).
 > ⚠️ C'est une **prémisse à vérifier**, pas une vérité terrain : réconcilier chaque dépendance avec le code réel avant d'implémenter ; prémisse fausse → STOP + signalement.
 
 ## État
 
-Sprint 12 livré : journal des changements (FR-13) complet — trigger `trg_audit_exception`, `parseAuditRows()`, section Historique sur `/foyer`. **v1.1 entièrement complétée** (FR-8, FR-9, FR-13, FR-14). Version 0.12.0. Phase courante : **v2+**. État courant : voir la table en tête de `ROADMAP.md`.
+Sprint 14 livré : sélecteur de gabarit dans `/foyer` (FR-17 complet). RLS `cycle_templates_update` réservée au propriétaire. `changerGabarit` server action + `fetchActiveGabarit`. Version 0.14.0. Phase courante : **v2+**. État courant : voir la table en tête de `ROADMAP.md`.
 
 ## LECTURE OBLIGATOIRE
 
-1. `.claude/rules/moteur-pitman.md` — le moteur est **paramétrable par design** ; l'ancre, le pattern et les heures viennent du `cycleTemplate` (jamais en dur dans la logique). FR-17 = migration de `GRANDFORD_CYCLE` vers une table BD, sans toucher à la logique pure.
-2. `.claude/rules/supabase-rls.md` — nouvelle table `cycle_templates` : RLS activée, politique « membre du foyer » via `household_id` comme toutes les autres tables.
-3. `.claude/rules/tests-vitest.md` — les **golden tests** du moteur sont intouchables ; tout refactoring de l'ancre ou du pattern doit les laisser verts.
+1. `.claude/rules/supabase-rls.md` — Edge Functions utilisent `SUPABASE_SERVICE_ROLE` (serveur seulement, jamais `NEXT_PUBLIC_`).
+2. `.claude/rules/securite-secrets.md` — VAPID clés : `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (publique) + `VAPID_PRIVATE_KEY` (serveur seulement, jamais côté client).
+3. `.claude/rules/autonomie-confirmations.md` — `git push`, PR, envoi push réel à de vrais appareils = confirmation préalable.
 4. `ROADMAP.md` (état + périmètre) ; les règles universelles s'appliquent toujours.
 
 ## Prémisses à réconcilier AVANT d'implémenter
 
-- **`GRANDFORD_CYCLE` côté client** : `lib/engine/index.ts` (ligne à vérifier en session) — constante TypeScript avec `anchorDate`, `pattern`, `dayHours`, `nightHours`. À migrer vers un fetch BD, mais la constante reste le **fallback hors-ligne** (NFR-4).
-- **Table `cycle_templates`** : existence à vérifier dans `supabase/migrations/20260611192620_initial_schema.sql` — si absente, à créer ; si présente, vérifier colonnes et RLS.
-- **Consommateurs du moteur** : `app/page.tsx`, `lib/schedule/`, `lib/engine/` — chaque appel au `GRANDFORD_CYCLE` doit être localisé avant de modifier le type du paramètre.
-- **Multi-usines au sens réel** : un foyer = un `cycle_template_id`. Le MVP 1-foyer = 1 seul template (le gabarit GRANDFORD). Pas de selector multi-usines en UI pour Sprint 13 (trop large) — seulement la fondation BD + câblage côté client.
+- **`supabase/functions/send-reminders/`** : vérifier que la fonction existe (`ls supabase/functions/`) et inspecter son code — est-ce que `VAPID_PRIVATE_KEY` et `RESEND_API_KEY` sont lus depuis les secrets Vault ou les variables d'environnement ?
+- **`push_subscriptions`** : `SELECT count(*) FROM push_subscriptions` en prod — combien d'abonnements actifs ? Y en a-t-il d'expirés (endpoint mort) ?
+- **`reminders`** : `SELECT count(*) FROM reminders WHERE send_at <= now() AND sent_at IS NULL` — des rappels en attente non envoyés ?
+- **`pg_cron`** : `SELECT * FROM cron.job WHERE jobname LIKE '%reminder%'` — job planifié actif ? Logs récents (`SELECT * FROM cron.job_run_details ORDER BY start_time DESC LIMIT 10`).
+- **Réseau Edge → endpoints push** : une requête push vers un endpoint expiré renvoie HTTP 410 Gone (Chrome) ou 404 — la fonction les nettoie-t-elle ?
 
-## TÂCHE — Sprint 13
+## TÂCHE — Sprint 15
 
-### Sous-tâche 1 : Table `cycle_templates` (migration)
+### Option A — Validation E2E notifications + nettoyage (recommandé)
 
-1. Si absente : migration `…_sprint13_cycle_templates.sql` — table `cycle_templates (id uuid PK, household_id uuid FK → households, anchor_date date, pattern boolean[14], day_hours jsonb, night_hours jsonb, created_at)` ; RLS activée, policy `is_household_member(household_id)`.
-2. Si présente : vérifier colonnes, policies, et adapter.
-3. Migration de données : insérer le gabarit GRANDFORD dans `cycle_templates` pour le foyer existant (seed de test) ; en prod, appliquer via Edge Function ou script one-shot.
-4. `supabase gen types typescript` → types committés.
+1. **Inspecter `send-reminders`** : lire `supabase/functions/send-reminders/index.ts` — vérifier le flux : récupère rappels dus → Web Push → repli courriel Resend → mark `sent_at`. Corriger si nécessaire.
+2. **Nettoyage des endpoints expirés** : ajouter dans `send-reminders` (ou trigger séparé) la suppression des `push_subscriptions` dont le push retourne 410/404 — évite la croissance silencieuse de la table.
+3. **Test d'intégration** (si possible en local avec Supabase CLI) : insérer un rappel dû → appeler la fonction → vérifier `sent_at` renseigné, 0 motif dans le payload (R7).
+4. **Tests** : test unitaire payload (zéro motif, libellé générique si conjointe) — `lib/notifications/payload.test.ts` (à vérifier en session : déjà 4 tests). Test RLS `push_subscriptions` : un abonné ne voit pas les abonnements d'un autre.
 
-### Sous-tâche 2 : Fetch BD côté serveur + fallback hors-ligne
+### Option B — Facturation SaaS (FR-16, Stripe)
 
-1. Nouveau helper `lib/engine/template.ts` : `fetchCycleTemplate(supabase, householdId)` → `CycleTemplate | null`.
-2. `app/page.tsx` : charger le template depuis la BD (Promise.all) → passer au moteur ; fallback = `GRANDFORD_CYCLE` si null (NFR-4, hors-ligne).
-3. `GRANDFORD_CYCLE` reste exporté comme constante (fallback + tests) — ne pas supprimer.
-4. Moteur inchangé (fonctions pures, le paramètre `CycleTemplate` existait déjà) — les golden restent verts.
-
-### Sous-tâche 3 : Tests
-
-- Tests d'isolation RLS sur `cycle_templates` (membre foyer A ≠ foyer B).
-- Test : fallback `GRANDFORD_CYCLE` quand le fetch retourne `null`.
-- Golden moteur intouchables (les faire tourner en premier avant tout refactoring).
+Premier foyer gratuit, suivants payants. Webhook Stripe → `households.plan` ; portail client. Complexité haute — à adresser quand un 2ᵉ foyer réel (hors prod du développeur) est prêt à payer.
 
 ### Gates
 
 - `pnpm vitest run` · `pnpm tsc --noEmit` · `pnpm biome check .` · `pnpm build` — tous verts.
-- Tests d'isolation RLS si la table `cycle_templates` est créée ou modifiée.
-- Golden moteur verts en premier.
+- Si `send-reminders` est modifiée : `supabase functions deploy send-reminders` (après confirmation).
 
 ### Preuve d'acceptation observable
 
-1. `SELECT * FROM cycle_templates` → au moins une ligne avec `anchor_date = '2026-06-03'` et `pattern` de 14 booléens.
-2. L'accueil (`/`) affiche toujours le bon quart pour aujourd'hui (même résultat qu'avant le sprint).
-3. Couper le réseau → l'accueil reste fonctionnel (fallback `GRANDFORD_CYCLE` vérifié par test).
+1. `SELECT * FROM cron.job_run_details ORDER BY start_time DESC LIMIT 5` montre des exécutions récentes sans erreur.
+2. Un rappel inséré manuellement (`INSERT INTO reminders ...`) est marqué `sent_at` après une exécution de la fonction.
+3. `SELECT count(*) FROM push_subscriptions` est stable (pas de fuite d'abonnements expirés).
+4. Payload inspecté (log ou test) : zéro motif d'absence — champ `body` = libellé générique uniquement (R7 ✅).
 
 ## SPRINTS SUGGÉRÉS
 
-### v2+ — Gabarits multi-usines (FR-17) [recommandé pour Sprint 13]
-**Objectif** : migrer `GRANDFORD_CYCLE` vers la table `cycle_templates` — fondation du produit SaaS multi-usines.
-**Complexité** : Moyenne (migration BD + refactoring client léger, moteur inchangé)
-**Justification** : fondation requise avant FR-16 (facturation par foyer = 1 template par foyer) et avant toute démo SaaS.
-**Référence** : `GRANDFORD_CYCLE` — `lib/engine/index.ts` (ligne à vérifier en session) ; `cycle_templates` — `supabase/migrations/20260611192620_initial_schema.sql` (existence à vérifier en session).
-
-### v2+ — Intégration Dayforce (FR-15)
-**Objectif** : importer automatiquement l'horaire publié depuis l'API Dayforce (source optionnelle, jamais requise).
-**Complexité** : Haute (API externe, tokens OAuth Dayforce, réconciliation écarts existants)
-**Justification** : valeur pour les usines avec Dayforce déployé — mais dépend d'un accès réel à l'API ; non prioritaire sans client cible.
-**Référence** : FR-15 — `docs/analyse/02-analyse/analyse.md` (ligne à vérifier en session).
+### v2+ — Notifications E2E prod (suivi Sprint 8) [recommandé pour Sprint 15]
+**Objectif** : valider `send-reminders` en prod sur au moins 1 appareil réel ; nettoyer les endpoints push expirés.
+**Complexité** : Faible-Moyenne (inspection + correctifs mineurs + test d'intégration)
+**Justification** : FR-10 livré Sprint 7 mais jamais testé E2E sur plus d'un appareil — risque silencieux de rappels non reçus.
+**Référence** : `supabase/functions/send-reminders/` (à vérifier en session) ; `push_subscriptions` (table existante, Sprint 2).
 
 ### v2+ — Facturation SaaS (FR-16)
 **Objectif** : Stripe pour les foyers supplémentaires (1er foyer gratuit, suivants payants).
-**Complexité** : Haute (Stripe webhooks, portail client, gates d'accès)
-**Justification** : modèle d'affaires long terme — non prioritaire avant FR-17 (1 template/foyer = unité de facturation) et avant 10 foyers actifs.
-**Référence** : FR-16 — `docs/analyse/02-analyse/analyse.md`.
+**Complexité** : Haute (Stripe webhooks, portail client, gates d'accès par foyer)
+**Justification** : prérequis business pour tout 2ᵉ utilisateur externe ; FR-17 ✅ rend l'unité de facturation (foyer × gabarit) adressable.
+**Référence** : FR-16 — `docs/analyse/02-analyse/analyse.md` (ligne à vérifier en session).
 
-### Amélioration PWA — Notifications fiables (suivi Sprint 8)
-**Objectif** : valider l'envoi push en production (pg_cron + Edge `send-reminders`) sur un 2ᵉ appareil réel ; résoudre les expirés de `push_subscriptions`.
-**Complexité** : Faible-Moyenne (test d'intégration bout-en-bout, nettoyage des souscriptions)
-**Justification** : FR-10 livré mais jamais validé E2E en prod sur plus d'un appareil — risque silencieux.
-**Référence** : `supabase/functions/send-reminders/README.md` (à vérifier en session) ; `push_subscriptions` (table existante).
+### v2+ — Intégration Dayforce (FR-15)
+**Objectif** : importer l'horaire publié depuis l'API Dayforce (source optionnelle, jamais requise).
+**Complexité** : Haute (API externe, OAuth Dayforce, réconciliation écarts existants)
+**Justification** : non prioritaire sans accès réel à l'API et sans client cible ; documenter le point d'entrée quand l'accès est disponible.
+**Référence** : FR-15 — `docs/analyse/02-analyse/analyse.md` (ligne à vérifier en session).
+
+### v2+ — Amélioration UX horaire (NFR-1, NFR-12)
+**Objectif** : navigation mois facilitée, résumé hebdomadaire, vue compact pour TDAH.
+**Complexité** : Faible-Moyenne (UI pure, moteur existant)
+**Justification** : NFR-1 (capture ≤ 3 taps) et NFR-12 (accessibilité TDAH) — améliorer l'accueil si des retours utilisateurs indiquent une friction.
+**Référence** : `app/page.tsx` (vue coup d'œil) ; `docs/analyse/02-analyse/analyse.md:61` (NFR-12, à vérifier en session).
 
 ## Template de démarrage (coller tel quel dans une nouvelle session)
 
 ```
 Lis CLAUDE.md, ROADMAP.md et prompt-mise-a-jour-roadmap.md, puis exécute le
-Sprint 13 (Gabarits multi-usines — FR-17) en suivant .claude/prompts/prompt-executer-sprint.md — Phase A.
+Sprint 15 (Notifications E2E prod) en suivant .claude/prompts/prompt-executer-sprint.md — Phase A.
 
-Branche : claude/sprint13-cycle-templates (à créer depuis dev).
+Branche : claude/sprint15-notifications-e2e (à créer depuis dev, après merge de sprint14).
 
 Rappels non négociables :
-- Réconcilier en premier : existence de cycle_templates dans les migrations, colonnes et RLS ;
-  localiser GRANDFORD_CYCLE (lib/engine/index.ts) et tous ses consommateurs.
-- Golden tests du moteur = intouchables ; les faire tourner en premier.
-- RLS sur cycle_templates : même pattern is_household_member que toutes les autres tables.
-- NFR-4 : fallback GRANDFORD_CYCLE quand la BD est inaccessible (hors-ligne).
+- Réconcilier en premier : lire supabase/functions/send-reminders/index.ts ;
+  vérifier push_subscriptions (SELECT count(*)) et reminders en attente.
+- Jamais de motif dans le payload push (R7) — vérifier dans le code et les tests.
+- VAPID_PRIVATE_KEY = secret serveur seulement, jamais NEXT_PUBLIC_.
+- Si send-reminders est modifiée : déployer seulement après confirmation.
 - Fin de sprint = ROADMAP à jour + nouvelle carte + commit. PAS de push sans demander.
 ```

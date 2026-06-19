@@ -5,8 +5,10 @@ import { GRANDFORD_CYCLE } from "@/lib/engine";
 import { fr } from "@/lib/i18n/fr";
 import { signIcalToken } from "@/lib/ical/generate";
 import { requestOrigin } from "@/lib/request-origin";
+import { fetchActiveGabarit } from "@/lib/schedule/cycle-template";
 import { parseAuditRows, parseSleepRow } from "@/lib/schedule/db-rows";
 import { FORMAT_DATE_COURTE, dateUTC } from "@/lib/schedule/format";
+import { GABARITS_PREDEFINIS } from "@/lib/schedule/predefined-templates";
 import { defaultSleepWindow } from "@/lib/schedule/status";
 import { createClient } from "@/lib/supabase/server";
 import { equipeSchema } from "@/lib/validation";
@@ -14,6 +16,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   annulerInvitation,
+  changerGabarit,
   creerInvitation,
   mettreAJourNom,
   quitterFoyer,
@@ -29,6 +32,7 @@ const ERREURS: Record<string, string> = {
   equipe: fr.equipe.erreur,
   sommeil: fr.sommeil.erreurEnregistrement,
   nom: fr.foyer.erreurNom,
+  gabarit: fr.foyer.gabarit.erreur,
 };
 
 export default async function FoyerPage({
@@ -84,6 +88,7 @@ export default async function FoyerPage({
     affectationRes,
     sommeilRes,
     { data: historiqueRaw },
+    gabaritInfo,
   ] = await Promise.all([
     supabase
       .from("households")
@@ -117,6 +122,8 @@ export default async function FoyerPage({
       .eq("entity", "exception")
       .order("created_at", { ascending: false })
       .limit(50),
+    // FR-17 : gabarit actif du foyer — nom inclus pour affichage. Fallback NFR-4.
+    fetchActiveGabarit(supabase, monAdhesion.household_id),
   ]);
   if (!foyer) {
     redirect("/onboarding");
@@ -131,6 +138,9 @@ export default async function FoyerPage({
   const maFenetre = parseSleepRow(sommeilRes?.data ?? null);
 
   const historique = parseAuditRows(historiqueRaw ?? []);
+
+  const template = gabaritInfo?.template ?? GRANDFORD_CYCLE;
+  const gabaritNom = gabaritInfo?.name ?? GABARITS_PREDEFINIS[0].name;
 
   const estProprietaire = foyer.owner_id === user.id;
   const monMembre = (membres ?? []).find((m) => m.profile_id === user.id);
@@ -272,12 +282,38 @@ export default async function FoyerPage({
               equipeActuelle={monAffectation ? equipeSchema.parse(monAffectation.team) : null}
             />
           </section>
+          <section className="flex flex-col gap-3">
+            <h2 className="text-xl font-semibold">{fr.foyer.gabarit.titre}</h2>
+            <p className="text-sm text-neutral-400">
+              {fr.foyer.gabarit.actuel} :{" "}
+              <span className="font-semibold text-emerald-300">{gabaritNom}</span>
+            </p>
+            <form action={changerGabarit.bind(null, foyer.id)} className="flex flex-col gap-2">
+              <select
+                name="gabaritNom"
+                defaultValue={gabaritNom}
+                className="rounded-lg border border-neutral-700 bg-neutral-900 px-4 py-3 text-base text-neutral-200"
+              >
+                {GABARITS_PREDEFINIS.map((g) => (
+                  <option key={g.name} value={g.name}>
+                    {g.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="submit"
+                className="self-start rounded-lg border border-neutral-700 px-4 py-2 text-sm font-semibold text-neutral-200 hover:bg-neutral-900"
+              >
+                {fr.foyer.gabarit.confirmer}
+              </button>
+            </form>
+          </section>
           <section className="flex flex-col items-start gap-3">
             <h2 className="text-xl font-semibold">{fr.sommeil.titre}</h2>
             <FenetreSommeil
               householdId={monAdhesion.household_id}
               fenetreActuelle={maFenetre}
-              fenetreProposee={defaultSleepWindow(GRANDFORD_CYCLE)}
+              fenetreProposee={defaultSleepWindow(template)}
             />
           </section>
         </>
