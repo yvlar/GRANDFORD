@@ -205,13 +205,31 @@ export function VueCoupDoeil({
   };
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-lg flex-col gap-4 bg-neutral-950 p-4 pb-24 text-neutral-50">
-      <header className="flex items-start justify-between">
+    <main className="mx-auto flex min-h-dvh max-w-lg flex-col gap-4 bg-slate-950 p-4 pb-24 text-slate-50">
+      <header className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-bold tracking-widest text-neutral-400">GRANDFORD</p>
-          {workerName ? <p className="text-lg font-semibold">{t.horaireDe(workerName)}</p> : null}
+          <p className="text-sm font-bold tracking-widest text-blue-400">GRANDFORD</p>
+          {workerName ? (
+            <p className="text-base font-semibold text-slate-50">{t.horaireDe(workerName)}</p>
+          ) : null}
         </div>
-        <Link href="/foyer" className="text-sm text-neutral-400 underline hover:text-neutral-200">
+        <Link
+          href="/foyer"
+          className="flex items-center gap-1.5 rounded-full border border-slate-800 px-3 py-1.5 text-sm font-medium text-slate-400 transition-colors duration-200 hover:border-slate-700 hover:text-slate-200"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-3.5 w-3.5"
+            aria-hidden="true"
+          >
+            <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" />
+          </svg>
           {t.monFoyer}
         </Link>
       </header>
@@ -242,11 +260,11 @@ export function VueCoupDoeil({
           Tappable quand le rôle est interactif — remplace la grille mensuelle pour
           accéder à un jour précis (la grille vit dans l'onglet Cycle, pas ici). */}
       <section aria-label={t.semaine}>
-        <ul className="grid grid-cols-7 gap-1">
+        <ul className="grid grid-cols-7 gap-1.5">
           {week.map((day) => {
             const aff = affichagePour(day);
-            const cellClasses = `flex w-full flex-col items-center gap-0.5 rounded-xl py-2 ${aff.classes} ${
-              day.date === today ? "ring-2 ring-white" : ""
+            const cellClasses = `flex w-full flex-col items-center gap-0.5 rounded-2xl py-2.5 ${aff.classes} ${
+              day.date === today ? "ring-2 ring-white ring-offset-2 ring-offset-slate-950" : ""
             }`;
             const titre = `${FORMAT_JOUR_LONG.format(dateUTC(day.date))} : ${aff.etiquette}`;
             return (
@@ -256,7 +274,7 @@ export function VueCoupDoeil({
                     type="button"
                     title={titre}
                     onClick={() => setCaptureDate(day.date)}
-                    className={cellClasses}
+                    className={`${cellClasses} cursor-pointer`}
                   >
                     <span className="text-xs font-bold uppercase">
                       {FORMAT_LETTRE_JOUR.format(dateUTC(day.date))}
@@ -292,33 +310,64 @@ export function VueCoupDoeil({
             <button
               type="button"
               onClick={() => setCaptureDate(prochainEcart.onDate)}
-              className="flex w-full items-center gap-3 rounded-2xl border border-neutral-800 bg-neutral-900 px-4 py-3 text-left hover:bg-neutral-800"
+              className="flex w-full cursor-pointer items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3.5 text-left transition-colors duration-200 hover:border-slate-700 hover:bg-slate-800"
             >
-              <span className="text-2xl" aria-hidden="true">
-                ⚡
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-500/15">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-5 w-5 text-orange-400"
+                  aria-hidden="true"
+                >
+                  <path d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
               </span>
               <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-neutral-400">
+                <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
                   {t.prochainEcart}
                 </p>
-                <p className="font-semibold">
+                <p className="font-semibold text-slate-50">
                   {FORMAT_JOUR_LONG.format(dateUTC(prochainEcart.onDate))}
                 </p>
               </div>
-              <span className="ml-auto text-neutral-400" aria-hidden="true">
-                ›
-              </span>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="ml-auto h-4 w-4 text-slate-500"
+                aria-hidden="true"
+              >
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
             </button>
           ) : (
-            <div className="flex items-center gap-3 rounded-2xl border border-neutral-800 bg-neutral-900 px-4 py-3">
-              <span className="text-2xl" aria-hidden="true">
-                ⚡
+            <div className="flex items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3.5">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-500/15">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-5 w-5 text-orange-400"
+                  aria-hidden="true"
+                >
+                  <path d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
               </span>
               <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-neutral-400">
+                <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
                   {t.prochainEcart}
                 </p>
-                <p className="font-semibold">
+                <p className="font-semibold text-slate-50">
                   {FORMAT_JOUR_LONG.format(dateUTC(prochainEcart.onDate))}
                 </p>
               </div>
@@ -334,9 +383,21 @@ export function VueCoupDoeil({
           type="button"
           onClick={() => setCaptureDate(today)}
           aria-label={fr.capture.saisirEcart}
-          className="fixed bottom-6 right-6 z-10 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-600 text-3xl shadow-xl transition-transform hover:bg-emerald-500 active:scale-95"
+          className="fixed bottom-6 right-6 z-10 flex h-16 w-16 cursor-pointer items-center justify-center rounded-full bg-orange-500 shadow-xl shadow-orange-500/25 transition-all duration-200 hover:bg-orange-400 active:scale-95"
         >
-          +
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-7 w-7 text-white"
+            aria-hidden="true"
+          >
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
         </button>
       ) : null}
 
