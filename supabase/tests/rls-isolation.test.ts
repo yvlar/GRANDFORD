@@ -404,6 +404,51 @@ describe.skipIf(!rlsAvailable)("Isolation RLS (Postgres réel)", () => {
     });
   });
 
+  describe("9. Gabarit — contrôle propriétaire (Sprint 14, FR-17)", () => {
+    it("la conjointe ne peut pas modifier le gabarit du foyer (0 lignes modifiées)", async () => {
+      const rowCount = await asUser(FIX.spouseA, async (client) => {
+        const res = await client.query(
+          "update public.cycle_templates set name = 'Hacked' where household_id = $1 and is_active = true",
+          [FIX.householdA],
+        );
+        return res.rowCount;
+      });
+      expect(rowCount).toBe(0);
+
+      // Le nom est resté inchangé — la RLS a protégé la ligne.
+      const check = await queryAs<{ name: string }>(
+        FIX.workerA,
+        "select name from public.cycle_templates where household_id = $1 and is_active = true",
+        [FIX.householdA],
+      );
+      expect(check[0]?.name).toBe("Pitman 2-2-3");
+    });
+
+    it("le propriétaire peut modifier le gabarit (UPDATE sous RLS owner)", async () => {
+      await asUser(FIX.workerA, (client) =>
+        client.query(
+          "update public.cycle_templates set name = 'Pitman 2-2-3 (alt.)' where household_id = $1 and is_active = true",
+          [FIX.householdA],
+        ),
+      );
+      const check = await queryAs<{ name: string }>(
+        FIX.workerA,
+        "select name from public.cycle_templates where household_id = $1 and is_active = true",
+        [FIX.householdA],
+      );
+      expect(check[0]?.name).toBe("Pitman 2-2-3 (alt.)");
+    });
+
+    it("la conjointe lit toujours le gabarit après l'affinage RLS", async () => {
+      const rows = await queryAs<{ name: string }>(
+        FIX.spouseA,
+        "select name from public.cycle_templates where household_id = $1 and is_active = true",
+        [FIX.householdA],
+      );
+      expect(rows).toHaveLength(1);
+    });
+  });
+
   describe("8. audit_log (Sprint 12, FR-13)", () => {
     const insertAuditEntry = (userId: string, householdId: string) =>
       asUser(userId, (client) =>

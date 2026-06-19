@@ -45,3 +45,31 @@ export async function fetchCycleTemplateWithFallback(
   const template = await fetchCycleTemplate(supabase, householdId);
   return template ?? GRANDFORD_CYCLE;
 }
+
+/**
+ * Charge le gabarit actif avec son nom (pour la page /foyer où le nom est affiché).
+ * Retourne null si absent ou en cas d'erreur — le consommateur choisit son fallback.
+ */
+export async function fetchActiveGabarit(
+  supabase: SupabaseClient<Database>,
+  householdId: string,
+): Promise<{ name: string; template: CycleTemplate } | null> {
+  const { data, error } = await supabase
+    .from("cycle_templates")
+    .select("name, anchor_date, pattern, day_start, day_end, night_start, night_end")
+    .eq("household_id", householdId)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  return {
+    name: data.name,
+    template: {
+      anchorDate: data.anchor_date,
+      pattern: data.pattern,
+      dayHours: { start: toHHMM(data.day_start), end: toHHMM(data.day_end) },
+      nightHours: { start: toHHMM(data.night_start), end: toHHMM(data.night_end) },
+    },
+  };
+}
