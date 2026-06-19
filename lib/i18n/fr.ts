@@ -138,6 +138,15 @@ export const fr = {
     seDeconnecter: "Se déconnecter",
     erreurInvitation: "La création de l'invitation a échoué. Réessayez.",
     erreurRevocation: "La révocation a échoué. Réessayez.",
+    historique: {
+      titre: "Historique des écarts",
+      vide: "Aucun changement enregistré.",
+      actions: {
+        exception_created: "Écart ajouté",
+        exception_updated: "Écart modifié",
+        exception_deleted: "Écart retiré",
+      },
+    },
   },
   notes: {
     titre: "Notes",

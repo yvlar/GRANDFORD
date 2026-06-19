@@ -358,4 +358,96 @@ describe.skipIf(!rlsAvailable)("Isolation RLS (Postgres réel)", () => {
       expect(check[0]?.status).toBe("approved");
     });
   });
+
+  describe("8. audit_log (Sprint 12, FR-13)", () => {
+    const insertAuditEntry = (userId: string, householdId: string) =>
+      asUser(userId, (client) =>
+        client.query(
+          `insert into public.audit_log (household_id, actor_id, action, entity, entity_id, metadata)
+           values ($1, $2, 'exception_created', 'exception', 'test-id',
+                   jsonb_build_object('on_date', '2026-07-15', 'effect', 'off', 'shift', null))`,
+          [householdId, userId],
+        ),
+      );
+
+    it("un membre du foyer A lit SES entrées audit_log et 0 entrée du foyer B", async () => {
+      await insertAuditEntry(FIX.workerA, FIX.householdA);
+      await insertAuditEntry(FIX.workerB, FIX.householdB);
+
+      const rows = await queryAs<{ n: number }>(
+        FIX.workerA,
+        "select count(*)::int as n from public.audit_log where household_id = $1",
+        [FIX.householdA],
+      );
+      expect(rows[0]?.n).toBeGreaterThan(0);
+
+      // Aucune entrée du foyer B ne filtre vers le foyer A.
+      const fuite = await queryAs(
+        FIX.workerA,
+        "select id from public.audit_log where household_id = $1",
+        [FIX.householdB],
+      );
+      expect(fuite).toHaveLength(0);
+    });
+
+    it("la metadata d'une entrée audit_log ne contient aucun champ motif (R7)", async () => {
+      await insertAuditEntry(FIX.workerA, FIX.householdA);
+
+      const rows = await queryAs<{ metadata: Record<string, unknown> }>(
+        FIX.workerA,
+        "select metadata from public.audit_log where household_id = $1 limit 10",
+        [FIX.householdA],
+      );
+      for (const row of rows) {
+        const keys = Object.keys(row.metadata);
+        expect(keys).not.toContain("motif");
+        expect(keys).not.toContain("reason");
+        expect(keys).not.toContain("maladie");
+        expect(keys).not.toContain("note_privee");
+      }
+    });
+
+    it("supprimer une exception (authentifié) déclenche le trigger et crée une entrée avec actor_id correct", async () => {
+      // Intégration trigger : chemin réel authenticated → DELETE exceptions → trigger → audit_log.
+      await asUser(FIX.workerA, (client) =>
+        client.query("delete from public.exceptions where id = $1 and profile_id = $2", [
+          FIX.exceptionA,
+          FIX.workerA,
+        ]),
+      );
+
+      const rows = await queryAs<{
+        action: string;
+        actor_id: string;
+        metadata: Record<string, unknown>;
+      }>(
+        FIX.workerA,
+        "select action, actor_id::text, metadata from public.audit_log where household_id = $1 and entity_id = $2 order by created_at desc limit 1",
+        [FIX.householdA, FIX.exceptionA],
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.action).toBe("exception_deleted");
+      expect(rows[0]?.actor_id).toBe(FIX.workerA);
+      // R7 : aucun motif dans la metadata même dans le chemin trigger.
+      expect(Object.keys(rows[0]?.metadata ?? {})).not.toContain("motif");
+    });
+
+    it("un membre révoqué obtient 0 entrée audit_log", async () => {
+      await insertAuditEntry(FIX.workerA, FIX.householdA);
+
+      // Révocation de la conjointe.
+      await asUser(FIX.workerA, (client) =>
+        client.query("delete from public.memberships where household_id = $1 and profile_id = $2", [
+          FIX.householdA,
+          FIX.spouseA,
+        ]),
+      );
+
+      const rows = await queryAs<{ n: number }>(
+        FIX.spouseA,
+        "select count(*)::int as n from public.audit_log",
+      );
+      expect(rows[0]?.n).toBe(0);
+    });
+  });
 });

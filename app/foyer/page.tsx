@@ -5,7 +5,8 @@ import { GRANDFORD_CYCLE } from "@/lib/engine";
 import { fr } from "@/lib/i18n/fr";
 import { signIcalToken } from "@/lib/ical/generate";
 import { requestOrigin } from "@/lib/request-origin";
-import { parseSleepRow } from "@/lib/schedule/db-rows";
+import { parseAuditRows, parseSleepRow } from "@/lib/schedule/db-rows";
+import { FORMAT_DATE_COURTE, dateUTC } from "@/lib/schedule/format";
 import { defaultSleepWindow } from "@/lib/schedule/status";
 import { createClient } from "@/lib/supabase/server";
 import { equipeSchema } from "@/lib/validation";
@@ -76,30 +77,47 @@ export default async function FoyerPage({
           .maybeSingle()
       : null;
 
-  const [{ data: foyer }, { data: membres }, { data: invitations }, affectationRes, sommeilRes] =
-    await Promise.all([
-      supabase
-        .from("households")
-        .select("id, name, owner_id")
-        .eq("id", monAdhesion.household_id)
-        .single(),
-      supabase
-        .from("memberships")
-        .select("id, role, profile_id, profiles(full_name)")
-        .eq("household_id", monAdhesion.household_id)
-        .order("created_at"),
-      supabase
-        .from("invitations")
-        .select("id, code")
-        .eq("household_id", monAdhesion.household_id)
-        .is("used_at", null)
-        // Filtre d'affichage seulement (horloge du serveur Next) : l'expiration qui
-        // fait foi est revérifiée en BD par redeem_invitation.
-        .gt("expires_at", new Date().toISOString())
-        .order("created_at"),
-      affectationQuery,
-      sommeilQuery,
-    ]);
+  const [
+    { data: foyer },
+    { data: membres },
+    { data: invitations },
+    affectationRes,
+    sommeilRes,
+    { data: historiqueRaw },
+  ] = await Promise.all([
+    supabase
+      .from("households")
+      .select("id, name, owner_id")
+      .eq("id", monAdhesion.household_id)
+      .single(),
+    supabase
+      .from("memberships")
+      .select("id, role, profile_id, profiles(full_name)")
+      .eq("household_id", monAdhesion.household_id)
+      .order("created_at"),
+    supabase
+      .from("invitations")
+      .select("id, code")
+      .eq("household_id", monAdhesion.household_id)
+      .is("used_at", null)
+      // Filtre d'affichage seulement (horloge du serveur Next) : l'expiration qui
+      // fait foi est revérifiée en BD par redeem_invitation.
+      .gt("expires_at", new Date().toISOString())
+      .order("created_at"),
+    affectationQuery,
+    sommeilQuery,
+    // FR-13 : 50 dernières entrées du journal — action + date de l'écart uniquement.
+    // metadata.effect et metadata.shift stockés en BD mais jamais affichés (R7).
+    // WHY entity="exception" : seul ce type est audité aujourd'hui ; élargir le filtre
+    // si un 2e type est ajouté (ex. 'member_revoked').
+    supabase
+      .from("audit_log")
+      .select("id, action, metadata, created_at")
+      .eq("household_id", monAdhesion.household_id)
+      .eq("entity", "exception")
+      .order("created_at", { ascending: false })
+      .limit(50),
+  ]);
   if (!foyer) {
     redirect("/onboarding");
   }
@@ -111,6 +129,8 @@ export default async function FoyerPage({
   }
   const monAffectation = affectationRes?.data ?? null;
   const maFenetre = parseSleepRow(sommeilRes?.data ?? null);
+
+  const historique = parseAuditRows(historiqueRaw ?? []);
 
   const estProprietaire = foyer.owner_id === user.id;
   const monMembre = (membres ?? []).find((m) => m.profile_id === user.id);
@@ -314,6 +334,35 @@ export default async function FoyerPage({
           </form>
         </section>
       )}
+
+      {/* FR-13 — Historique des écarts : vue identique travailleur et conjointe.
+          Affiche uniquement la date de l'écart et l'action — jamais l'effet ni le motif (R7). */}
+      <section className="flex flex-col gap-3">
+        <h2 className="text-xl font-semibold">{t.historique.titre}</h2>
+        {historique.length === 0 ? (
+          <p className="text-sm text-neutral-400">{t.historique.vide}</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {historique.map((entree) => (
+              <li
+                key={entree.id}
+                className="flex items-center justify-between rounded-lg border border-neutral-800 bg-neutral-900 px-4 py-3"
+              >
+                <span className="font-medium">
+                  {entree.action in t.historique.actions
+                    ? t.historique.actions[entree.action as keyof typeof t.historique.actions]
+                    : entree.action}
+                </span>
+                {entree.onDate ? (
+                  <span className="text-sm text-neutral-400">
+                    {FORMAT_DATE_COURTE.format(dateUTC(entree.onDate))}
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </main>
   );
 }
