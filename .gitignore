@@ -23,3 +23,6 @@ supabase/.branches/
 .vercel
 .DS_Store
 *.log
+
+# Skills Claude Code (installés localement, pas dans le dépôt)
+.claude/skills/
