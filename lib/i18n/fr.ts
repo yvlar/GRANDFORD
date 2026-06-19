@@ -32,6 +32,7 @@ export const fr = {
     moisPrecedent: "Mois précédent",
     moisSuivant: "Mois suivant",
     monFoyer: "Mon foyer",
+    prochainEcart: "Prochain écart",
     horaireDe: (nom: string) => `Horaire de ${nom}`,
   },
   capture: {
@@ -99,6 +100,7 @@ export const fr = {
     courrielPlaceholder: "vous@exemple.com",
     envoyerLien: "Recevoir mon lien de connexion",
     lienEnvoye: "Lien envoyé ! Ouvrez votre courriel et touchez le lien pour entrer.",
+    reessayer: "← Essayer un autre courriel",
     ou: "ou",
     continuerGoogle: "Continuer avec Google",
     continuerApple: "Continuer avec Apple",
@@ -204,6 +206,69 @@ export const fr = {
       "Données hébergées sur des serveurs en région Canada / États-Unis Est (Supabase Cloud).",
     contact: "Contact",
     retourAccueil: "Retour à l'accueil",
+  },
+  landing: {
+    marque: "GRANDFORD",
+    nav: {
+      seConnecter: "Se connecter",
+    },
+    hero: {
+      badge: "PWA gratuite · Cycle Pitman 2-2-3",
+      titre: "L'horaire d'usine de votre couple, sans surprise.",
+      sous: "Saisissez un OT, un congé ou un échange en 3 taps — votre partenaire est prévenu(e) automatiquement, avant même que vous ayez le temps d'écrire un texto.",
+      cta: "Commencer gratuitement",
+      demo: "Voir une démo",
+    },
+    stats: {
+      taps: "taps pour saisir un écart",
+      cycle: "Cycle Pitman 2-2-3 supporté",
+      motifs: "de motifs partagés — jamais",
+    },
+    probleme: {
+      titre: "Le Pitman 2-2-3, c'est prévisible. Les écarts, non.",
+      corps:
+        "L'horaire de base se calcule en une formule. Ce qui se perd, c'est l'OT de demain, le congé de la semaine prochaine, l'échange avec un collègue. Et votre partenaire l'apprend trop tard — ou pas du tout.",
+    },
+    fonctionnalites: {
+      titre: "Tout ce qu'il faut, rien de plus.",
+      capture: {
+        titre: "Capture en 3 taps",
+        corps:
+          "OT, congé, maladie, échange — saisissez l'écart dès que vous le savez. GRANDFORD l'enregistre même sans réseau.",
+        tags: ["OT", "Congé", "Échange"],
+      },
+      rappels: {
+        titre: "Rappels automatiques",
+        corps:
+          "Un rappel 1 mois, 1 semaine et la veille de chaque écart. Sur l'écran d'accueil de votre iPhone, sans effort.",
+      },
+      confidentialite: {
+        titre: "Confidentialité structurelle",
+        corps:
+          "Votre partenaire voit quand vous êtes absent(e). Le pourquoi reste privé — toujours. C'est garanti en base de données, pas juste en affichage.",
+      },
+    },
+    pourQui: {
+      titre: "Fait pour les familles en rotation Pitman",
+      corps:
+        "Deux équipes, 12 heures, un cycle 2-2-3. GRANDFORD connaît votre horaire — vous n'avez qu'à saisir ce qui change.",
+      travailleur: "Travailleur",
+      corpsTravailleur:
+        "Saisissez vos écarts en quelques secondes. Votre partenaire est averti automatiquement — sans que vous ayez à écrire un seul message.",
+      conjointe: "Conjoint(e)",
+      corpsConjointe:
+        "Voyez l'horaire de votre partenaire en temps réel. Planifiez sans surprise — et sans jamais voir la raison de ses absences.",
+    },
+    ctaFinal: {
+      titre: "Votre horaire mérite mieux qu'un groupe texto.",
+      sous: "Gratuit pour votre foyer. Aucune carte de crédit requise.",
+      cta: "Créer mon foyer — c'est gratuit",
+    },
+    footer: {
+      copyright: "© 2026 GRANDFORD",
+      politique: "Politique de confidentialité",
+      loi25: "Loi 25 (Québec)",
+    },
   },
   erreurGlobale: {
     titre: "Quelque chose a déraillé",
