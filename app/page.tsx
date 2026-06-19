@@ -4,8 +4,9 @@ import { approuverRequete, refuserRequete, soumettreRequete } from "@/app/requet
 import { ajusterSommeil, retirerAjustementSommeil } from "@/app/sommeil/actions";
 import { SelecteurEquipe } from "@/components/equipe/selecteur-equipe";
 import { VueCoupDoeil, type VueCoupDoeilProps } from "@/components/horaire/vue-coup-doeil";
-import { GRANDFORD_CYCLE, type Team } from "@/lib/engine";
+import type { Team } from "@/lib/engine";
 import { fr } from "@/lib/i18n/fr";
+import { fetchCycleTemplateWithFallback } from "@/lib/schedule/cycle-template";
 import {
   parseExceptionRows,
   parseNoteRows,
@@ -23,11 +24,8 @@ import { redirect } from "next/navigation";
 
 // Accueil (Sprint 4) : porte d'entrée pour l'anonyme ; vue « coup d'œil » selon le
 // rôle pour l'usager connecté (FR-2 travailleur, FR-3 conjointe).
-//
-// Décision Sprint 4 (carte, prémisse cycle_templates) : le gabarit consommé est la
-// constante validée GRANDFORD_CYCLE, côté client — l'horaire doit se calculer sans
-// réseau (NFR-4) et l'usine est unique pour l'instant. La lecture du gabarit depuis
-// `cycle_templates` arrive avec le multi-usines (FR-17).
+// Sprint 13 (FR-17) : le gabarit est chargé depuis cycle_templates ; GRANDFORD_CYCLE
+// reste le fallback si la ligne est absente (NFR-4).
 
 export default async function AccueilPage({
   searchParams,
@@ -107,48 +105,50 @@ export default async function AccueilPage({
 
   // R7 : colonnes PARTAGEABLES uniquement (on_date, effect, shift) — jamais de
   // jointure vers exception_private, ni ici ni dans le payload hydraté au client.
-  const [exceptionsRes, sleepRes, sleepAdjustmentsRes, notesRes, requetesRes] = await Promise.all([
-    supabase
-      .from("exceptions")
-      .select("id, on_date, effect, shift")
-      .eq("household_id", householdId)
-      .eq("profile_id", workerId)
-      .gte("on_date", ecartsDu)
-      .lte("on_date", ecartsAu)
-      .order("on_date"),
-    supabase
-      .from("sleep_defaults")
-      .select("start_time, end_time")
-      .eq("household_id", householdId)
-      .eq("profile_id", workerId)
-      .maybeSingle(),
-    // Ajustements de sommeil (FR-6) : disponibilité partagée, deux rôles (jamais un motif, R7).
-    supabase
-      .from("sleep_adjustments")
-      .select("on_date, start_time, end_time")
-      .eq("household_id", householdId)
-      .eq("profile_id", workerId)
-      .gte("on_date", ecartsDu)
-      .lte("on_date", ecartsAu)
-      .order("on_date"),
-    // Notes (FR-8, Sprint 9) : partagées dans le foyer, même fenêtre ±62 j.
-    supabase
-      .from("notes")
-      .select("id, on_date, body, author_id")
-      .eq("household_id", householdId)
-      .gte("on_date", ecartsDu)
-      .lte("on_date", ecartsAu)
-      .order("on_date"),
-    // Requêtes (FR-9, Sprint 9) : visibles des deux rôles. Fenêtre ±62 j.
-    // R7 : body = demande de la conjointe, pas un motif d'absence.
-    supabase
-      .from("requests")
-      .select("id, on_date, body, status, requester_id, target_profile_id")
-      .eq("household_id", householdId)
-      .gte("on_date", ecartsDu)
-      .lte("on_date", ecartsAu)
-      .order("on_date"),
-  ]);
+  const [exceptionsRes, sleepRes, sleepAdjustmentsRes, notesRes, requetesRes, template] =
+    await Promise.all([
+      supabase
+        .from("exceptions")
+        .select("id, on_date, effect, shift")
+        .eq("household_id", householdId)
+        .eq("profile_id", workerId)
+        .gte("on_date", ecartsDu)
+        .lte("on_date", ecartsAu)
+        .order("on_date"),
+      supabase
+        .from("sleep_defaults")
+        .select("start_time, end_time")
+        .eq("household_id", householdId)
+        .eq("profile_id", workerId)
+        .maybeSingle(),
+      // Ajustements de sommeil (FR-6) : disponibilité partagée, deux rôles (jamais un motif, R7).
+      supabase
+        .from("sleep_adjustments")
+        .select("on_date, start_time, end_time")
+        .eq("household_id", householdId)
+        .eq("profile_id", workerId)
+        .gte("on_date", ecartsDu)
+        .lte("on_date", ecartsAu)
+        .order("on_date"),
+      // Notes (FR-8, Sprint 9) : partagées dans le foyer, même fenêtre ±62 j.
+      supabase
+        .from("notes")
+        .select("id, on_date, body, author_id")
+        .eq("household_id", householdId)
+        .gte("on_date", ecartsDu)
+        .lte("on_date", ecartsAu)
+        .order("on_date"),
+      // Requêtes (FR-9, Sprint 9) : visibles des deux rôles. Fenêtre ±62 j.
+      // R7 : body = demande de la conjointe, pas un motif d'absence.
+      supabase
+        .from("requests")
+        .select("id, on_date, body, status, requester_id, target_profile_id")
+        .eq("household_id", householdId)
+        .gte("on_date", ecartsDu)
+        .lte("on_date", ecartsAu)
+        .order("on_date"),
+      fetchCycleTemplateWithFallback(supabase, householdId),
+    ]);
   if (exceptionsRes.error) {
     throw exceptionsRes.error;
   }
@@ -219,7 +219,7 @@ export default async function AccueilPage({
     <VueCoupDoeil
       role={membership.role === "worker" ? "worker" : "spouse"}
       team={team}
-      template={GRANDFORD_CYCLE}
+      template={template}
       exceptions={parseExceptionRows(exceptionsRes.data)}
       sleepDefault={parseSleepRow(sleepRes.data)}
       sleepAdjustments={parseSleepAdjustmentRows(sleepAdjustmentsRes.data)}

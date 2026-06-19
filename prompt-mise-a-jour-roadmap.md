@@ -1,99 +1,93 @@
-# Carte d'embarquement — Sprint 13 : Gabarits multi-usines (FR-17)
+# Carte d'embarquement — Sprint 14 : Sélecteur de gabarit (FR-17 fin) ou Notifications E2E
 
 > Cette carte est **réécrite à chaque fin de sprint** pour le sprint suivant (règle : `.claude/rules/workflow-sprint.md`).
 > ⚠️ C'est une **prémisse à vérifier**, pas une vérité terrain : réconcilier chaque dépendance avec le code réel avant d'implémenter ; prémisse fausse → STOP + signalement.
 
 ## État
 
-Sprint 12 livré : journal des changements (FR-13) complet — trigger `trg_audit_exception`, `parseAuditRows()`, section Historique sur `/foyer`. **v1.1 entièrement complétée** (FR-8, FR-9, FR-13, FR-14). Version 0.12.0. Phase courante : **v2+**. État courant : voir la table en tête de `ROADMAP.md`.
+Sprint 13 livré : fondation `cycle_templates` BD + câblage `app/page.tsx` (FR-17 partiel). 5 foyers prod ensemencés. `fetchCycleTemplateWithFallback` dans `lib/schedule/cycle-template.ts`. Version 0.13.0. Phase courante : **v2+**. État courant : voir la table en tête de `ROADMAP.md`.
 
 ## LECTURE OBLIGATOIRE
 
-1. `.claude/rules/moteur-pitman.md` — le moteur est **paramétrable par design** ; l'ancre, le pattern et les heures viennent du `cycleTemplate` (jamais en dur dans la logique). FR-17 = migration de `GRANDFORD_CYCLE` vers une table BD, sans toucher à la logique pure.
-2. `.claude/rules/supabase-rls.md` — nouvelle table `cycle_templates` : RLS activée, politique « membre du foyer » via `household_id` comme toutes les autres tables.
-3. `.claude/rules/tests-vitest.md` — les **golden tests** du moteur sont intouchables ; tout refactoring de l'ancre ou du pattern doit les laisser verts.
+1. `.claude/rules/moteur-pitman.md` — `GRANDFORD_CYCLE` reste la constante de fallback ; jamais supprimer l'export.
+2. `.claude/rules/supabase-rls.md` — `cycle_templates` : RLS membre du foyer déjà en place (`supabase/migrations/20260611192623_rls_policies.sql:156`).
+3. `.claude/rules/autonomie-confirmations.md` — `git push`, PR, opérations DB destructives = confirmation préalable.
 4. `ROADMAP.md` (état + périmètre) ; les règles universelles s'appliquent toujours.
 
 ## Prémisses à réconcilier AVANT d'implémenter
 
-- **`GRANDFORD_CYCLE` côté client** : `lib/engine/index.ts` (ligne à vérifier en session) — constante TypeScript avec `anchorDate`, `pattern`, `dayHours`, `nightHours`. À migrer vers un fetch BD, mais la constante reste le **fallback hors-ligne** (NFR-4).
-- **Table `cycle_templates`** : existence à vérifier dans `supabase/migrations/20260611192620_initial_schema.sql` — si absente, à créer ; si présente, vérifier colonnes et RLS.
-- **Consommateurs du moteur** : `app/page.tsx`, `lib/schedule/`, `lib/engine/` — chaque appel au `GRANDFORD_CYCLE` doit être localisé avant de modifier le type du paramètre.
-- **Multi-usines au sens réel** : un foyer = un `cycle_template_id`. Le MVP 1-foyer = 1 seul template (le gabarit GRANDFORD). Pas de selector multi-usines en UI pour Sprint 13 (trop large) — seulement la fondation BD + câblage côté client.
+**Option A — Sélecteur de gabarit (FR-17 fin)**
+- **`cycle_templates`** : vérifier que les 5 foyers ont bien leur ligne (`SELECT household_id FROM cycle_templates` — confirmé Sprint 13 ; re-vérifier si des foyers ont été ajoutés).
+- **`app/foyer/page.tsx`** : utilise encore `GRANDFORD_CYCLE` pour `defaultSleepWindow` (`app/foyer/page.tsx:280` — ligne à vérifier en session). Ce composant devrait aussi charger le template depuis BD.
+- **Schéma `cycle_templates`** : colonnes `name, anchor_date, pattern, day_start/end, night_start/end, is_active` — `app/foyer/page.tsx` à vérifier en session ; aucune migration de schéma requise.
+- **Multi-gabarits** : pour Sprint 14, un seul gabarit par foyer reste valide ; l'UI laisse le propriétaire choisir parmi les gabarits prédéfinis (liste en dur dans le code pour l'instant).
 
-## TÂCHE — Sprint 13
+**Option B — Notifications E2E en prod (priorité opérationnelle)**
+- **`send-reminders`** Edge Function : `supabase/functions/send-reminders/` (à vérifier en session) — jamais validée E2E sur plus d'un appareil en prod.
+- **`push_subscriptions`** : table existante, contenu à inspecter (`SELECT count(*) FROM push_subscriptions`).
+- **`pg_cron`** : job planifié (`:05` chaque heure) — vérifier logs Supabase.
+- **Expirés** : endpoints push expirés ne sont pas nettoyés — risque silencieux.
 
-### Sous-tâche 1 : Table `cycle_templates` (migration)
+## TÂCHE — Sprint 14 (recommandé : Option A)
 
-1. Si absente : migration `…_sprint13_cycle_templates.sql` — table `cycle_templates (id uuid PK, household_id uuid FK → households, anchor_date date, pattern boolean[14], day_hours jsonb, night_hours jsonb, created_at)` ; RLS activée, policy `is_household_member(household_id)`.
-2. Si présente : vérifier colonnes, policies, et adapter.
-3. Migration de données : insérer le gabarit GRANDFORD dans `cycle_templates` pour le foyer existant (seed de test) ; en prod, appliquer via Edge Function ou script one-shot.
-4. `supabase gen types typescript` → types committés.
+### Option A — Sélecteur de gabarit en UI `/foyer`
 
-### Sous-tâche 2 : Fetch BD côté serveur + fallback hors-ligne
-
-1. Nouveau helper `lib/engine/template.ts` : `fetchCycleTemplate(supabase, householdId)` → `CycleTemplate | null`.
-2. `app/page.tsx` : charger le template depuis la BD (Promise.all) → passer au moteur ; fallback = `GRANDFORD_CYCLE` si null (NFR-4, hors-ligne).
-3. `GRANDFORD_CYCLE` reste exporté comme constante (fallback + tests) — ne pas supprimer.
-4. Moteur inchangé (fonctions pures, le paramètre `CycleTemplate` existait déjà) — les golden restent verts.
-
-### Sous-tâche 3 : Tests
-
-- Tests d'isolation RLS sur `cycle_templates` (membre foyer A ≠ foyer B).
-- Test : fallback `GRANDFORD_CYCLE` quand le fetch retourne `null`.
-- Golden moteur intouchables (les faire tourner en premier avant tout refactoring).
+1. **Câbler `app/foyer/page.tsx`** : remplacer `GRANDFORD_CYCLE` par `fetchCycleTemplateWithFallback(supabase, householdId)` (même pattern que `app/page.tsx`, Sprint 13).
+2. **Section sélecteur** : liste de gabarits prédéfinis (Pitman 2-2-3 seulement pour l'instant) affichée au propriétaire du foyer (`role = 'worker'`) — bouton « Modifier le gabarit » ouvre un modal ou une section inline.
+3. **Server action `changerGabarit`** : valide le gabarit choisi (Zod), `UPDATE cycle_templates SET ... WHERE household_id = $1 AND is_active = true` sous RLS propriétaire ; revalide `/foyer` et `/`.
+4. **i18n** : chaînes dans `lib/i18n/fr.ts` (`fr.foyer.gabarit.*`).
+5. **Tests** : isolation RLS — seul le propriétaire peut modifier le gabarit (la conjointe est bloquée) ; test unitaire de `changerGabarit`.
 
 ### Gates
 
 - `pnpm vitest run` · `pnpm tsc --noEmit` · `pnpm biome check .` · `pnpm build` — tous verts.
-- Tests d'isolation RLS si la table `cycle_templates` est créée ou modifiée.
-- Golden moteur verts en premier.
+- Test RLS : conjointe ne peut pas UPDATE `cycle_templates`.
 
 ### Preuve d'acceptation observable
 
-1. `SELECT * FROM cycle_templates` → au moins une ligne avec `anchor_date = '2026-06-03'` et `pattern` de 14 booléens.
-2. L'accueil (`/`) affiche toujours le bon quart pour aujourd'hui (même résultat qu'avant le sprint).
-3. Couper le réseau → l'accueil reste fonctionnel (fallback `GRANDFORD_CYCLE` vérifié par test).
+1. `/foyer` affiche le gabarit actif (`Pitman 2-2-3`, ancre 2026-06-03).
+2. Le propriétaire modifie le gabarit → `/` affiche le bon quart pour aujourd'hui (recalculé avec le nouveau template).
+3. La conjointe ne voit pas le bouton de modification ; si elle tente un UPDATE SQL direct → 0 ligne modifiée.
 
 ## SPRINTS SUGGÉRÉS
 
-### v2+ — Gabarits multi-usines (FR-17) [recommandé pour Sprint 13]
-**Objectif** : migrer `GRANDFORD_CYCLE` vers la table `cycle_templates` — fondation du produit SaaS multi-usines.
-**Complexité** : Moyenne (migration BD + refactoring client léger, moteur inchangé)
-**Justification** : fondation requise avant FR-16 (facturation par foyer = 1 template par foyer) et avant toute démo SaaS.
-**Référence** : `GRANDFORD_CYCLE` — `lib/engine/index.ts` (ligne à vérifier en session) ; `cycle_templates` — `supabase/migrations/20260611192620_initial_schema.sql` (existence à vérifier en session).
+### v2+ — Sélecteur de gabarit UI (FR-17 complété) [recommandé pour Sprint 14]
+**Objectif** : permettre au propriétaire de changer son gabarit dans `/foyer` — UI + server action + RLS.
+**Complexité** : Faible-Moyenne (câblage similaire Sprint 13, UI simple)
+**Justification** : complète FR-17 et valide le flux end-to-end de la fondation BD.
+**Référence** : `app/foyer/page.tsx:280` (ligne à vérifier en session) ; `lib/schedule/cycle-template.ts` — `fetchCycleTemplateWithFallback` (créé Sprint 13).
 
-### v2+ — Intégration Dayforce (FR-15)
-**Objectif** : importer automatiquement l'horaire publié depuis l'API Dayforce (source optionnelle, jamais requise).
-**Complexité** : Haute (API externe, tokens OAuth Dayforce, réconciliation écarts existants)
-**Justification** : valeur pour les usines avec Dayforce déployé — mais dépend d'un accès réel à l'API ; non prioritaire sans client cible.
-**Référence** : FR-15 — `docs/analyse/02-analyse/analyse.md` (ligne à vérifier en session).
+### v2+ — Notifications E2E prod (suivi Sprint 8)
+**Objectif** : valider `send-reminders` sur un 2ᵉ appareil réel ; nettoyer les endpoints push expirés.
+**Complexité** : Faible-Moyenne (test d'intégration bout-en-bout + nettoyage `push_subscriptions`)
+**Justification** : FR-10 livré Sprint 7 mais jamais testé E2E en prod sur plus d'un appareil — risque silencieux de rappels non reçus.
+**Référence** : `supabase/functions/send-reminders/` (à vérifier en session) ; `push_subscriptions` (table existante).
 
 ### v2+ — Facturation SaaS (FR-16)
 **Objectif** : Stripe pour les foyers supplémentaires (1er foyer gratuit, suivants payants).
-**Complexité** : Haute (Stripe webhooks, portail client, gates d'accès)
-**Justification** : modèle d'affaires long terme — non prioritaire avant FR-17 (1 template/foyer = unité de facturation) et avant 10 foyers actifs.
-**Référence** : FR-16 — `docs/analyse/02-analyse/analyse.md`.
+**Complexité** : Haute (Stripe webhooks, portail client, gates d'accès par foyer)
+**Justification** : unité de facturation = 1 foyer × 1 gabarit — fondation FR-17 ✅ rend ça adressable.
+**Référence** : FR-16 — `docs/analyse/02-analyse/analyse.md` (ligne à vérifier en session).
 
-### Amélioration PWA — Notifications fiables (suivi Sprint 8)
-**Objectif** : valider l'envoi push en production (pg_cron + Edge `send-reminders`) sur un 2ᵉ appareil réel ; résoudre les expirés de `push_subscriptions`.
-**Complexité** : Faible-Moyenne (test d'intégration bout-en-bout, nettoyage des souscriptions)
-**Justification** : FR-10 livré mais jamais validé E2E en prod sur plus d'un appareil — risque silencieux.
-**Référence** : `supabase/functions/send-reminders/README.md` (à vérifier en session) ; `push_subscriptions` (table existante).
+### v2+ — Intégration Dayforce (FR-15)
+**Objectif** : importer l'horaire publié depuis l'API Dayforce (source optionnelle, jamais requise).
+**Complexité** : Haute (API externe, OAuth Dayforce, réconciliation écarts existants)
+**Justification** : non prioritaire sans accès réel à l'API et sans client cible.
+**Référence** : FR-15 — `docs/analyse/02-analyse/analyse.md` (ligne à vérifier en session).
 
 ## Template de démarrage (coller tel quel dans une nouvelle session)
 
 ```
 Lis CLAUDE.md, ROADMAP.md et prompt-mise-a-jour-roadmap.md, puis exécute le
-Sprint 13 (Gabarits multi-usines — FR-17) en suivant .claude/prompts/prompt-executer-sprint.md — Phase A.
+Sprint 14 (Sélecteur de gabarit — FR-17 fin) en suivant .claude/prompts/prompt-executer-sprint.md — Phase A.
 
-Branche : claude/sprint13-cycle-templates (à créer depuis dev).
+Branche : claude/sprint14-selecteur-gabarit (à créer depuis dev, après merge de sprint13).
 
 Rappels non négociables :
-- Réconcilier en premier : existence de cycle_templates dans les migrations, colonnes et RLS ;
-  localiser GRANDFORD_CYCLE (lib/engine/index.ts) et tous ses consommateurs.
-- Golden tests du moteur = intouchables ; les faire tourner en premier.
-- RLS sur cycle_templates : même pattern is_household_member que toutes les autres tables.
-- NFR-4 : fallback GRANDFORD_CYCLE quand la BD est inaccessible (hors-ligne).
+- Réconcilier en premier : `app/foyer/page.tsx` ligne utilisant GRANDFORD_CYCLE (280 à vérifier) ;
+  vérifier que cycle_templates a bien une ligne par foyer (SELECT count(*) FROM cycle_templates).
+- GRANDFORD_CYCLE reste exporté (fallback + tests) — ne pas supprimer.
+- RLS : seul le propriétaire du foyer peut UPDATE cycle_templates (tester explicitement).
+- NFR-4 : fetchCycleTemplateWithFallback garantit le repli hors-ligne.
 - Fin de sprint = ROADMAP à jour + nouvelle carte + commit. PAS de push sans demander.
 ```
