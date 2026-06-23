@@ -1,5 +1,6 @@
 "use server";
 
+import { gabaritNomSchema, trouverGabarit } from "@/lib/schedule/predefined-templates";
 import { createClient } from "@/lib/supabase/server";
 import { cheminInterneSchema, equipeSchema, uuidSchema } from "@/lib/validation";
 import { revalidatePath } from "next/cache";
@@ -129,4 +130,50 @@ export async function revoquerMembre(membershipId: string): Promise<void> {
 export async function quitterFoyer(membershipId: string): Promise<void> {
   await supprimerMembership(membershipId);
   redirect("/onboarding");
+}
+
+/**
+ * Met à jour le gabarit actif du foyer (FR-17). Réservé au propriétaire du foyer ;
+ * la RLS (cycle_templates_update : is_household_owner) bloque silencieusement
+ * toute autre session. Le nom du gabarit est validé contre la liste prédéfinie.
+ */
+export async function changerGabarit(householdId: string, formData: FormData): Promise<void> {
+  const hid = uuidSchema.safeParse(householdId);
+  const nom = gabaritNomSchema.safeParse(formData.get("gabaritNom"));
+  if (!hid.success || !nom.success) {
+    redirect("/foyer?erreur=gabarit");
+  }
+
+  const gabarit = trouverGabarit(nom.data);
+  if (!gabarit) {
+    redirect("/foyer?erreur=gabarit");
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect("/connexion");
+  }
+
+  const { error } = await supabase
+    .from("cycle_templates")
+    .update({
+      name: gabarit.name,
+      anchor_date: gabarit.template.anchorDate,
+      pattern: [...gabarit.template.pattern],
+      day_start: gabarit.template.dayHours.start,
+      day_end: gabarit.template.dayHours.end,
+      night_start: gabarit.template.nightHours.start,
+      night_end: gabarit.template.nightHours.end,
+    })
+    .eq("household_id", hid.data)
+    .eq("is_active", true);
+
+  if (error) {
+    redirect("/foyer?erreur=gabarit");
+  }
+  revalidatePath("/foyer");
+  revalidatePath("/");
 }

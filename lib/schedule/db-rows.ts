@@ -129,3 +129,33 @@ export function parseRequeteRows(rows: readonly unknown[]): Requete[] {
     };
   });
 }
+
+// ── Journal des changements (FR-13, Sprint 12) ───────────────────────────────
+
+// metadata : seul on_date est affiché ; effect/shift stockés pour traçabilité
+// interne (R7 — jamais retournés vers le client dans ce type).
+const auditRowSchema = z.object({
+  id: z.number(),
+  action: z.string(),
+  metadata: z.object({ on_date: z.string().optional() }).passthrough(),
+});
+
+export type AuditEntry = { id: number; action: string; onDate: string | null };
+
+/**
+ * Lignes `audit_log` → entrées consommables par la vue historique du foyer.
+ * safeParse : une ligne malformée est ignorée (affichage non-critique, R7).
+ */
+export function parseAuditRows(rows: readonly unknown[]): AuditEntry[] {
+  return rows.flatMap((row) => {
+    const parsed = auditRowSchema.safeParse(row);
+    if (!parsed.success) return [];
+    return [
+      {
+        id: parsed.data.id,
+        action: parsed.data.action,
+        onDate: parsed.data.metadata.on_date ?? null,
+      },
+    ];
+  });
+}

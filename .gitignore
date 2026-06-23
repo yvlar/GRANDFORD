@@ -19,6 +19,9 @@ public/sw.js.map
 supabase/.temp/
 supabase/.branches/
 
+# Outils locaux Claude Code (skills installés en session)
+.claude/skills/
+
 # Divers
 .vercel
 .DS_Store
