@@ -45,20 +45,24 @@ interface Affichage {
 // Reconnaissance > rappel (NFR-12) : une couleur + un pictogramme par état, forts
 // contrastes, étiquettes courtes.
 const AFFICHAGE_TRAVAILLEUR: Record<DayStatusKind, Affichage> = {
-  jour: { emoji: "☀️", etiquette: fr.horaire.jour, classes: "bg-amber-400 text-amber-950" },
-  nuit: { emoji: "🌙", etiquette: fr.horaire.nuit, classes: "bg-indigo-500 text-indigo-50" },
-  conge: { emoji: "✅", etiquette: fr.horaire.conge, classes: "bg-emerald-500 text-emerald-950" },
-  sommeil: { emoji: "😴", etiquette: fr.horaire.sommeil, classes: "bg-sky-500 text-sky-950" },
+  jour: { emoji: "☀️", etiquette: fr.horaire.jour, classes: "bg-quart-jour text-quart-jour-fg" },
+  nuit: { emoji: "🌙", etiquette: fr.horaire.nuit, classes: "bg-quart-nuit text-quart-nuit-fg" },
+  conge: { emoji: "✅", etiquette: fr.horaire.conge, classes: "bg-conge text-conge-fg" },
+  sommeil: { emoji: "😴", etiquette: fr.horaire.sommeil, classes: "bg-sommeil text-sommeil-fg" },
 };
 
 const AFFICHAGE_CONJOINTE: Record<Availability, Affichage> = {
-  travaille: { emoji: "🏭", etiquette: fr.horaire.travaille, classes: "bg-rose-500 text-rose-50" },
+  travaille: {
+    emoji: "🏭",
+    etiquette: fr.horaire.travaille,
+    classes: "bg-travaille text-travaille-fg",
+  },
   disponible: {
     emoji: "✅",
     etiquette: fr.horaire.disponible,
-    classes: "bg-emerald-500 text-emerald-950",
+    classes: "bg-conge text-conge-fg",
   },
-  sommeil: { emoji: "😴", etiquette: fr.horaire.sommeil, classes: "bg-sky-500 text-sky-950" },
+  sommeil: { emoji: "😴", etiquette: fr.horaire.sommeil, classes: "bg-sommeil text-sommeil-fg" },
 };
 
 // Dates affichées : les chaînes civiles 'YYYY-MM-DD' sont formatées en UTC pour ne
@@ -80,6 +84,24 @@ function MarqueurEcart() {
       aria-label={fr.horaire.ecart}
       className="absolute right-1 top-1 h-2 w-2 rounded-full bg-black/60"
     />
+  );
+}
+
+/**
+ * Contenu d'une case du mois : numéro + pictogramme d'état (parité daltonien, NFR-12 —
+ * jour/nuit/congé/sommeil distinguables sans percevoir la teinte, comme la bande semaine).
+ * Composant dédié plutôt que fragment inline : sort les <span> du contexte itérable du
+ * `.map` (pas de clé requise) et reste partagé entre la case interactive et statique.
+ */
+function ContenuCase({ day, aff }: { day: DayStatus; aff: Affichage }) {
+  return (
+    <>
+      <span className="text-sm font-bold leading-none">{Number(day.date.slice(8))}</span>
+      <span className="text-[0.625rem] leading-none" aria-hidden="true">
+        {aff.emoji}
+      </span>
+      {day.fromException ? <MarqueurEcart /> : null}
+    </>
   );
 }
 
@@ -243,7 +265,10 @@ export function VueCoupDoeil({
           <p className="text-sm font-bold tracking-widest text-neutral-400">GRANDFORD</p>
           {workerName ? <p className="text-lg font-semibold">{t.horaireDe(workerName)}</p> : null}
         </div>
-        <Link href="/foyer" className="text-sm text-neutral-400 underline hover:text-neutral-200">
+        <Link
+          href="/foyer"
+          className="inline-flex min-h-11 items-center text-sm text-neutral-400 underline hover:text-neutral-200"
+        >
           {t.monFoyer}
         </Link>
       </header>
@@ -271,9 +296,9 @@ export function VueCoupDoeil({
         <button
           type="button"
           onClick={() => setCaptureDate(today)}
-          className="rounded-2xl bg-emerald-600 px-6 py-4 text-xl font-bold hover:bg-emerald-500"
+          className="min-h-11 rounded-2xl bg-emerald-600 px-6 py-4 text-xl font-bold hover:bg-emerald-500"
         >
-          ➕ {fr.capture.saisirEcart}
+          <span aria-hidden="true">➕</span> {fr.capture.saisirEcart}
         </button>
       ) : null}
 
@@ -311,7 +336,7 @@ export function VueCoupDoeil({
             type="button"
             aria-label={t.moisPrecedent}
             onClick={() => setMonthAnchor(shiftMonth(monthAnchor, -1))}
-            className="rounded-lg border border-neutral-700 px-4 py-2 text-xl leading-none hover:bg-neutral-800"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-neutral-700 text-xl leading-none hover:bg-neutral-800"
           >
             ‹
           </button>
@@ -320,7 +345,7 @@ export function VueCoupDoeil({
             type="button"
             aria-label={t.moisSuivant}
             onClick={() => setMonthAnchor(shiftMonth(monthAnchor, 1))}
-            className="rounded-lg border border-neutral-700 px-4 py-2 text-xl leading-none hover:bg-neutral-800"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-neutral-700 text-xl leading-none hover:bg-neutral-800"
           >
             ›
           </button>
@@ -330,7 +355,7 @@ export function VueCoupDoeil({
             {t.ecartsNonCharges}
           </p>
         ) : null}
-        <div className="grid grid-cols-7 gap-1">
+        <div className="grid grid-cols-7 gap-1.5">
           {LETTRES_SEMAINE.map((lettre, i) => (
             <span
               // WHY index en clé : deux « M » (mardi/mercredi) rendent la lettre non unique.
@@ -346,7 +371,8 @@ export function VueCoupDoeil({
           {grid.days.map((day) => {
             const aff = affichagePour(day);
             const titre = `${FORMAT_JOUR_LONG.format(dateUTC(day.date))} : ${aff.etiquette}`;
-            const classes = `relative flex h-10 items-center justify-center rounded-lg text-base font-bold ${aff.classes} ${
+            // h-11 = 44 px (cible tactile). flex-col : numéro + pictogramme d'état empilés.
+            const classes = `relative flex h-11 flex-col items-center justify-center rounded-lg ${aff.classes} ${
               day.date === today ? "ring-2 ring-white" : ""
             }`;
             // Travailleur et conjointe (si coplanification câblée) : tap sur un jour
@@ -360,13 +386,11 @@ export function VueCoupDoeil({
                 onClick={() => setCaptureDate(day.date)}
                 className={classes}
               >
-                {Number(day.date.slice(8))}
-                {day.fromException ? <MarqueurEcart /> : null}
+                <ContenuCase day={day} aff={aff} />
               </button>
             ) : (
               <div key={day.date} title={titre} className={classes}>
-                {Number(day.date.slice(8))}
-                {day.fromException ? <MarqueurEcart /> : null}
+                <ContenuCase day={day} aff={aff} />
               </div>
             );
           })}
@@ -380,7 +404,7 @@ export function VueCoupDoeil({
             key={aff.etiquette}
             className={`rounded-full px-3 py-1 text-sm font-semibold ${aff.classes}`}
           >
-            {aff.emoji} {aff.etiquette}
+            <span aria-hidden="true">{aff.emoji}</span> {aff.etiquette}
           </span>
         ))}
       </section>

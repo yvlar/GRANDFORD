@@ -1,3 +1,30 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  /* Focus clavier/switch-access visible sur TOUT élément interactif (a11y, sévérité
+     haute) : une seule règle couvre boutons, liens, champs et [tabindex]. `:focus-visible`
+     n'apparaît qu'au clavier — le clic ne dessine pas l'anneau. L'offset détache l'anneau
+     du fond sombre (NFR-12, fort contraste). */
+  :focus-visible {
+    /* emerald-400 — littéral plutôt que theme() : le linter CSS ne connaît pas la
+       fonction Tailwind, et la couleur de focus n'a pas vocation à varier. */
+    outline: 2px solid #34d399;
+    outline-offset: 2px;
+    border-radius: 0.25rem;
+  }
+}
+
+/* NFR : respecter le réglage système « réduire les animations » (vestibulaire / TDAH).
+   Neutralise transitions et défilement animé sans toucher au reste. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

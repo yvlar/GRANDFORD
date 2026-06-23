@@ -1,3 +1,4 @@
+import { BoutonSoumettre } from "@/components/ui/bouton-soumettre";
 import { fr } from "@/lib/i18n/fr";
 import { envoyerLienMagique, seConnecterAvecApple, seConnecterAvecGoogle } from "./actions";
 
@@ -63,14 +64,11 @@ export default async function ConnexionPage({
           required
           autoComplete="email"
           placeholder={t.courrielPlaceholder}
-          className="rounded-lg border border-neutral-700 bg-neutral-900 px-4 py-3 text-lg placeholder:text-neutral-500"
+          className="min-h-11 rounded-lg border border-neutral-700 bg-neutral-900 px-4 py-3 text-lg placeholder:text-neutral-500"
         />
-        <button
-          type="submit"
-          className="rounded-lg bg-emerald-600 px-4 py-3 text-lg font-semibold hover:bg-emerald-500"
-        >
+        <BoutonSoumettre variant="primaire" pleineLargeur className="text-lg">
           {t.envoyerLien}
-        </button>
+        </BoutonSoumettre>
       </form>
 
       <p className="text-sm text-neutral-500">{t.ou}</p>
@@ -84,12 +82,9 @@ export default async function ConnexionPage({
         ).map(([action, libelle]) => (
           <form key={libelle} action={action}>
             <input type="hidden" name="suivant" value={suivant} />
-            <button
-              type="submit"
-              className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-4 py-3 text-lg font-semibold hover:bg-neutral-800"
-            >
+            <BoutonSoumettre variant="secondaire" pleineLargeur className="text-lg">
               {libelle}
-            </button>
+            </BoutonSoumettre>
           </form>
         ))}
       </div>

@@ -1,11 +1,13 @@
-# Carte d'embarquement — Sprint 15 : Notifications E2E prod + nettoyage push
+# Carte d'embarquement — Sprint 16 : Notifications E2E prod + nettoyage push
 
 > Cette carte est **réécrite à chaque fin de sprint** pour le sprint suivant (règle : `.claude/rules/workflow-sprint.md`).
 > ⚠️ C'est une **prémisse à vérifier**, pas une vérité terrain : réconcilier chaque dépendance avec le code réel avant d'implémenter ; prémisse fausse → STOP + signalement.
 
 ## État
 
-Sprint 14 livré : sélecteur de gabarit dans `/foyer` (FR-17 complet). RLS `cycle_templates_update` réservée au propriétaire. `changerGabarit` server action + `fetchActiveGabarit`. Version 0.14.0. Phase courante : **v2+**. État courant : voir la table en tête de `ROADMAP.md`.
+Sprint 15 livré : passe accessibilité & cibles tactiles (focus clavier global, cibles ≥ 44 px, feedback `useFormStatus`, parité daltonien de la grille mois, `/foyer` en cartes, tokens couleur sémantiques). Aucune migration BD, aucun changement moteur. Version 0.15.0. Phase courante : **v2+**. État courant : voir la table en tête de `ROADMAP.md`.
+
+> Note : la tâche « Notifications E2E prod » ci-dessous était la carte du Sprint 15 mais a été reportée (le Sprint 15 a porté sur l'UX/accessibilité à la demande de l'auteur). Elle reste la priorité recommandée et n'a **pas** été commencée.
 
 ## LECTURE OBLIGATOIRE
 
@@ -22,7 +24,7 @@ Sprint 14 livré : sélecteur de gabarit dans `/foyer` (FR-17 complet). RLS `cyc
 - **`pg_cron`** : `SELECT * FROM cron.job WHERE jobname LIKE '%reminder%'` — job planifié actif ? Logs récents (`SELECT * FROM cron.job_run_details ORDER BY start_time DESC LIMIT 10`).
 - **Réseau Edge → endpoints push** : une requête push vers un endpoint expiré renvoie HTTP 410 Gone (Chrome) ou 404 — la fonction les nettoie-t-elle ?
 
-## TÂCHE — Sprint 15
+## TÂCHE — Sprint 16
 
 ### Option A — Validation E2E notifications + nettoyage (recommandé)
 
@@ -49,7 +51,7 @@ Premier foyer gratuit, suivants payants. Webhook Stripe → `households.plan` ; 
 
 ## SPRINTS SUGGÉRÉS
 
-### v2+ — Notifications E2E prod (suivi Sprint 8) [recommandé pour Sprint 15]
+### v2+ — Notifications E2E prod (suivi Sprint 8) [recommandé pour Sprint 16]
 **Objectif** : valider `send-reminders` en prod sur au moins 1 appareil réel ; nettoyer les endpoints push expirés.
 **Complexité** : Faible-Moyenne (inspection + correctifs mineurs + test d'intégration)
 **Justification** : FR-10 livré Sprint 7 mais jamais testé E2E sur plus d'un appareil — risque silencieux de rappels non reçus.
@@ -67,19 +69,19 @@ Premier foyer gratuit, suivants payants. Webhook Stripe → `households.plan` ; 
 **Justification** : non prioritaire sans accès réel à l'API et sans client cible ; documenter le point d'entrée quand l'accès est disponible.
 **Référence** : FR-15 — `docs/analyse/02-analyse/analyse.md` (ligne à vérifier en session).
 
-### v2+ — Amélioration UX horaire (NFR-1, NFR-12)
-**Objectif** : navigation mois facilitée, résumé hebdomadaire, vue compact pour TDAH.
-**Complexité** : Faible-Moyenne (UI pure, moteur existant)
-**Justification** : NFR-1 (capture ≤ 3 taps) et NFR-12 (accessibilité TDAH) — améliorer l'accueil si des retours utilisateurs indiquent une friction.
-**Référence** : `app/page.tsx` (vue coup d'œil) ; `docs/analyse/02-analyse/analyse.md:61` (NFR-12, à vérifier en session).
+### v2+ — Vérification visuelle de la passe accessibilité (suivi Sprint 15)
+**Objectif** : confirmer en conditions réelles les correctifs UX du Sprint 15 — focus clavier, cibles ≥ 44 px, parité daltonien — via démo `/demo/horaire` et simulation deuteranopia (DevTools).
+**Complexité** : Faible (vérification, pas de code — ou ajustements mineurs si un écart est constaté)
+**Justification** : le Sprint 15 a validé par gates + build + revue, mais la preuve **visuelle** (capture d'écran, navigation clavier réelle) reste à constater sur appareil.
+**Référence** : `app/globals.css` (`:focus-visible`), `components/horaire/vue-coup-doeil.tsx` (`ContenuCase`), `components/ui/bouton-soumettre.tsx`.
 
 ## Template de démarrage (coller tel quel dans une nouvelle session)
 
 ```
 Lis CLAUDE.md, ROADMAP.md et prompt-mise-a-jour-roadmap.md, puis exécute le
-Sprint 15 (Notifications E2E prod) en suivant .claude/prompts/prompt-executer-sprint.md — Phase A.
+Sprint 16 (Notifications E2E prod) en suivant .claude/prompts/prompt-executer-sprint.md — Phase A.
 
-Branche : claude/sprint15-notifications-e2e (à créer depuis dev, après merge de sprint14).
+Branche : claude/sprint16-notifications-e2e (à créer depuis dev, après merge de sprint15).
 
 Rappels non négociables :
 - Réconcilier en premier : lire supabase/functions/send-reminders/index.ts ;

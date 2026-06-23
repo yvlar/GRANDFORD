@@ -70,7 +70,7 @@ export function PanneauJourConjointe({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-neutral-700 px-3 py-2 text-sm font-semibold hover:bg-neutral-800"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-neutral-700 px-3 text-sm font-semibold hover:bg-neutral-800"
           >
             {fr.capture.fermer}
           </button>

@@ -1,6 +1,10 @@
 // i18n — français d'abord (NFR-13). Aucune chaîne UI en dur dans les composants :
 // tout texte exposé vit ici pour permettre le bilingue plus tard.
 export const fr = {
+  // Libellés transverses, réutilisés par plusieurs écrans (boutons partagés…).
+  commun: {
+    envoiEnCours: "Envoi…",
+  },
   accueil: {
     titre: "GRANDFORD",
     sousTitre: "Prothèse de mémoire partagée — votre horaire d'usine, sans surprise.",
@@ -138,6 +142,11 @@ export const fr = {
     seDeconnecter: "Se déconnecter",
     erreurInvitation: "La création de l'invitation a échoué. Réessayez.",
     erreurRevocation: "La révocation a échoué. Réessayez.",
+    // Titres de regroupement des cartes de réglages (hiérarchie visuelle).
+    groupes: {
+      reglagesHoraire: "Réglages de l'horaire",
+      rappelsExport: "Rappels et export",
+    },
     historique: {
       titre: "Historique des écarts",
       vide: "Aucun changement enregistré.",
