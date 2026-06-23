@@ -75,7 +75,7 @@ export function NoteDuJour({ notes, onDate, handlers }: NoteDuJourProps) {
                 type="button"
                 disabled={pending}
                 onClick={() => supprimer(note.id)}
-                className="shrink-0 text-xs text-neutral-500 underline hover:text-red-400 disabled:opacity-50"
+                className="inline-flex min-h-11 shrink-0 items-center text-xs text-neutral-500 underline hover:text-red-400 disabled:opacity-50"
               >
                 {t.supprimer}
               </button>
@@ -96,13 +96,13 @@ export function NoteDuJour({ notes, onDate, handlers }: NoteDuJourProps) {
               creer();
             }
           }}
-          className="flex-1 rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-50 placeholder:text-neutral-500"
+          className="min-h-11 flex-1 rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-50 placeholder:text-neutral-500"
         />
         <button
           type="button"
           disabled={pending || !corps.trim()}
           onClick={creer}
-          className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold hover:bg-emerald-600 disabled:opacity-50"
+          className="inline-flex min-h-11 items-center rounded-lg bg-emerald-700 px-4 text-sm font-semibold hover:bg-emerald-600 disabled:opacity-50"
         >
           {t.enregistrer}
         </button>

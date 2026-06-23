@@ -1,4 +1,5 @@
 import { definirFenetreSommeil } from "@/app/sommeil/actions";
+import { BoutonSoumettre } from "@/components/ui/bouton-soumettre";
 import { fr } from "@/lib/i18n/fr";
 import type { SleepWindow } from "@/lib/schedule/types";
 
@@ -44,12 +45,7 @@ export function FenetreSommeil({
             className="rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-lg text-neutral-50"
           />
         </label>
-        <button
-          type="submit"
-          className="rounded-lg bg-emerald-600 px-4 py-3 font-semibold hover:bg-emerald-500"
-        >
-          {t.enregistrer}
-        </button>
+        <BoutonSoumettre variant="primaire">{t.enregistrer}</BoutonSoumettre>
       </div>
       {fenetreActuelle ? (
         <p className="text-sm text-emerald-300">

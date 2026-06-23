@@ -123,7 +123,7 @@ export function PanneauCapture({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-neutral-700 px-3 py-2 text-sm font-semibold hover:bg-neutral-800"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-neutral-700 px-3 text-sm font-semibold hover:bg-neutral-800"
           >
             {t.fermer}
           </button>
@@ -286,7 +286,7 @@ function AjusterSommeil({
           type="button"
           disabled={pending || debut === "" || fin === ""}
           onClick={() => onSoumettre(() => sommeil.handlers.ajuster(date, debut, fin))}
-          className="rounded-lg bg-sky-600 px-4 py-3 font-semibold hover:bg-sky-500 disabled:opacity-50"
+          className="min-h-11 rounded-lg bg-sky-600 px-4 py-3 font-semibold hover:bg-sky-500 disabled:opacity-50"
         >
           {t.ajuster}
         </button>
@@ -296,7 +296,7 @@ function AjusterSommeil({
           type="button"
           disabled={pending}
           onClick={() => onSoumettre(() => sommeil.handlers.retirer(date))}
-          className="text-left text-sm text-neutral-400 underline hover:text-neutral-200 disabled:opacity-50"
+          className="inline-flex min-h-11 items-center self-start text-sm text-neutral-400 underline hover:text-neutral-200 disabled:opacity-50"
         >
           {t.retirer}
         </button>
@@ -346,17 +346,17 @@ function SectionRequete({
           type="button"
           disabled={pending}
           onClick={() => agir(() => handlers.approuver(requete.id, requete.onDate, "off"))}
-          className="flex-1 rounded-xl bg-emerald-600 px-4 py-3 font-bold hover:bg-emerald-500 disabled:opacity-50"
+          className="min-h-11 flex-1 rounded-xl bg-emerald-600 px-4 py-3 font-bold hover:bg-emerald-500 disabled:opacity-50"
         >
-          ✅ {t.approuver}
+          <span aria-hidden="true">✅</span> {t.approuver}
         </button>
         <button
           type="button"
           disabled={pending}
           onClick={() => agir(() => handlers.refuser(requete.id))}
-          className="flex-1 rounded-xl bg-red-700 px-4 py-3 font-bold hover:bg-red-600 disabled:opacity-50"
+          className="min-h-11 flex-1 rounded-xl bg-red-700 px-4 py-3 font-bold hover:bg-red-600 disabled:opacity-50"
         >
-          ✗ {t.refuser}
+          <span aria-hidden="true">✗</span> {t.refuser}
         </button>
       </div>
     </section>

@@ -1,3 +1,4 @@
+import { BoutonSoumettre } from "@/components/ui/bouton-soumettre";
 import { fr } from "@/lib/i18n/fr";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
@@ -61,14 +62,11 @@ export default async function OnboardingPage({
           required
           maxLength={80}
           placeholder={t.nomPlaceholder}
-          className="rounded-lg border border-neutral-700 bg-neutral-900 px-4 py-3 text-lg placeholder:text-neutral-500"
+          className="min-h-11 rounded-lg border border-neutral-700 bg-neutral-900 px-4 py-3 text-lg placeholder:text-neutral-500"
         />
-        <button
-          type="submit"
-          className="rounded-lg bg-emerald-600 px-4 py-3 text-lg font-semibold hover:bg-emerald-500"
-        >
+        <BoutonSoumettre variant="primaire" pleineLargeur className="text-lg">
           {t.creer}
-        </button>
+        </BoutonSoumettre>
       </form>
     </main>
   );
