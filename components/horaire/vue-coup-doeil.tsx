@@ -47,7 +47,11 @@ interface Affichage {
 const AFFICHAGE_TRAVAILLEUR: Record<DayStatusKind, Affichage> = {
   jour: { emoji: "☀️", etiquette: fr.horaire.jour, classes: "bg-quart-jour text-quart-jour-fg" },
   nuit: { emoji: "🌙", etiquette: fr.horaire.nuit, classes: "bg-quart-nuit text-quart-nuit-fg" },
-  conge: { emoji: "✅", etiquette: fr.horaire.conge, classes: "bg-conge text-conge-fg" },
+  // WHY ✔ (U+2714) en présentation texte plutôt que l'emoji ✅ : ✅ est vert-et-blanc et
+  // « disparaît » sur le fond emerald (bg-conge) — l'emoji ✔️ avec sélecteur de variation se
+  // rend vert sous Segoe (Windows). Le glyphe texte hérite de text-conge-fg (vert foncé) → coche
+  // sombre contrastée, garantie sur toutes les plateformes (parité daltonien préservée, NFR-12).
+  conge: { emoji: "✔", etiquette: fr.horaire.conge, classes: "bg-conge text-conge-fg" },
   sommeil: { emoji: "😴", etiquette: fr.horaire.sommeil, classes: "bg-sommeil text-sommeil-fg" },
 };
 
@@ -58,7 +62,7 @@ const AFFICHAGE_CONJOINTE: Record<Availability, Affichage> = {
     classes: "bg-travaille text-travaille-fg",
   },
   disponible: {
-    emoji: "✅",
+    emoji: "✔", // même raison que `conge` ci-dessus : coche sombre, jamais le ✅ vert sur fond vert.
     etiquette: fr.horaire.disponible,
     classes: "bg-conge text-conge-fg",
   },

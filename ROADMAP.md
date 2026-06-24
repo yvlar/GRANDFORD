@@ -7,10 +7,10 @@
 
 | Champ | Valeur |
 |---|---|
-| **Version** | 0.15.0 |
+| **Version** | 0.15.1 |
 | **Phase active** | v2+ |
 | **Sprint actif** | **Sprint 16 — à définir** |
-| **Dernier sprint complété** | Sprint 15 — Accessibilité & cibles tactiles ✅ |
+| **Dernier sprint complété** | Sprint 15 — Accessibilité & cibles tactiles ✅ (patch 0.15.1) |
 
 Note dépôt : branche d'intégration = **`dev`** (créée le 2026-06-11 depuis `claude/brave-pascal-5o9eiv`, première branche du dépôt — analyse + gouvernance). Chaque sprint : une branche `claude/sprintNN-<nom-court>` depuis `dev`, fusionnée par PR vers `dev`. Une `main` de production pourra naître de `dev` à la première mise en ligne (Sprint 8).
 
@@ -35,6 +35,8 @@ Note dépôt : branche d'intégration = **`dev`** (créée le 2026-06-11 depuis 
 
 ### Sprint 15 — Accessibilité & cibles tactiles ✅
 **Livré** : passe UX/UI transverse (audit via skill `ui-ux-pro-max` — choix produit préservés : mode sombre, emojis-pictogrammes NFR-12, budget ≤ 3 taps, payload conjointe sans motif R7). **Lot A — socle** : tokens de couleur sémantiques d'état dans `tailwind.config.ts` (`quart-jour`/`quart-nuit`/`conge`/`sommeil`/`travaille` + `-fg`, dérivés de la palette, teintes inchangées) consommés par les `Record` d'affichage de `vue-coup-doeil.tsx` ; **focus clavier visible global** dans `app/globals.css` (`:focus-visible` outline emerald sur tout élément interactif — une règle couvre boutons/liens/champs) + garde `prefers-reduced-motion` ; nouveau composant partagé `components/ui/bouton-soumettre.tsx` (`useFormStatus` → pending). **Lot B — tactile** : cibles ≥ 44 px (`min-h-11`) sur cases du mois (`h-10`→`h-11`), flèches de nav, boutons « fermer », et liens-texte minuscules (déconnexion, annuler invitation, supprimer note, retirer sommeil, monFoyer). **Lot C — feedback** : `BoutonSoumettre` sur tous les formulaires Server Action (`/foyer`, `/connexion`, `/onboarding`, sommeil) — désactive + « Envoi… » pendant la soumission (anti double-soumission) ; `selecteur-equipe.tsx` passé client avec `TuileEquipe`/`useFormStatus` (tuiles conservées). **Lot D — parité daltonien** : pictogramme d'état ajouté dans chaque case du mois (`ContenuCase`) pour distinguer les statuts sans la couleur ; `aria-hidden` sur les glyphes décoratifs inline. **Lot E — hiérarchie** : `/foyer` regroupé en cartes thématiques (`Carte`, 2 niveaux de titres) — membres · Travailleur · Réglages de l'horaire · Rappels et export · Invitations · Historique ; nouvelles chaînes `fr.commun.envoiEnCours` + `fr.foyer.groupes.*`. **Revue indépendante** (`/code-review` high, 2 angles) : 0 finding ; passe `/simplify` (3 props mortes retirées de `BoutonSoumettre`). Aucune migration BD, aucun changement moteur. Gates mesurés : vitest **199** (inchangé — changements présentationnels sans logique testable), tsc 0, biome 0, build OK. Note env : `biome check .` localement bruité par CRLF (`core.autocrlf` Windows) sur des fichiers non touchés dont l'index est en LF — neutralisé, diff inchangé. Branche : `claude/sprint15-ux-accessibilite`.
+
+**Patch 0.15.1 — contraste congé/disponible** (suite feedback UX externe) : l'état congé/disponible affichait l'emoji `✅` (vert-et-blanc) sur `bg-conge` (emerald-500) — coche « invisible » sur fond de même teinte. Remplacé par `✔` (U+2714 **présentation texte**, sans sélecteur de variation : l'emoji `✔️` se rend vert sous Segoe/Windows) dans les deux `Record` d'affichage de `vue-coup-doeil.tsx` (propage à pastille/semaine/cases/légende) + bouton « Approuver » de `panneau-capture.tsx`. Le glyphe hérite de `text-conge-fg` (emerald-950) → coche sombre contrastée, garantie multiplateforme, parité daltonien préservée (NFR-12). Purement présentationnel : aucune migration, aucun moteur, aucun test impacté. Gates mesurés : vitest **199** (inchangé), tsc 0, biome 0 (fichiers touchés), build OK. Revue `/code-review` high : 0 finding ; vérification octet par octet des glyphes (U+2714 nu confirmé). Branche : `claude/sprint16-ux-contraste`.
 
 ## Horizons (non planifiés en sprints)
 

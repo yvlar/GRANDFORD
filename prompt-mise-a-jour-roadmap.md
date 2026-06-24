@@ -5,7 +5,7 @@
 
 ## État
 
-Sprint 15 livré : passe accessibilité & cibles tactiles (focus clavier global, cibles ≥ 44 px, feedback `useFormStatus`, parité daltonien de la grille mois, `/foyer` en cartes, tokens couleur sémantiques). Aucune migration BD, aucun changement moteur. Version 0.15.0. Phase courante : **v2+**. État courant : voir la table en tête de `ROADMAP.md`.
+Sprint 15 livré : passe accessibilité & cibles tactiles (focus clavier global, cibles ≥ 44 px, feedback `useFormStatus`, parité daltonien de la grille mois, `/foyer` en cartes, tokens couleur sémantiques). Aucune migration BD, aucun changement moteur. Version 0.15.1 (patch contraste congé/disponible — voir ROADMAP). Phase courante : **v2+**. État courant : voir la table en tête de `ROADMAP.md`.
 
 > Note : la tâche « Notifications E2E prod » ci-dessous était la carte du Sprint 15 mais a été reportée (le Sprint 15 a porté sur l'UX/accessibilité à la demande de l'auteur). Elle reste la priorité recommandée et n'a **pas** été commencée.
 
