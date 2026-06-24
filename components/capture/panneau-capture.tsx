@@ -348,7 +348,7 @@ function SectionRequete({
           onClick={() => agir(() => handlers.approuver(requete.id, requete.onDate, "off"))}
           className="min-h-11 flex-1 rounded-xl bg-emerald-600 px-4 py-3 font-bold hover:bg-emerald-500 disabled:opacity-50"
         >
-          <span aria-hidden="true">✅</span> {t.approuver}
+          <span aria-hidden="true">✔</span> {t.approuver}
         </button>
         <button
           type="button"
