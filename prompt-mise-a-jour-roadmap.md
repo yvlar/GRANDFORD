@@ -1,93 +1,68 @@
-# Carte d'embarquement — Sprint 16 : Notifications E2E prod + nettoyage push
+# Carte d'embarquement — Sprint 17 : à définir
 
 > Cette carte est **réécrite à chaque fin de sprint** pour le sprint suivant (règle : `.claude/rules/workflow-sprint.md`).
 > ⚠️ C'est une **prémisse à vérifier**, pas une vérité terrain : réconcilier chaque dépendance avec le code réel avant d'implémenter ; prémisse fausse → STOP + signalement.
 
 ## État
 
-Sprint 15 livré : passe accessibilité & cibles tactiles (focus clavier global, cibles ≥ 44 px, feedback `useFormStatus`, parité daltonien de la grille mois, `/foyer` en cartes, tokens couleur sémantiques). Aucune migration BD, aucun changement moteur. Version 0.15.1 (patch contraste congé/disponible — voir ROADMAP). Phase courante : **v2+**. État courant : voir la table en tête de `ROADMAP.md`.
+Sprint 16 livré : **garde anti-dérive du payload de rappel** (`lib/notifications/payload-parity.test.ts`) — le test compare le corps exécutable de `lib/notifications/payload.ts` (source) et `supabase/functions/_shared/payload.ts` (copie Edge), gardant la garantie R7 « aucun motif » contre une dérive silencieuse. Doc `send-reminders/README.md` synchronisée. Aucune migration, aucun changement moteur. Version 0.16.0. Phase courante : **v2+**. État courant : voir la table en tête de `ROADMAP.md`.
 
-> Note : la tâche « Notifications E2E prod » ci-dessous était la carte du Sprint 15 mais a été reportée (le Sprint 15 a porté sur l'UX/accessibilité à la demande de l'auteur). Elle reste la priorité recommandée et n'a **pas** été commencée.
+> **Réconciliation Sprint 16 (à connaître)** : la carte précédente (« Notifications E2E prod + nettoyage push ») visait une validation E2E en prod. Vérification faite : le **nettoyage des endpoints 404/410 est déjà implémenté** (`supabase/functions/send-reminders/index.ts:150-153`), le flux d'envoi est complet, les tests payload R7 (4) et isolation RLS `push_subscriptions` (`supabase/tests/reminders.test.ts:246-322`) existent déjà. **Ne pas re-coder ces éléments.** Ce qui reste est purement **opérationnel** (voir tâche reportée ci-dessous).
 
 ## LECTURE OBLIGATOIRE
 
-1. `.claude/rules/supabase-rls.md` — Edge Functions utilisent `SUPABASE_SERVICE_ROLE` (serveur seulement, jamais `NEXT_PUBLIC_`).
-2. `.claude/rules/securite-secrets.md` — VAPID clés : `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (publique) + `VAPID_PRIVATE_KEY` (serveur seulement, jamais côté client).
-3. `.claude/rules/autonomie-confirmations.md` — `git push`, PR, envoi push réel à de vrais appareils = confirmation préalable.
-4. `ROADMAP.md` (état + périmètre) ; les règles universelles s'appliquent toujours.
+1. `.claude/rules/workflow-sprint.md` — loi anti-hallucination : toute capacité « existante » porte une référence `fichier:ligne` vérifiée en session ; sinon « à créer / à vérifier ».
+2. `.claude/rules/autonomie-confirmations.md` — `git push`, PR, déploiement Edge, envoi push/courriel réel = confirmation préalable.
+3. `ROADMAP.md` (état + périmètre) ; les règles universelles s'appliquent toujours.
 
-## Prémisses à réconcilier AVANT d'implémenter
+## Tâche reportée du Sprint 16 (opérationnelle — hors session de code)
 
-- **`supabase/functions/send-reminders/`** : vérifier que la fonction existe (`ls supabase/functions/`) et inspecter son code — est-ce que `VAPID_PRIVATE_KEY` et `RESEND_API_KEY` sont lus depuis les secrets Vault ou les variables d'environnement ?
-- **`push_subscriptions`** : `SELECT count(*) FROM push_subscriptions` en prod — combien d'abonnements actifs ? Y en a-t-il d'expirés (endpoint mort) ?
-- **`reminders`** : `SELECT count(*) FROM reminders WHERE send_at <= now() AND sent_at IS NULL` — des rappels en attente non envoyés ?
-- **`pg_cron`** : `SELECT * FROM cron.job WHERE jobname LIKE '%reminder%'` — job planifié actif ? Logs récents (`SELECT * FROM cron.job_run_details ORDER BY start_time DESC LIMIT 10`).
-- **Réseau Edge → endpoints push** : une requête push vers un endpoint expiré renvoie HTTP 410 Gone (Chrome) ou 404 — la fonction les nettoie-t-elle ?
+**Validation E2E des notifications en prod** — non réalisable dans un conteneur de dev éphémère ; nécessite la machine de l'auteur, des creds prod et des confirmations explicites. À faire par l'auteur, pas par une session Claude Code automatisée :
 
-## TÂCHE — Sprint 16
+1. `supabase functions deploy send-reminders` (après confirmation).
+2. Vérifier les secrets : `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` / `RESEND_API_KEY` / `RESEND_FROM` (`supabase secrets list`).
+3. Planifier `pg_cron` + `pg_net` (SQL dans `supabase/functions/send-reminders/README.md`).
+4. Preuve observable : `SELECT * FROM cron.job_run_details ORDER BY start_time DESC LIMIT 5` (exécutions sans erreur) ; un `INSERT INTO reminders …` dû marqué `sent_at` au passage suivant ; `SELECT count(*) FROM push_subscriptions` stable ; payload reçu sur un appareil réel = libellé générique, **zéro motif** (R7).
 
-### Option A — Validation E2E notifications + nettoyage (recommandé)
+## SPRINTS SUGGÉRÉS (3-5)
 
-1. **Inspecter `send-reminders`** : lire `supabase/functions/send-reminders/index.ts` — vérifier le flux : récupère rappels dus → Web Push → repli courriel Resend → mark `sent_at`. Corriger si nécessaire.
-2. **Nettoyage des endpoints expirés** : ajouter dans `send-reminders` (ou trigger séparé) la suppression des `push_subscriptions` dont le push retourne 410/404 — évite la croissance silencieuse de la table.
-3. **Test d'intégration** (si possible en local avec Supabase CLI) : insérer un rappel dû → appeler la fonction → vérifier `sent_at` renseigné, 0 motif dans le payload (R7).
-4. **Tests** : test unitaire payload (zéro motif, libellé générique si conjointe) — `lib/notifications/payload.test.ts` (à vérifier en session : déjà 4 tests). Test RLS `push_subscriptions` : un abonné ne voit pas les abonnements d'un autre.
-
-### Option B — Facturation SaaS (FR-16, Stripe)
-
-Premier foyer gratuit, suivants payants. Webhook Stripe → `households.plan` ; portail client. Complexité haute — à adresser quand un 2ᵉ foyer réel (hors prod du développeur) est prêt à payer.
-
-### Gates
-
-- `pnpm vitest run` · `pnpm tsc --noEmit` · `pnpm biome check .` · `pnpm build` — tous verts.
-- Si `send-reminders` est modifiée : `supabase functions deploy send-reminders` (après confirmation).
-
-### Preuve d'acceptation observable
-
-1. `SELECT * FROM cron.job_run_details ORDER BY start_time DESC LIMIT 5` montre des exécutions récentes sans erreur.
-2. Un rappel inséré manuellement (`INSERT INTO reminders ...`) est marqué `sent_at` après une exécution de la fonction.
-3. `SELECT count(*) FROM push_subscriptions` est stable (pas de fuite d'abonnements expirés).
-4. Payload inspecté (log ou test) : zéro motif d'absence — champ `body` = libellé générique uniquement (R7 ✅).
-
-## SPRINTS SUGGÉRÉS
-
-### v2+ — Notifications E2E prod (suivi Sprint 8) [recommandé pour Sprint 16]
-**Objectif** : valider `send-reminders` en prod sur au moins 1 appareil réel ; nettoyer les endpoints push expirés.
-**Complexité** : Faible-Moyenne (inspection + correctifs mineurs + test d'intégration)
-**Justification** : FR-10 livré Sprint 7 mais jamais testé E2E sur plus d'un appareil — risque silencieux de rappels non reçus.
-**Référence** : `supabase/functions/send-reminders/` (à vérifier en session) ; `push_subscriptions` (table existante, Sprint 2).
-
-### v2+ — Facturation SaaS (FR-16)
-**Objectif** : Stripe pour les foyers supplémentaires (1er foyer gratuit, suivants payants).
-**Complexité** : Haute (Stripe webhooks, portail client, gates d'accès par foyer)
-**Justification** : prérequis business pour tout 2ᵉ utilisateur externe ; FR-17 ✅ rend l'unité de facturation (foyer × gabarit) adressable.
-**Référence** : FR-16 — `docs/analyse/02-analyse/analyse.md` (ligne à vérifier en session).
+### v2+ — Facturation SaaS (FR-16, Stripe)
+**Objectif** : premier foyer gratuit, suivants payants ; webhook Stripe → `households.plan` ; portail client ; gate d'accès par foyer.
+**Complexité** : Haute (webhooks Stripe, portail, états d'abonnement).
+**Justification** : prérequis business pour tout 2ᵉ foyer externe ; FR-17 ✅ rend l'unité de facturation (foyer × gabarit) adressable.
+**Référence** : `households` (table existante — `supabase/migrations/20260611192620_initial_schema.sql`, colonne `plan` **à créer**) ; FR-16 — `docs/analyse/02-analyse/analyse.md` (ligne à vérifier en session).
 
 ### v2+ — Intégration Dayforce (FR-15)
-**Objectif** : importer l'horaire publié depuis l'API Dayforce (source optionnelle, jamais requise).
-**Complexité** : Haute (API externe, OAuth Dayforce, réconciliation écarts existants)
-**Justification** : non prioritaire sans accès réel à l'API et sans client cible ; documenter le point d'entrée quand l'accès est disponible.
+**Objectif** : importer l'horaire publié depuis l'API Dayforce (source optionnelle, jamais requise) ; réconcilier avec les écarts existants.
+**Complexité** : Haute (API externe, OAuth Dayforce, réconciliation).
+**Justification** : non prioritaire sans accès réel à l'API ni client cible ; documenter le point d'entrée quand l'accès est disponible.
 **Référence** : FR-15 — `docs/analyse/02-analyse/analyse.md` (ligne à vérifier en session).
 
 ### v2+ — Vérification visuelle de la passe accessibilité (suivi Sprint 15)
-**Objectif** : confirmer en conditions réelles les correctifs UX du Sprint 15 — focus clavier, cibles ≥ 44 px, parité daltonien — via démo `/demo/horaire` et simulation deuteranopia (DevTools).
-**Complexité** : Faible (vérification, pas de code — ou ajustements mineurs si un écart est constaté)
-**Justification** : le Sprint 15 a validé par gates + build + revue, mais la preuve **visuelle** (capture d'écran, navigation clavier réelle) reste à constater sur appareil.
+**Objectif** : confirmer en conditions réelles les correctifs UX du Sprint 15 — focus clavier, cibles ≥ 44 px, parité daltonien — via `/demo/horaire` et simulation deuteranopia (DevTools) ; ajustements mineurs si écart.
+**Complexité** : Faible (vérification surtout, peu ou pas de code).
 **Référence** : `app/globals.css` (`:focus-visible`), `components/horaire/vue-coup-doeil.tsx` (`ContenuCase`), `components/ui/bouton-soumettre.tsx`.
+
+### v1.1+ — Harmonisation du miroir de format de date (dette technique)
+**Objectif** : `FORMAT_JOUR` (`lib/notifications/payload.ts:26`) est un « miroir assumé » de `FORMAT_JOUR_LONG` (`lib/schedule/format.ts`) imposé par la contrainte zéro-import ; ajouter un test qui constate que les deux formats produisent la même chaîne pour une date donnée (garde analogue au test de parité du Sprint 16, mais sur le format inter-modules).
+**Complexité** : Faible (un test pur).
+**Justification** : même classe de risque que la dérive payload corrigée au Sprint 16 ; aujourd'hui non gardé.
+**Référence** : `lib/notifications/payload.ts:22-31` (commentaire « MIROIR ASSUMÉ »), `lib/schedule/format.ts` (`FORMAT_JOUR_LONG`).
 
 ## Template de démarrage (coller tel quel dans une nouvelle session)
 
 ```
-Lis CLAUDE.md, ROADMAP.md et prompt-mise-a-jour-roadmap.md, puis exécute le
-Sprint 16 (Notifications E2E prod) en suivant .claude/prompts/prompt-executer-sprint.md — Phase A.
+Lis CLAUDE.md, ROADMAP.md et prompt-mise-a-jour-roadmap.md, puis choisis et exécute
+le Sprint 17 (parmi les SPRINTS SUGGÉRÉS, ou la tâche que je précise) en suivant
+.claude/prompts/prompt-executer-sprint.md — Phase A.
 
-Branche : claude/sprint16-notifications-e2e (à créer depuis dev, après merge de sprint15).
+Branche : claude/sprint17-<nom-court> (à créer depuis dev).
 
 Rappels non négociables :
-- Réconcilier en premier : lire supabase/functions/send-reminders/index.ts ;
-  vérifier push_subscriptions (SELECT count(*)) et reminders en attente.
-- Jamais de motif dans le payload push (R7) — vérifier dans le code et les tests.
-- VAPID_PRIVATE_KEY = secret serveur seulement, jamais NEXT_PUBLIC_.
-- Si send-reminders est modifiée : déployer seulement après confirmation.
+- Réconcilier la carte avec le code réel AVANT d'implémenter (référence fichier:ligne) ;
+  prémisse fausse → STOP + signalement.
+- Compteurs de tests TOUJOURS mesurés en session (pnpm vitest run), jamais recopiés.
+- Jamais de motif d'absence vers la conjointe (R7) — BD, payload, logs.
+- Secrets serveur (VAPID_PRIVATE_KEY, SUPABASE_SERVICE_ROLE…) jamais NEXT_PUBLIC_.
 - Fin de sprint = ROADMAP à jour + nouvelle carte + commit. PAS de push sans demander.
 ```
