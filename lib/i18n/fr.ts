@@ -71,6 +71,10 @@ export const fr = {
     titre: "Fenêtre de sommeil",
     consigne:
       "Après chaque quart de nuit, votre journée de récupération affiche cette fenêtre. Réglez-la une seule fois — ajustable au cas par cas depuis l'horaire.",
+    afficher: "Afficher la fenêtre de sommeil",
+    afficherConsigne:
+      "Décochez pour masquer vos journées de récupération — vos heures restent enregistrées.",
+    masquee: "Fenêtre masquée.",
     debut: "Début",
     fin: "Fin",
     enregistrer: "Enregistrer ma fenêtre",

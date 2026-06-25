@@ -14,6 +14,7 @@ import {
   parsePaydayRow,
   parseRequeteRows,
   parseSleepAdjustmentRows,
+  parseSleepEnabled,
   parseSleepRow,
 } from "@/lib/schedule/db-rows";
 import { addDays } from "@/lib/schedule/status";
@@ -118,7 +119,7 @@ export default async function AccueilPage({
         .order("on_date"),
       supabase
         .from("sleep_defaults")
-        .select("start_time, end_time")
+        .select("start_time, end_time, enabled")
         .eq("household_id", householdId)
         .eq("profile_id", workerId)
         .maybeSingle(),
@@ -236,6 +237,7 @@ export default async function AccueilPage({
       template={template}
       exceptions={parseExceptionRows(exceptionsRes.data)}
       sleepDefault={parseSleepRow(sleepRes.data)}
+      sleepEnabled={parseSleepEnabled(sleepRes.data)}
       sleepAdjustments={parseSleepAdjustmentRows(sleepAdjustmentsRes.data)}
       initialToday={today}
       workerName={workerName}

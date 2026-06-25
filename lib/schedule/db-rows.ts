@@ -77,6 +77,21 @@ export function parseSleepRow(row: unknown): SleepWindow | null {
   return { start: parsed.start_time, end: parsed.end_time };
 }
 
+// `enabled` vit sur la MÊME ligne que la fenêtre ; parseur frère plutôt que
+// d'élargir parseSleepRow (réutilisé par des appelants qui n'en ont pas besoin).
+const sleepDefaultRowSchema = z.object({ enabled: z.boolean() });
+
+/**
+ * Ligne `sleep_defaults` → état de l'interrupteur de sommeil (FR-6, Sprint 19).
+ * Pas de ligne configurée → fonction ACTIVE par défaut (comportement historique).
+ */
+export function parseSleepEnabled(row: unknown): boolean {
+  if (row === null || row === undefined) {
+    return true;
+  }
+  return sleepDefaultRowSchema.parse(row).enabled;
+}
+
 // Jour de paye (Sprint 17) : config worker-private. Parsée dans la SEULE branche
 // travailleur — la conjointe ne reçoit jamais cette ligne (RLS owner-only + câblage, R7).
 const paydayRowSchema = z.object({ anchor_date: z.string(), frequence: frequencePayeSchema });

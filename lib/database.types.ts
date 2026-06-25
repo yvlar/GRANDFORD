@@ -698,6 +698,7 @@ export type Database = {
       sleep_defaults: {
         Row: {
           created_at: string
+          enabled: boolean
           end_time: string
           household_id: string
           id: string
@@ -707,6 +708,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          enabled?: boolean
           end_time: string
           household_id: string
           id?: string
@@ -716,6 +718,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          enabled?: boolean
           end_time?: string
           household_id?: string
           id?: string

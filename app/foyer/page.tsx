@@ -7,7 +7,12 @@ import { fr } from "@/lib/i18n/fr";
 import { signIcalToken } from "@/lib/ical/generate";
 import { requestOrigin } from "@/lib/request-origin";
 import { fetchActiveGabarit } from "@/lib/schedule/cycle-template";
-import { parseAuditRows, parsePaydayRow, parseSleepRow } from "@/lib/schedule/db-rows";
+import {
+  parseAuditRows,
+  parsePaydayRow,
+  parseSleepEnabled,
+  parseSleepRow,
+} from "@/lib/schedule/db-rows";
 import { FORMAT_DATE_COURTE, dateUTC } from "@/lib/schedule/format";
 import { GABARITS_PREDEFINIS } from "@/lib/schedule/predefined-templates";
 import { defaultSleepWindow } from "@/lib/schedule/status";
@@ -94,7 +99,7 @@ export default async function FoyerPage({
     monAdhesion.role === "worker"
       ? supabase
           .from("sleep_defaults")
-          .select("start_time, end_time")
+          .select("start_time, end_time, enabled")
           .eq("household_id", monAdhesion.household_id)
           .eq("profile_id", user.id)
           .maybeSingle()
@@ -171,6 +176,7 @@ export default async function FoyerPage({
   }
   const monAffectation = affectationRes?.data ?? null;
   const maFenetre = parseSleepRow(sommeilRes?.data ?? null);
+  const sommeilActif = parseSleepEnabled(sommeilRes?.data ?? null);
   const maPaye = parsePaydayRow(payeRes?.data ?? null);
 
   const historique = parseAuditRows(historiqueRaw ?? []);
@@ -320,6 +326,7 @@ export default async function FoyerPage({
               householdId={monAdhesion.household_id}
               fenetreActuelle={maFenetre}
               fenetreProposee={defaultSleepWindow(template)}
+              active={sommeilActif}
             />
           </div>
           {/* Jour de paye (Sprint 17) — worker-private : ce bloc n'existe que dans la branche
