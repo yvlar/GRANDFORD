@@ -1,13 +1,13 @@
-# Carte d'embarquement — Sprint 18 : à définir
+# Carte d'embarquement — Sprint 19 : à définir
 
 > Cette carte est **réécrite à chaque fin de sprint** pour le sprint suivant (règle : `.claude/rules/workflow-sprint.md`).
 > ⚠️ C'est une **prémisse à vérifier**, pas une vérité terrain : réconcilier chaque dépendance avec le code réel avant d'implémenter ; prémisse fausse → STOP + signalement.
 
 ## État
 
-Sprint 17 livré : **jour de paye worker-private, déterministe** — config (ancre + fréquence) persistée dans `payday_settings`, jours calculés à la volée par `lib/schedule/payday.ts` (`estJourDePaye`, pur, réutilise `civilToDays`/`mathMod`). RLS étanche owner-only (la conjointe lit 0 ligne) + durcissement `is_household_member` dans `with check`. Marqueur 💰 + badge « Paye aujourd'hui » côté travailleur seulement (non-fuite R7 constatée sur `/demo/horaire`). Version 0.17.0. Phase courante : **v2+**. État courant : voir la table en tête de `ROADMAP.md`.
+Sprint 18 livré : **garde de parité du miroir de format de date**. `FORMAT_JOUR` (`lib/notifications/payload.ts:26`) et `FORMAT_JOUR_LONG` (`lib/schedule/format.ts:14`) sont deux `Intl.DateTimeFormat` identiques dupliqués par la contrainte zéro-import de `payload.ts` (Edge Deno) ; `lib/notifications/format-parity.test.ts` (pur) garde désormais par **égalité exacte** qu'ils produisent la même chaîne, dans les deux sens (la revue a corrigé un `toContain` uni-directionnel en `toBe`). Version 0.18.0. Phase courante : **v2+**. État courant : voir la table en tête de `ROADMAP.md`.
 
-> **À connaître (Sprint 17)** : feature dirigée par l'auteur, **hors FR-1→17** (ce n'est pas dans `docs/analyse/` ; `CLAUDE.md` exclut « tracker de paie/OT$ » — cadré comme marqueur de *date*, pas de montants). Le Postgres local (`scripts/local-db.sh`, Postgres 16) permet d'exécuter **réellement** migrations + tests d'isolation RLS en session — utilisé au Sprint 17 (6 tests RLS verts contre un vrai Postgres). **Type BD** : `payday_settings` inséré à la main dans `lib/database.types.ts` (fidèle au générateur) car le PG local n'a pas pg_graphql — à régénérer par l'auteur sur Cloud quand la migration y sera appliquée.
+> **À connaître (Sprint 18)** : feature de dette technique, fully in-session (un test pur, aucun schéma, aucune migration). La dette « miroir de format » des cartes précédentes est désormais **traitée** — ne pas la re-suggérer. Le Postgres local (`bash scripts/local-db.sh`, Postgres 16) permet d'exécuter **réellement** migrations + tests d'isolation RLS en session (non utilisé au Sprint 18 : aucun schéma touché) — 77 tests RLS restent ignorés quand il n'est pas lancé.
 
 ## LECTURE OBLIGATOIRE
 
@@ -15,24 +15,23 @@ Sprint 17 livré : **jour de paye worker-private, déterministe** — config (an
 2. `.claude/rules/autonomie-confirmations.md` — `git push`, PR, déploiement Edge, envoi push/courriel réel, migration appliquée sur Cloud = confirmation préalable.
 3. `ROADMAP.md` (état + périmètre) ; les règles universelles s'appliquent toujours.
 
-## Tâche opérationnelle en attente (hors session de code)
+## Tâches opérationnelles en attente (hors session de code)
 
 **Appliquer la migration Sprint 17 sur Supabase Cloud** (après confirmation) : `supabase migration up` (ou via dashboard rejoué en migration), puis `node scripts/gen-types.mjs <db_url_cloud>` pour régénérer `lib/database.types.ts` avec `__InternalSupabase` + `graphql_public` réels. Vérifier ensuite que la conjointe lit bien 0 ligne de `payday_settings` en prod.
 **+ rappel Sprint 16** : validation E2E des notifications en prod (déploiement `send-reminders`, secrets VAPID/Resend, pg_cron, `cron.job_run_details`) — toujours en attente, machine de l'auteur requise.
 
 ## SPRINTS SUGGÉRÉS (3-5)
 
-### Dette technique — Harmonisation du miroir de format de date
-**Objectif** : `FORMAT_JOUR` (`lib/notifications/payload.ts:26`) est un « miroir assumé » de `FORMAT_JOUR_LONG` (`lib/schedule/format.ts:14`) imposé par la contrainte zéro-import Deno ; ajouter un test pur qui constate que les deux produisent la même chaîne pour une date donnée (garde analogue à la parité payload du Sprint 16).
-**Complexité** : Faible (un test pur, aucun schéma).
-**Justification** : même classe de risque que la dérive payload corrigée au Sprint 16 ; aujourd'hui non gardé. Réalisable intégralement en session.
-**Référence** : `lib/notifications/payload.ts:22-31` (commentaire MIROIR ASSUMÉ, vérifié en session Sprint 17), `lib/schedule/format.ts:14` (`FORMAT_JOUR_LONG`).
-
 ### Jour de paye — fréquence mensuelle (suite Sprint 17)
 **Objectif** : ajouter une cadence `mensuel` au jour de paye (ex. « le dernier vendredi », ou un jour fixe du mois). Sort du modèle ancre+mod-en-jours (mois 28–31 j) → nécessite de l'arithmétique calendaire dans `payday.ts`.
 **Complexité** : Moyenne (logique calendaire + élargir `frequencePayeSchema` + CHECK BD + UI + tests).
 **Justification** : seulement si l'auteur paie au mois ; sinon non prioritaire (hebdo/aux 2 semaines couvrent l'usine). À confirmer avec l'auteur avant d'implémenter.
 **Référence** : `lib/schedule/payday.ts` (`FrequencePaye`, `JOURS_PAR_FREQUENCE` — vérifié Sprint 17), `supabase/migrations/20260624120000_sprint17_payday_settings.sql` (CHECK `frequence`).
+
+### Dette technique — garde de parité de la copie Edge des échéances
+**Objectif** : sur le modèle des gardes de parité Sprints 16 (corps du payload) et 18 (format de date), vérifier s'il existe d'autres miroirs manuels non gardés entre `lib/notifications/` et `supabase/functions/` (la copie Edge `_shared/`), notamment la logique d'échéances ; ajouter un test pur de parité si une duplication non gardée subsiste.
+**Complexité** : Faible (audit + éventuel test pur, aucun schéma) — **à réconcilier d'abord** : `echeances.ts` est décrit comme « miroir TS de la RPC » (roadmap-archive Sprint 7), pas forcément dupliqué côté Edge ; vérifier qu'une vraie copie non gardée existe avant d'implémenter, sinon STOP.
+**Référence** : `lib/notifications/payload-parity.test.ts` (garde de référence, Sprint 16), `supabase/functions/_shared/payload.ts` (copie Edge — vérifié Sprint 18) ; `lib/notifications/echeances.ts` (**à vérifier** : a-t-il une copie Edge ?).
 
 ### v2+ — Facturation SaaS (FR-16, Stripe)
 **Objectif** : premier foyer gratuit, suivants payants ; webhook Stripe → `households.plan` ; portail client ; gate d'accès par foyer.
@@ -50,10 +49,10 @@ Sprint 17 livré : **jour de paye worker-private, déterministe** — config (an
 
 ```
 Lis CLAUDE.md, ROADMAP.md et prompt-mise-a-jour-roadmap.md, puis choisis et exécute
-le Sprint 18 (parmi les SPRINTS SUGGÉRÉS, ou la tâche que je précise) en suivant
+le Sprint 19 (parmi les SPRINTS SUGGÉRÉS, ou la tâche que je précise) en suivant
 .claude/prompts/prompt-executer-sprint.md — Phase A.
 
-Branche : claude/sprint18-<nom-court> (à créer depuis dev).
+Branche : claude/sprint19-<nom-court> (à créer depuis dev).
 
 Rappels non négociables :
 - Réconcilier la carte avec le code réel AVANT d'implémenter (référence fichier:ligne) ;
