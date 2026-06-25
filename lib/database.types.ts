@@ -414,6 +414,48 @@ export type Database = {
           },
         ]
       }
+      payday_settings: {
+        Row: {
+          anchor_date: string
+          created_at: string
+          frequence: string
+          household_id: string
+          profile_id: string
+          updated_at: string
+        }
+        Insert: {
+          anchor_date: string
+          created_at?: string
+          frequence: string
+          household_id: string
+          profile_id: string
+          updated_at?: string
+        }
+        Update: {
+          anchor_date?: string
+          created_at?: string
+          frequence?: string
+          household_id?: string
+          profile_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payday_settings_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payday_settings_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string

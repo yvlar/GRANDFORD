@@ -83,6 +83,24 @@ export const fr = {
     retirer: "Revenir à ma fenêtre habituelle",
     erreurAjustement: "L'ajustement a échoué. Réessayez.",
   },
+  // Jour de paye (Sprint 17) — réglage et affichage RÉSERVÉS au travailleur (R7).
+  // Aucune de ces chaînes n'apparaît dans un parcours conjointe.
+  paye: {
+    titre: "Jour de paye",
+    consigne:
+      "Marquez vos jours de paye sur votre horaire. Visible par vous seul — jamais partagé.",
+    marqueur: "💰",
+    marqueurAria: "Jour de paye",
+    aujourdhui: "Paye aujourd'hui",
+    ancreLabel: "Date d'une paye connue",
+    frequenceLabel: "Fréquence",
+    frequences: {
+      hebdomadaire: "Chaque semaine",
+      aux_2_semaines: "Aux 2 semaines",
+    },
+    enregistrer: "Enregistrer mon jour de paye",
+    erreurEnregistrement: "L'enregistrement du jour de paye a échoué. Réessayez.",
+  },
   rappels: {
     titre: "Rappels",
     consigne: "Un rappel 1 mois, 1 semaine et la veille de chaque écart — sur cet appareil.",

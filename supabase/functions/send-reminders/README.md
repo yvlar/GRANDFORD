@@ -7,17 +7,21 @@ replie sur un courriel Resend pour les membres sans push, puis marque `sent_at`.
 **R7** : le contenu vient de `lib/notifications/payload.ts` (date + horizon,
 structurellement sans motif). La fonction ne touche jamais `exception_private`.
 
-## État (Sprint 7)
+## État
 
-- ❌ **Jamais exécutée** : ni l'Edge Runtime ni Docker ne tournent dans
-  l'environnement de dev (contrainte documentée depuis le Sprint 2). Le pipeline est
-  prouvé au niveau BD (`supabase/tests/reminders.test.ts`) et fonctions pures
+- Code **complet** : flux lecture des dus → Web Push → repli courriel Resend →
+  `sent_at` ; les abonnements morts (HTTP 404/410) sont **purgés** au passage
+  (`index.ts`, `sendPush`). Pipeline prouvé au niveau BD
+  (`supabase/tests/reminders.test.ts`) et fonctions pures
   (`lib/notifications/*.test.ts`).
-- Déploiement, exécution réelle et pg_cron : **Sprint 8** (Supabase Cloud).
-- ⚠️ À vérifier au déploiement : l'import relatif `../../../lib/notifications/payload.ts`
-  hors du dossier `functions/`. Si le bundler le refuse, déplacer le fichier vers
-  `supabase/functions/_shared/payload.ts` et mettre à jour les imports (celui-ci,
-  `lib/notifications/echeances.ts`, `app/sw.ts`, les tests).
+- **Validation E2E prod** (déploiement, `pg_cron`, push réel à un appareil,
+  observation de `cron.job_run_details` / `sent_at`) : tâche **opérationnelle**, à
+  faire depuis la machine de l'auteur (creds prod + confirmations) — non réalisable
+  en conteneur de dev (ni Edge Runtime ni Docker, contrainte documentée Sprint 2).
+- Payload : la source vit dans `lib/notifications/payload.ts` (app Next.js + tests) ;
+  la **copie Edge** dans `_shared/payload.ts` (contrainte zéro-import Deno). Les deux
+  sont gardées identiques par `lib/notifications/payload-parity.test.ts` — toute
+  évolution doit toucher LES DEUX fichiers, sous peine d'échec de la suite.
 
 ## Secrets (Edge Function — `supabase secrets set`)
 

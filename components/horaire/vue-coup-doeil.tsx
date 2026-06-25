@@ -7,6 +7,7 @@ import { fr } from "@/lib/i18n/fr";
 import type { CaptureHandlers, OwnException } from "@/lib/schedule/capture";
 import type { Note, NoteHandlers, Requete, RequeteHandlers } from "@/lib/schedule/coplanification";
 import { FORMAT_JOUR_LONG, dateUTC } from "@/lib/schedule/format";
+import { type ReglagePaye, estJourDePaye } from "@/lib/schedule/payday";
 import type { SommeilHandlers } from "@/lib/schedule/sommeil";
 import {
   addDays,
@@ -92,12 +93,28 @@ function MarqueurEcart() {
 }
 
 /**
+ * Marqueur « jour de paye » (Sprint 17) — TRAVAILLEUR seulement. Coin opposé au point
+ * d'écart pour ne pas se chevaucher. L'emoji porte un aria-label : l'information n'est
+ * jamais véhiculée par la seule couleur (parité daltonien, NFR-12).
+ */
+function MarqueurPaie() {
+  return (
+    <span
+      aria-label={fr.paye.marqueurAria}
+      className="absolute left-1 top-1 text-[0.625rem] leading-none"
+    >
+      <span aria-hidden="true">{fr.paye.marqueur}</span>
+    </span>
+  );
+}
+
+/**
  * Contenu d'une case du mois : numéro + pictogramme d'état (parité daltonien, NFR-12 —
  * jour/nuit/congé/sommeil distinguables sans percevoir la teinte, comme la bande semaine).
  * Composant dédié plutôt que fragment inline : sort les <span> du contexte itérable du
  * `.map` (pas de clé requise) et reste partagé entre la case interactive et statique.
  */
-function ContenuCase({ day, aff }: { day: DayStatus; aff: Affichage }) {
+function ContenuCase({ day, aff, estPaye }: { day: DayStatus; aff: Affichage; estPaye: boolean }) {
   return (
     <>
       <span className="text-sm font-bold leading-none">{Number(day.date.slice(8))}</span>
@@ -105,6 +122,7 @@ function ContenuCase({ day, aff }: { day: DayStatus; aff: Affichage }) {
         {aff.emoji}
       </span>
       {day.fromException ? <MarqueurEcart /> : null}
+      {estPaye ? <MarqueurPaie /> : null}
     </>
   );
 }
@@ -149,6 +167,11 @@ export interface VueCoupDoeilProps {
     readonly requetes?: readonly Requete[];
     readonly requeteHandlers?: RequeteHandlers | null;
   } | null;
+  /**
+   * Jour de paye (Sprint 17) — branche TRAVAILLEUR seulement : ancre + fréquence, calculé
+   * à la volée. La conjointe ne reçoit jamais cette prop (worker-private, R7).
+   */
+  readonly reglagePaye?: ReglagePaye | null;
   /** Notes du foyer (FR-8, Sprint 9) — partagées, visibles des deux rôles. */
   readonly notes?: readonly Note[];
   readonly noteHandlers?: NoteHandlers | null;
@@ -177,6 +200,7 @@ export function VueCoupDoeil({
   exceptionsRange = null,
   clockFrozen = false,
   capture = null,
+  reglagePaye = null,
   notes = [],
   noteHandlers = null,
   coplanification = null,
@@ -201,6 +225,11 @@ export function VueCoupDoeil({
     role === "worker"
       ? AFFICHAGE_TRAVAILLEUR[status.kind]
       : AFFICHAGE_CONJOINTE[availabilityFor(status)];
+
+  // Jour de paye : worker-private. La garde `role === "worker"` est redondante avec
+  // l'absence de reglagePaye côté conjointe (jamais fetché), mais explicite l'invariant R7.
+  const estPaye = (date: string): boolean =>
+    role === "worker" && reglagePaye !== null ? estJourDePaye(date, reglagePaye) : false;
 
   const sousTitrePour = (status: DayStatus): string | null => {
     if (status.kind === "jour") {
@@ -293,6 +322,11 @@ export function VueCoupDoeil({
         {todayStatus.fromException ? (
           <p className="mt-2 rounded-full bg-black/25 px-3 py-1 text-sm font-semibold">{t.ecart}</p>
         ) : null}
+        {estPaye(today) ? (
+          <p className="mt-2 rounded-full bg-black/25 px-3 py-1 text-sm font-semibold">
+            <span aria-hidden="true">{fr.paye.marqueur}</span> {fr.paye.aujourdhui}
+          </p>
+        ) : null}
       </section>
 
       {/* Capture d'écart (FR-4) : LE geste central — tap 1 du budget ≤ 3 taps. */}
@@ -374,6 +408,7 @@ export function VueCoupDoeil({
           ))}
           {grid.days.map((day) => {
             const aff = affichagePour(day);
+            const paye = estPaye(day.date);
             const titre = `${FORMAT_JOUR_LONG.format(dateUTC(day.date))} : ${aff.etiquette}`;
             // h-11 = 44 px (cible tactile). flex-col : numéro + pictogramme d'état empilés.
             const classes = `relative flex h-11 flex-col items-center justify-center rounded-lg ${aff.classes} ${
@@ -390,11 +425,11 @@ export function VueCoupDoeil({
                 onClick={() => setCaptureDate(day.date)}
                 className={classes}
               >
-                <ContenuCase day={day} aff={aff} />
+                <ContenuCase day={day} aff={aff} estPaye={paye} />
               </button>
             ) : (
               <div key={day.date} title={titre} className={classes}>
-                <ContenuCase day={day} aff={aff} />
+                <ContenuCase day={day} aff={aff} estPaye={paye} />
               </div>
             );
           })}
