@@ -29,6 +29,9 @@ export async function definirFenetreSommeil(
   if (!hid.success || !fenetre.success) {
     redirect("/foyer?erreur=sommeil");
   }
+  // Interrupteur de la fonction (Sprint 19) : une case à cocher décochée n'envoie
+  // rien — son absence vaut « désactivé ». Désactivée, les heures restent stockées.
+  const enabled = formData.get("active") === "on";
 
   const supabase = await createClient();
   const {
@@ -44,6 +47,7 @@ export async function definirFenetreSommeil(
       profile_id: user.id,
       start_time: fenetre.data.debut,
       end_time: fenetre.data.fin,
+      enabled,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "household_id,profile_id" },

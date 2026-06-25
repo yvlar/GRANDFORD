@@ -182,6 +182,39 @@ describe.skipIf(!rlsAvailable)("Isolation RLS (Postgres réel)", () => {
       expect(rows).toHaveLength(1);
       expect(rows[0]?.start_time).toBe("07:30:00");
     });
+
+    it("l'interrupteur de sommeil (enabled) est de la disponibilité : la conjointe le lit (Sprint 19)", async () => {
+      // Le travailleur désactive sa fenêtre ; c'est une disponibilité partagée
+      // (pas un motif, R7) — la conjointe doit voir l'état pour cesser d'afficher 😴.
+      await asUser(FIX.workerA, (client) =>
+        client.query(
+          "insert into public.sleep_defaults (household_id, profile_id, start_time, end_time, enabled) values ($1, $2, '07:30', '15:30', false)",
+          [FIX.householdA, FIX.workerA],
+        ),
+      );
+      const rows = await queryAs<{ enabled: boolean }>(
+        FIX.spouseA,
+        "select enabled from public.sleep_defaults where household_id = $1 and profile_id = $2",
+        [FIX.householdA, FIX.workerA],
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.enabled).toBe(false);
+    });
+
+    it("nouvelle fenêtre : enabled vaut true par défaut (aucune régression)", async () => {
+      await asUser(FIX.workerA, (client) =>
+        client.query(
+          "insert into public.sleep_defaults (household_id, profile_id, start_time, end_time) values ($1, $2, '08:00', '16:00')",
+          [FIX.householdA, FIX.workerA],
+        ),
+      );
+      const rows = await queryAs<{ enabled: boolean }>(
+        FIX.workerA,
+        "select enabled from public.sleep_defaults where household_id = $1 and profile_id = $2",
+        [FIX.householdA, FIX.workerA],
+      );
+      expect(rows[0]?.enabled).toBe(true);
+    });
   });
 
   describe("5. Ajustement de sommeil au cas par cas (Sprint 6, FR-6)", () => {

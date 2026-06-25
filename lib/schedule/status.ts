@@ -66,6 +66,10 @@ function resolveShift(
  * NUIT est une journée de récupération (« sommeil ») — fenêtre ajustée pour CE jour
  * (FR-6) si elle existe, sinon `sleepDefault` si configurée, sinon celle dérivée
  * du gabarit. Un ajustement sur un jour sans sommeil est ignoré (rien à ajuster).
+ *
+ * `sleepEnabled` (FR-6, Sprint 19) : interrupteur de la fonction. Désactivé, aucun
+ * jour n'est marqué « sommeil » — la récupération redevient un simple congé (et,
+ * côté conjointe, « disponible »). Défaut `true` : comportement historique inchangé.
  */
 export function dayStatuses(
   team: Team,
@@ -75,6 +79,7 @@ export function dayStatuses(
   exceptions: readonly ScheduleException[],
   sleepDefault: SleepWindow | null,
   sleepAdjustments: readonly SleepAdjustment[] = [],
+  sleepEnabled = true,
 ): DayStatus[] {
   const byDate = new Map(exceptions.map((e) => [e.onDate, e]));
   const adjustmentByDate = new Map(sleepAdjustments.map((a) => [a.onDate, a.window]));
@@ -95,7 +100,7 @@ export function dayStatuses(
       identityFallback,
     );
     if (i > 0) {
-      const sleeping = shift === null && previousShift === "nuit";
+      const sleeping = sleepEnabled && shift === null && previousShift === "nuit";
       out.push({
         date: day.date,
         kind: shift ?? (sleeping ? "sommeil" : "conge"),
@@ -120,6 +125,7 @@ export function statusForDate(
   exceptions: readonly ScheduleException[],
   sleepDefault: SleepWindow | null,
   sleepAdjustments: readonly SleepAdjustment[] = [],
+  sleepEnabled = true,
 ): DayStatus {
   const statuses = dayStatuses(
     team,
@@ -129,6 +135,7 @@ export function statusForDate(
     exceptions,
     sleepDefault,
     sleepAdjustments,
+    sleepEnabled,
   );
   const status = statuses[0];
   if (status === undefined) {
@@ -163,6 +170,7 @@ export function monthGrid(
   exceptions: readonly ScheduleException[],
   sleepDefault: SleepWindow | null,
   sleepAdjustments: readonly SleepAdjustment[] = [],
+  sleepEnabled = true,
 ): MonthGrid {
   const { year, month } = parseCivilDate(date);
   const first = formatCivilDate({ year, month, day: 1 });
@@ -179,6 +187,7 @@ export function monthGrid(
       exceptions,
       sleepDefault,
       sleepAdjustments,
+      sleepEnabled,
     ),
   };
 }

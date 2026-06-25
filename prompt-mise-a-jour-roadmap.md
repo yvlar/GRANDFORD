@@ -1,13 +1,13 @@
-# Carte d'embarquement — Sprint 18 : à définir
+# Carte d'embarquement — Sprint 20 : à définir
 
 > Cette carte est **réécrite à chaque fin de sprint** pour le sprint suivant (règle : `.claude/rules/workflow-sprint.md`).
 > ⚠️ C'est une **prémisse à vérifier**, pas une vérité terrain : réconcilier chaque dépendance avec le code réel avant d'implémenter ; prémisse fausse → STOP + signalement.
 
 ## État
 
-Sprint 17 livré : **jour de paye worker-private, déterministe** — config (ancre + fréquence) persistée dans `payday_settings`, jours calculés à la volée par `lib/schedule/payday.ts` (`estJourDePaye`, pur, réutilise `civilToDays`/`mathMod`). RLS étanche owner-only (la conjointe lit 0 ligne) + durcissement `is_household_member` dans `with check`. Marqueur 💰 + badge « Paye aujourd'hui » côté travailleur seulement (non-fuite R7 constatée sur `/demo/horaire`). Version 0.17.0. Phase courante : **v2+**. État courant : voir la table en tête de `ROADMAP.md`.
+Sprint 19 livré : **interrupteur de la Fenêtre de sommeil** (FR-6). Colonne `sleep_defaults.enabled` (boolean, défaut `true`, migration `supabase/migrations/20260625120000_sprint19_sleep_enabled.sql`) ; paramètre moteur **en queue** `sleepEnabled = true` sur `dayStatuses`/`statusForDate`/`monthGrid` (`lib/schedule/status.ts:78`, garde ligne `lib/schedule/status.ts:103`) ; parseur `parseSleepEnabled` (`lib/schedule/db-rows.ts:88`) ; case à cocher dans `components/sommeil/fenetre-sommeil.tsx`. Désactivé, la récupération redevient `conge`/`disponible`, `sleep: null` ; **disponibilité partagée** (la conjointe le lit, R7 intact). Version 0.19.0. Phase courante : **v2+**. État courant : voir la table en tête de `ROADMAP.md`.
 
-> **À connaître (Sprint 17)** : feature dirigée par l'auteur, **hors FR-1→17** (ce n'est pas dans `docs/analyse/` ; `CLAUDE.md` exclut « tracker de paie/OT$ » — cadré comme marqueur de *date*, pas de montants). Le Postgres local (`scripts/local-db.sh`, Postgres 16) permet d'exécuter **réellement** migrations + tests d'isolation RLS en session — utilisé au Sprint 17 (6 tests RLS verts contre un vrai Postgres). **Type BD** : `payday_settings` inséré à la main dans `lib/database.types.ts` (fidèle au générateur) car le PG local n'a pas pg_graphql — à régénérer par l'auteur sur Cloud quand la migration y sera appliquée.
+> **À connaître (Sprint 19)** : feature dirigée par l'auteur, in-session (schéma + moteur + UI). Le Postgres local (`bash scripts/local-db.sh`, Postgres 16) exécute **réellement** migrations + tests d'isolation RLS — utilisé ce sprint (35 tests RLS verts contre une vraie BD). **Dette de parité « miroir » désormais SOLDÉE** : Sprints 16 (corps payload), 18 (format date) ; la piste « copie Edge des échéances » a été **réconciliée à STOP** — `lib/notifications/echeances.ts` n'a PAS de copie Edge (`send-reminders/index.ts:66` lit des `remind_at` pré-calculés), la duplication des offsets `30/7/1` est TS↔SQL et déjà gardée par `supabase/tests/reminders.test.ts`. **Ne pas re-suggérer cette piste.**
 
 ## LECTURE OBLIGATOIRE
 
@@ -15,45 +15,45 @@ Sprint 17 livré : **jour de paye worker-private, déterministe** — config (an
 2. `.claude/rules/autonomie-confirmations.md` — `git push`, PR, déploiement Edge, envoi push/courriel réel, migration appliquée sur Cloud = confirmation préalable.
 3. `ROADMAP.md` (état + périmètre) ; les règles universelles s'appliquent toujours.
 
-## Tâche opérationnelle en attente (hors session de code)
+## Tâches opérationnelles en attente (hors session de code)
 
-**Appliquer la migration Sprint 17 sur Supabase Cloud** (après confirmation) : `supabase migration up` (ou via dashboard rejoué en migration), puis `node scripts/gen-types.mjs <db_url_cloud>` pour régénérer `lib/database.types.ts` avec `__InternalSupabase` + `graphql_public` réels. Vérifier ensuite que la conjointe lit bien 0 ligne de `payday_settings` en prod.
+**Appliquer les migrations Sprints 17 + 19 sur Supabase Cloud** (après confirmation) : `payday_settings` (Sprint 17) et `sleep_defaults.enabled` (Sprint 19) ne sont pas encore en prod. `supabase migration up` (ou dashboard rejoué en migration), puis `node scripts/gen-types.mjs <db_url_cloud>` pour régénérer `lib/database.types.ts` avec `__InternalSupabase` + `graphql_public` réels (les ajouts hand-edit `payday_settings` et `sleep_defaults.enabled` seront alors confirmés par le générateur). Vérifier ensuite : la conjointe lit 0 ligne de `payday_settings` ET lit bien `sleep_defaults.enabled` (disponibilité partagée).
 **+ rappel Sprint 16** : validation E2E des notifications en prod (déploiement `send-reminders`, secrets VAPID/Resend, pg_cron, `cron.job_run_details`) — toujours en attente, machine de l'auteur requise.
 
 ## SPRINTS SUGGÉRÉS (3-5)
 
-### Dette technique — Harmonisation du miroir de format de date
-**Objectif** : `FORMAT_JOUR` (`lib/notifications/payload.ts:26`) est un « miroir assumé » de `FORMAT_JOUR_LONG` (`lib/schedule/format.ts:14`) imposé par la contrainte zéro-import Deno ; ajouter un test pur qui constate que les deux produisent la même chaîne pour une date donnée (garde analogue à la parité payload du Sprint 16).
-**Complexité** : Faible (un test pur, aucun schéma).
-**Justification** : même classe de risque que la dérive payload corrigée au Sprint 16 ; aujourd'hui non gardé. Réalisable intégralement en session.
-**Référence** : `lib/notifications/payload.ts:22-31` (commentaire MIROIR ASSUMÉ, vérifié en session Sprint 17), `lib/schedule/format.ts:14` (`FORMAT_JOUR_LONG`).
-
 ### Jour de paye — fréquence mensuelle (suite Sprint 17)
 **Objectif** : ajouter une cadence `mensuel` au jour de paye (ex. « le dernier vendredi », ou un jour fixe du mois). Sort du modèle ancre+mod-en-jours (mois 28–31 j) → nécessite de l'arithmétique calendaire dans `payday.ts`.
 **Complexité** : Moyenne (logique calendaire + élargir `frequencePayeSchema` + CHECK BD + UI + tests).
-**Justification** : seulement si l'auteur paie au mois ; sinon non prioritaire (hebdo/aux 2 semaines couvrent l'usine). À confirmer avec l'auteur avant d'implémenter.
-**Référence** : `lib/schedule/payday.ts` (`FrequencePaye`, `JOURS_PAR_FREQUENCE` — vérifié Sprint 17), `supabase/migrations/20260624120000_sprint17_payday_settings.sql` (CHECK `frequence`).
+**Justification** : seulement si l'auteur paie au mois ; sinon non prioritaire (hebdo/aux 2 semaines couvrent l'usine). **À confirmer avec l'auteur avant d'implémenter.**
+**Référence** : `lib/schedule/payday.ts` (`FrequencePaye`, `JOURS_PAR_FREQUENCE` — **à revérifier**, cité Sprint 17), `supabase/migrations/20260624120000_sprint17_payday_settings.sql` (CHECK `frequence`, vérifié Sprint 19 par lecture de la liste des migrations).
+
+### Rappel de sommeil pour la conjointe (FR-6, suite Sprint 19)
+**Objectif** : explorer si l'interrupteur de sommeil (Sprint 19) doit aussi se refléter ailleurs — ex. la légende du coup d'œil masque la pastille « Sommeil » quand la fonction est désactivée pour ce foyer, ou un texte d'aide. Petite finition UX.
+**Complexité** : Faible (présentationnel, aucun schéma) — **à réconcilier** : vérifier d'abord que c'est un vrai manque (la légende liste tous les états possibles par design ; ce n'est pas forcément un bug).
+**Justification** : cohérence d'affichage ; à n'entreprendre que si l'auteur constate une gêne réelle. Sinon STOP.
+**Référence** : `components/horaire/vue-coup-doeil.tsx` (légende `legende`/`AFFICHAGE_TRAVAILLEUR` — vérifié Sprint 19), prop `sleepEnabled` (vérifié Sprint 19).
 
 ### v2+ — Facturation SaaS (FR-16, Stripe)
 **Objectif** : premier foyer gratuit, suivants payants ; webhook Stripe → `households.plan` ; portail client ; gate d'accès par foyer.
 **Complexité** : Haute (webhooks Stripe, portail, états d'abonnement) — nécessite creds Stripe + décisions business, peu adapté à un conteneur éphémère.
 **Justification** : prérequis business pour tout 2ᵉ foyer externe ; FR-17 ✅ rend l'unité de facturation adressable.
-**Référence** : `households` (table — `supabase/migrations/20260611192620_initial_schema.sql:42-48`, colonne `plan` **à créer**) ; FR-16 — `docs/analyse/02-analyse/analyse.md:38` (vérifié Sprint 17).
+**Référence** : `households` (table — `supabase/migrations/20260611192620_initial_schema.sql`, colonne `plan` **à créer**) ; FR-16 — `docs/analyse/02-analyse/analyse.md` (cité Sprint 17, à revérifier).
 
 ### v2+ — Intégration Dayforce (FR-15)
 **Objectif** : importer l'horaire publié depuis l'API Dayforce (source optionnelle, jamais requise) ; réconcilier avec les écarts existants.
 **Complexité** : Haute (API externe, OAuth Dayforce, réconciliation) — bloqué sans accès réel à l'API ni client cible.
 **Justification** : non prioritaire sans accès ; documenter le point d'entrée quand l'accès est disponible.
-**Référence** : FR-15 — `docs/analyse/02-analyse/analyse.md:37` (vérifié Sprint 17).
+**Référence** : FR-15 — `docs/analyse/02-analyse/analyse.md` (cité Sprint 17, à revérifier).
 
 ## Template de démarrage (coller tel quel dans une nouvelle session)
 
 ```
 Lis CLAUDE.md, ROADMAP.md et prompt-mise-a-jour-roadmap.md, puis choisis et exécute
-le Sprint 18 (parmi les SPRINTS SUGGÉRÉS, ou la tâche que je précise) en suivant
+le Sprint 20 (parmi les SPRINTS SUGGÉRÉS, ou la tâche que je précise) en suivant
 .claude/prompts/prompt-executer-sprint.md — Phase A.
 
-Branche : claude/sprint18-<nom-court> (à créer depuis dev).
+Branche : claude/sprint20-<nom-court> (à créer depuis dev).
 
 Rappels non négociables :
 - Réconcilier la carte avec le code réel AVANT d'implémenter (référence fichier:ligne) ;
