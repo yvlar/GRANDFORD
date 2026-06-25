@@ -11,6 +11,7 @@ import {
   parseExceptionRows,
   parseNoteRows,
   parseOwnExceptionRows,
+  parsePaydayRow,
   parseRequeteRows,
   parseSleepAdjustmentRows,
   parseSleepRow,
@@ -177,6 +178,9 @@ export default async function AccueilPage({
   // requête ne renvoie que les siens ; la conjointe ne passe jamais par ici.
   let capture: VueCoupDoeilProps["capture"] = null;
   let coplanification: VueCoupDoeilProps["coplanification"] = null;
+  // Jour de paye (Sprint 17) : worker-private. Fetché DANS la branche travailleur seulement
+  // → la conjointe ne reçoit jamais cette config (R7), en plus de la RLS owner-only.
+  let reglagePaye: VueCoupDoeilProps["reglagePaye"] = null;
   if (membership.role === "worker") {
     // Borné aux écarts déjà chargés (exception_private n'a pas de date propre) :
     // sans ce filtre, la requête rapporterait TOUS les motifs depuis toujours.
@@ -190,6 +194,16 @@ export default async function AccueilPage({
     if (motifsRes.error) {
       throw motifsRes.error;
     }
+    const paydayRes = await supabase
+      .from("payday_settings")
+      .select("anchor_date, frequence")
+      .eq("household_id", householdId)
+      .eq("profile_id", workerId)
+      .maybeSingle();
+    if (paydayRes.error) {
+      throw paydayRes.error;
+    }
+    reglagePaye = parsePaydayRow(paydayRes.data);
     capture = {
       ownExceptions: parseOwnExceptionRows(exceptionsRes.data, motifsRes.data),
       handlers: {
@@ -227,6 +241,7 @@ export default async function AccueilPage({
       workerName={workerName}
       exceptionsRange={{ from: ecartsDu, to: ecartsAu }}
       capture={capture}
+      reglagePaye={reglagePaye}
       notes={notes}
       noteHandlers={noteHandlers}
       coplanification={coplanification}
