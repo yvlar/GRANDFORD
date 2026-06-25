@@ -1,5 +1,6 @@
 import { type OwnException, TUILES } from "@/lib/schedule/capture";
 import type { Note, Requete, StatusRequete } from "@/lib/schedule/coplanification";
+import { type ReglagePaye, frequencePayeSchema } from "@/lib/schedule/payday";
 import type { ScheduleException, SleepAdjustment, SleepWindow } from "@/lib/schedule/types";
 import { z } from "zod";
 
@@ -74,6 +75,19 @@ export function parseSleepRow(row: unknown): SleepWindow | null {
   }
   const parsed = sleepRowSchema.parse(row);
   return { start: parsed.start_time, end: parsed.end_time };
+}
+
+// Jour de paye (Sprint 17) : config worker-private. Parsée dans la SEULE branche
+// travailleur — la conjointe ne reçoit jamais cette ligne (RLS owner-only + câblage, R7).
+const paydayRowSchema = z.object({ anchor_date: z.string(), frequence: frequencePayeSchema });
+
+/** Ligne `payday_settings` → réglage de paye, ou null si le travailleur n'en a pas. */
+export function parsePaydayRow(row: unknown): ReglagePaye | null {
+  if (row === null || row === undefined) {
+    return null;
+  }
+  const parsed = paydayRowSchema.parse(row);
+  return { anchorDate: parsed.anchor_date, frequence: parsed.frequence };
 }
 
 const sleepAdjustmentRowSchema = sleepRowSchema.extend({ on_date: z.string() });

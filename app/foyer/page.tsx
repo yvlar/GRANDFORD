@@ -7,7 +7,7 @@ import { fr } from "@/lib/i18n/fr";
 import { signIcalToken } from "@/lib/ical/generate";
 import { requestOrigin } from "@/lib/request-origin";
 import { fetchActiveGabarit } from "@/lib/schedule/cycle-template";
-import { parseAuditRows, parseSleepRow } from "@/lib/schedule/db-rows";
+import { parseAuditRows, parsePaydayRow, parseSleepRow } from "@/lib/schedule/db-rows";
 import { FORMAT_DATE_COURTE, dateUTC } from "@/lib/schedule/format";
 import { GABARITS_PREDEFINIS } from "@/lib/schedule/predefined-templates";
 import { defaultSleepWindow } from "@/lib/schedule/status";
@@ -19,6 +19,7 @@ import {
   annulerInvitation,
   changerGabarit,
   creerInvitation,
+  definirReglagePaye,
   mettreAJourNom,
   quitterFoyer,
   revoquerMembre,
@@ -50,6 +51,7 @@ const ERREURS: Record<string, string> = {
   sommeil: fr.sommeil.erreurEnregistrement,
   nom: fr.foyer.erreurNom,
   gabarit: fr.foyer.gabarit.erreur,
+  paye: fr.paye.erreurEnregistrement,
 };
 
 export default async function FoyerPage({
@@ -97,6 +99,17 @@ export default async function FoyerPage({
           .eq("profile_id", user.id)
           .maybeSingle()
       : null;
+  // Jour de paye (Sprint 17) : worker-private. Lu pour préremplir le formulaire ; la RLS
+  // owner-only le réserve au travailleur (la conjointe n'a ni ce champ ni cet accès, R7).
+  const payeQuery =
+    monAdhesion.role === "worker"
+      ? supabase
+          .from("payday_settings")
+          .select("anchor_date, frequence")
+          .eq("household_id", monAdhesion.household_id)
+          .eq("profile_id", user.id)
+          .maybeSingle()
+      : null;
 
   const [
     { data: foyer },
@@ -106,6 +119,7 @@ export default async function FoyerPage({
     sommeilRes,
     { data: historiqueRaw },
     gabaritInfo,
+    payeRes,
   ] = await Promise.all([
     supabase
       .from("households")
@@ -141,6 +155,7 @@ export default async function FoyerPage({
       .limit(50),
     // FR-17 : gabarit actif du foyer — nom inclus pour affichage. Fallback NFR-4.
     fetchActiveGabarit(supabase, monAdhesion.household_id),
+    payeQuery,
   ]);
   if (!foyer) {
     redirect("/onboarding");
@@ -151,8 +166,12 @@ export default async function FoyerPage({
   if (sommeilRes?.error) {
     throw sommeilRes.error;
   }
+  if (payeRes?.error) {
+    throw payeRes.error;
+  }
   const monAffectation = affectationRes?.data ?? null;
   const maFenetre = parseSleepRow(sommeilRes?.data ?? null);
+  const maPaye = parsePaydayRow(payeRes?.data ?? null);
 
   const historique = parseAuditRows(historiqueRaw ?? []);
 
@@ -302,6 +321,43 @@ export default async function FoyerPage({
               fenetreActuelle={maFenetre}
               fenetreProposee={defaultSleepWindow(template)}
             />
+          </div>
+          {/* Jour de paye (Sprint 17) — worker-private : ce bloc n'existe que dans la branche
+              travailleur ; la conjointe ne le voit jamais (R7). */}
+          <div className="flex flex-col gap-2">
+            <h3 className="text-sm font-semibold text-neutral-300">{fr.paye.titre}</h3>
+            <p className="text-sm text-neutral-400">{fr.paye.consigne}</p>
+            <form
+              action={definirReglagePaye.bind(null, monAdhesion.household_id)}
+              className="flex flex-col gap-2"
+            >
+              <label htmlFor="anchorDate" className="text-sm text-neutral-300">
+                {fr.paye.ancreLabel}
+              </label>
+              <input
+                id="anchorDate"
+                name="anchorDate"
+                type="date"
+                required
+                defaultValue={maPaye?.anchorDate ?? ""}
+                className="min-h-11 rounded-lg border border-neutral-700 bg-neutral-950 px-4 py-3 text-base text-neutral-200"
+              />
+              <label htmlFor="frequence" className="text-sm text-neutral-300">
+                {fr.paye.frequenceLabel}
+              </label>
+              <select
+                id="frequence"
+                name="frequence"
+                defaultValue={maPaye?.frequence ?? "aux_2_semaines"}
+                className="min-h-11 rounded-lg border border-neutral-700 bg-neutral-950 px-4 py-3 text-base text-neutral-200"
+              >
+                <option value="aux_2_semaines">{fr.paye.frequences.aux_2_semaines}</option>
+                <option value="hebdomadaire">{fr.paye.frequences.hebdomadaire}</option>
+              </select>
+              <BoutonSoumettre variant="secondaire" className="self-start">
+                {fr.paye.enregistrer}
+              </BoutonSoumettre>
+            </form>
           </div>
         </Carte>
       ) : null}

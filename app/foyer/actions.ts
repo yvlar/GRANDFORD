@@ -1,13 +1,19 @@
 "use server";
 
+import { frequencePayeSchema } from "@/lib/schedule/payday";
 import { gabaritNomSchema, trouverGabarit } from "@/lib/schedule/predefined-templates";
 import { createClient } from "@/lib/supabase/server";
-import { cheminInterneSchema, equipeSchema, uuidSchema } from "@/lib/validation";
+import { cheminInterneSchema, dateCivileSchema, equipeSchema, uuidSchema } from "@/lib/validation";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
 const nomProfilSchema = z.string().trim().max(120);
+
+const reglagePayeSchema = z.object({
+  anchorDate: dateCivileSchema,
+  frequence: frequencePayeSchema,
+});
 
 // Toutes ces actions s'exécutent sous le rôle authenticated : la RLS du Sprint 2/3
 // est la vraie barrière (propriétaire seul pour inviter/révoquer/annuler ; soi-même
@@ -94,6 +100,47 @@ export async function definirEquipe(
   );
   if (error) {
     redirect(`${destination}?erreur=equipe`);
+  }
+  revalidatePath("/");
+  revalidatePath("/foyer");
+}
+
+/**
+ * Le travailleur règle son jour de paye (Sprint 17) : une paye connue (ancre) + une
+ * fréquence. Worker-private — la RLS (payday_settings_owner_only : profile_id = auth.uid())
+ * réserve l'écriture au travailleur ; la conjointe n'a ni le formulaire ni l'accès BD (R7).
+ * Upsert : une seule config par travailleur/foyer (PK household_id,profile_id).
+ */
+export async function definirReglagePaye(householdId: string, formData: FormData): Promise<void> {
+  const hid = uuidSchema.safeParse(householdId);
+  const reglage = reglagePayeSchema.safeParse({
+    anchorDate: formData.get("anchorDate"),
+    frequence: formData.get("frequence"),
+  });
+  if (!hid.success || !reglage.success) {
+    redirect("/foyer?erreur=paye");
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect("/connexion");
+  }
+
+  const { error } = await supabase.from("payday_settings").upsert(
+    {
+      household_id: hid.data,
+      profile_id: user.id,
+      anchor_date: reglage.data.anchorDate,
+      frequence: reglage.data.frequence,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "household_id,profile_id" },
+  );
+  if (error) {
+    redirect("/foyer?erreur=paye");
   }
   revalidatePath("/");
   revalidatePath("/foyer");
