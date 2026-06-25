@@ -139,6 +139,12 @@ export interface VueCoupDoeilProps {
   readonly template: CycleTemplate;
   readonly exceptions: readonly ScheduleException[];
   readonly sleepDefault: SleepWindow | null;
+  /**
+   * Interrupteur de la fonction sommeil (FR-6, Sprint 19) — disponibilité partagée :
+   * désactivé, aucun jour n'est marqué « sommeil » (récupération → congé/disponible).
+   * Défaut `true` : comportement historique pour les appelants qui l'omettent.
+   */
+  readonly sleepEnabled?: boolean;
   /** Ajustements par date (FR-6) — disponibilité partagée, visibles des deux rôles. */
   readonly sleepAdjustments?: readonly SleepAdjustment[];
   /** Date du rendu serveur ; resynchronisée sur l'horloge du client au montage. */
@@ -194,6 +200,7 @@ export function VueCoupDoeil({
   template,
   exceptions,
   sleepDefault,
+  sleepEnabled = true,
   sleepAdjustments = [],
   initialToday,
   workerName = null,
@@ -251,6 +258,7 @@ export function VueCoupDoeil({
     exceptions,
     sleepDefault,
     sleepAdjustments,
+    sleepEnabled,
   );
   const week = dayStatuses(
     team,
@@ -260,8 +268,17 @@ export function VueCoupDoeil({
     exceptions,
     sleepDefault,
     sleepAdjustments,
+    sleepEnabled,
   );
-  const grid = monthGrid(team, monthAnchor, template, exceptions, sleepDefault, sleepAdjustments);
+  const grid = monthGrid(
+    team,
+    monthAnchor,
+    template,
+    exceptions,
+    sleepDefault,
+    sleepAdjustments,
+    sleepEnabled,
+  );
   const pastille = affichagePour(todayStatus);
   const sousTitre = sousTitrePour(todayStatus);
   const legende = role === "worker" ? AFFICHAGE_TRAVAILLEUR : AFFICHAGE_CONJOINTE;
@@ -273,7 +290,15 @@ export function VueCoupDoeil({
     if (!handlers) {
       return null;
     }
-    const status = statusForDate(team, date, template, exceptions, sleepDefault, sleepAdjustments);
+    const status = statusForDate(
+      team,
+      date,
+      template,
+      exceptions,
+      sleepDefault,
+      sleepAdjustments,
+      sleepEnabled,
+    );
     if (status.kind !== "sommeil" || status.sleep === null) {
       return null;
     }

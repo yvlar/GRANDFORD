@@ -19,6 +19,7 @@ import { z } from "zod";
 //   /demo/horaire?capture=1&date=2026-06-11           → flux de capture (Sprint 5),
 //                                                       persistance en état local
 //   …&sommeil=08:30-16:00                             → fenêtre configurée (FR-6)
+//   …&sommeilActif=0                                  → interrupteur sommeil OFF (Sprint 19)
 //   …&ajustement=2026-06-05@09:00-13:00               → ajustement d'UN jour (FR-6)
 //   …&paye=2026-06-04@aux_2_semaines                  → jour de paye (Sprint 17, travailleur seul)
 
@@ -69,6 +70,8 @@ const parametresSchema = z.object({
   ecart: dateCivileSchema.optional(),
   capture: z.literal("1").optional(),
   sommeil: fenetreParamSchema.optional(),
+  // Interrupteur de la fenêtre de sommeil (Sprint 19) : '0' = désactivé, défaut activé.
+  sommeilActif: z.enum(["0", "1"]).optional(),
   ajustement: ajustementParamSchema.optional(),
   paye: payeParamSchema.optional(),
 });
@@ -107,6 +110,7 @@ export default async function DemoHorairePage({
       template={GRANDFORD_CYCLE}
       exceptions={ecarts}
       sleepDefault={params.sommeil ?? null}
+      sleepEnabled={params.sommeilActif !== "0"}
       sleepAdjustments={params.ajustement ? [params.ajustement] : []}
       initialToday={params.date ?? todayCivil()}
       workerName={params.role === "spouse" ? "Démo" : null}

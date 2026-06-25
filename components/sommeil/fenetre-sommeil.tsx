@@ -11,10 +11,13 @@ export function FenetreSommeil({
   householdId,
   fenetreActuelle,
   fenetreProposee,
+  active,
 }: {
   householdId: string;
   fenetreActuelle: SleepWindow | null;
   fenetreProposee: SleepWindow;
+  /** Interrupteur de la fonction (Sprint 19) : true = fenêtre affichée. */
+  active: boolean;
 }) {
   const t = fr.sommeil;
   const fenetre = fenetreActuelle ?? fenetreProposee;
@@ -24,6 +27,20 @@ export function FenetreSommeil({
       className="flex w-full max-w-sm flex-col gap-3"
     >
       <p className="text-sm text-neutral-400">{t.consigne}</p>
+      {/* Interrupteur : décoché, la soumission n'envoie pas `active` → désactivé.
+          Case + libellé, jamais la couleur seule (NFR-12) ; cible tactile ≥ 44 px. */}
+      <label className="flex min-h-11 items-center gap-3 text-sm text-neutral-200">
+        <input
+          type="checkbox"
+          name="active"
+          defaultChecked={active}
+          className="h-5 w-5 rounded border-neutral-700 bg-neutral-950 accent-emerald-600"
+        />
+        <span className="flex flex-col">
+          <span className="font-semibold">{t.afficher}</span>
+          <span className="text-neutral-400">{t.afficherConsigne}</span>
+        </span>
+      </label>
       <div className="flex items-end gap-3">
         <label className="flex flex-col gap-1 text-sm text-neutral-300">
           {t.debut}
@@ -47,11 +64,14 @@ export function FenetreSommeil({
         </label>
         <BoutonSoumettre variant="primaire">{t.enregistrer}</BoutonSoumettre>
       </div>
-      {fenetreActuelle ? (
-        <p className="text-sm text-emerald-300">
-          😴 {fenetreActuelle.start} – {fenetreActuelle.end}
-        </p>
-      ) : null}
+      {fenetreActuelle &&
+        (active ? (
+          <p className="text-sm text-emerald-300">
+            😴 {fenetreActuelle.start} – {fenetreActuelle.end}
+          </p>
+        ) : (
+          <p className="text-sm text-neutral-400">{t.masquee}</p>
+        ))}
     </form>
   );
 }

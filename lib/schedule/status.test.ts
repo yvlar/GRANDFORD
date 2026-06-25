@@ -166,6 +166,48 @@ describe("ajustement de sommeil au cas par cas (FR-6, Sprint 6)", () => {
   });
 });
 
+describe("interrupteur de la fenêtre de sommeil (FR-6, Sprint 19)", () => {
+  it("désactivée → le jour de récupération après une nuit redevient un simple CONGÉ", () => {
+    // Le 5 juin, C dort après sa nuit du 4 ; l'interrupteur OFF efface la fenêtre.
+    const s = statusForDate("C", "2026-06-05", T, AUCUN_ECART, null, [], false);
+    expect(s.kind).toBe("conge");
+    expect(s.sleep).toBeNull();
+    expect(s.fromException).toBe(false);
+  });
+
+  it("désactivée → la conjointe voit « disponible » plutôt que « sommeil »", () => {
+    const s = statusForDate("C", "2026-06-05", T, AUCUN_ECART, null, [], false);
+    expect(availabilityFor(s)).toBe("disponible");
+  });
+
+  it("désactivée → la fenêtre configurée n'est pas affichée non plus", () => {
+    const configuree = { start: "08:30", end: "16:00" };
+    const s = statusForDate("C", "2026-06-05", T, AUCUN_ECART, configuree, [], false);
+    expect(s.kind).toBe("conge");
+    expect(s.sleep).toBeNull();
+  });
+
+  it("réactivée (défaut) → le sommeil et sa fenêtre reviennent à l'identique", () => {
+    const actif = statusForDate("C", "2026-06-05", T, AUCUN_ECART, null, [], true);
+    expect(actif.kind).toBe("sommeil");
+    expect(actif.sleep).toEqual({ start: "07:00", end: "15:00" });
+    // Parité : omettre le paramètre équivaut à `true` (comportement historique).
+    const parDefaut = statusForDate("C", "2026-06-05", T, AUCUN_ECART, null);
+    expect(parDefaut).toEqual(actif);
+  });
+
+  it("désactivée → monthGrid n'affiche aucun jour de sommeil", () => {
+    const grid = monthGrid("C", "2026-06-11", T, AUCUN_ECART, null, [], false);
+    expect(grid.days.some((d) => d.kind === "sommeil")).toBe(false);
+  });
+
+  it("désactivée → un jour TRAVAILLÉ reste inchangé (seul le sommeil est touché)", () => {
+    // Le 3 juin, C travaille de nuit : l'interrupteur ne concerne que la récupération.
+    const s = statusForDate("C", "2026-06-03", T, AUCUN_ECART, null, [], false);
+    expect(s.kind).toBe("nuit");
+  });
+});
+
 describe("dayStatuses — intervalle", () => {
   it("couvre chaque jour de l'intervalle, dans l'ordre", () => {
     const days = dayStatuses("A", "2026-06-01", "2026-06-30", T, AUCUN_ECART, null);
