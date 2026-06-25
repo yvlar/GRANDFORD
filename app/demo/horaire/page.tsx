@@ -1,6 +1,7 @@
 import { DemoCapture } from "@/app/demo/horaire/demo-capture";
 import { VueCoupDoeil } from "@/components/horaire/vue-coup-doeil";
 import { GRANDFORD_CYCLE } from "@/lib/engine";
+import { type ReglagePaye, frequencePayeSchema } from "@/lib/schedule/payday";
 import { todayCivil } from "@/lib/schedule/today";
 import type { ScheduleException, SleepAdjustment, SleepWindow } from "@/lib/schedule/types";
 import { dateCivileSchema, equipeSchema, heureSchema } from "@/lib/validation";
@@ -19,6 +20,7 @@ import { z } from "zod";
 //                                                       persistance en état local
 //   …&sommeil=08:30-16:00                             → fenêtre configurée (FR-6)
 //   …&ajustement=2026-06-05@09:00-13:00               → ajustement d'UN jour (FR-6)
+//   …&paye=2026-06-04@aux_2_semaines                  → jour de paye (Sprint 17, travailleur seul)
 
 // 'HH:MM-HH:MM' → fenêtre, ex. : sommeil=08:30-16:00. Format STRICT : tout segment
 // excédentaire est rejeté (jamais ignoré en silence), un seul découpage.
@@ -46,6 +48,20 @@ const ajustementParamSchema = z.string().transform((v, ctx): SleepAdjustment => 
   return { onDate: date, window: window.data };
 });
 
+// 'YYYY-MM-DD@frequence' → réglage de paye, ex. : paye=2026-06-04@aux_2_semaines.
+const payeParamSchema = z.string().transform((v, ctx): ReglagePaye => {
+  const [date = "", frequence = "", ...extra] = v.split("@");
+  const freq = frequencePayeSchema.safeParse(frequence);
+  if (extra.length > 0 || !dateCivileSchema.safeParse(date).success || !freq.success) {
+    ctx.addIssue({
+      code: "custom",
+      message: "paye attendue : YYYY-MM-DD@hebdomadaire|aux_2_semaines",
+    });
+    return z.NEVER;
+  }
+  return { anchorDate: date, frequence: freq.data };
+});
+
 const parametresSchema = z.object({
   equipe: equipeSchema.default("A"),
   date: dateCivileSchema.optional(),
@@ -54,6 +70,7 @@ const parametresSchema = z.object({
   capture: z.literal("1").optional(),
   sommeil: fenetreParamSchema.optional(),
   ajustement: ajustementParamSchema.optional(),
+  paye: payeParamSchema.optional(),
 });
 
 export default async function DemoHorairePage({
@@ -94,6 +111,7 @@ export default async function DemoHorairePage({
       initialToday={params.date ?? todayCivil()}
       workerName={params.role === "spouse" ? "Démo" : null}
       clockFrozen={params.date !== undefined}
+      reglagePaye={params.paye ?? null}
     />
   );
 }
