@@ -107,50 +107,65 @@ export default async function AccueilPage({
 
   // R7 : colonnes PARTAGEABLES uniquement (on_date, effect, shift) — jamais de
   // jointure vers exception_private, ni ici ni dans le payload hydraté au client.
-  const [exceptionsRes, sleepRes, sleepAdjustmentsRes, notesRes, requetesRes, template] =
-    await Promise.all([
-      supabase
-        .from("exceptions")
-        .select("id, on_date, effect, shift")
-        .eq("household_id", householdId)
-        .eq("profile_id", workerId)
-        .gte("on_date", ecartsDu)
-        .lte("on_date", ecartsAu)
-        .order("on_date"),
-      supabase
-        .from("sleep_defaults")
-        .select("start_time, end_time, enabled")
-        .eq("household_id", householdId)
-        .eq("profile_id", workerId)
-        .maybeSingle(),
-      // Ajustements de sommeil (FR-6) : disponibilité partagée, deux rôles (jamais un motif, R7).
-      supabase
-        .from("sleep_adjustments")
-        .select("on_date, start_time, end_time")
-        .eq("household_id", householdId)
-        .eq("profile_id", workerId)
-        .gte("on_date", ecartsDu)
-        .lte("on_date", ecartsAu)
-        .order("on_date"),
-      // Notes (FR-8, Sprint 9) : partagées dans le foyer, même fenêtre ±62 j.
-      supabase
-        .from("notes")
-        .select("id, on_date, body, author_id")
-        .eq("household_id", householdId)
-        .gte("on_date", ecartsDu)
-        .lte("on_date", ecartsAu)
-        .order("on_date"),
-      // Requêtes (FR-9, Sprint 9) : visibles des deux rôles. Fenêtre ±62 j.
-      // R7 : body = demande de la conjointe, pas un motif d'absence.
-      supabase
-        .from("requests")
-        .select("id, on_date, body, status, requester_id, target_profile_id")
-        .eq("household_id", householdId)
-        .gte("on_date", ecartsDu)
-        .lte("on_date", ecartsAu)
-        .order("on_date"),
-      fetchCycleTemplateWithFallback(supabase, householdId),
-    ]);
+  const [
+    exceptionsRes,
+    sleepRes,
+    sleepAdjustmentsRes,
+    notesRes,
+    requetesRes,
+    frigoNonLuesRes,
+    template,
+  ] = await Promise.all([
+    supabase
+      .from("exceptions")
+      .select("id, on_date, effect, shift")
+      .eq("household_id", householdId)
+      .eq("profile_id", workerId)
+      .gte("on_date", ecartsDu)
+      .lte("on_date", ecartsAu)
+      .order("on_date"),
+    supabase
+      .from("sleep_defaults")
+      .select("start_time, end_time, enabled")
+      .eq("household_id", householdId)
+      .eq("profile_id", workerId)
+      .maybeSingle(),
+    // Ajustements de sommeil (FR-6) : disponibilité partagée, deux rôles (jamais un motif, R7).
+    supabase
+      .from("sleep_adjustments")
+      .select("on_date, start_time, end_time")
+      .eq("household_id", householdId)
+      .eq("profile_id", workerId)
+      .gte("on_date", ecartsDu)
+      .lte("on_date", ecartsAu)
+      .order("on_date"),
+    // Notes (FR-8, Sprint 9) : partagées dans le foyer, même fenêtre ±62 j.
+    supabase
+      .from("notes")
+      .select("id, on_date, body, author_id")
+      .eq("household_id", householdId)
+      .gte("on_date", ecartsDu)
+      .lte("on_date", ecartsAu)
+      .order("on_date"),
+    // Requêtes (FR-9, Sprint 9) : visibles des deux rôles. Fenêtre ±62 j.
+    // R7 : body = demande de la conjointe, pas un motif d'absence.
+    supabase
+      .from("requests")
+      .select("id, on_date, body, status, requester_id, target_profile_id")
+      .eq("household_id", householdId)
+      .gte("on_date", ecartsDu)
+      .lte("on_date", ecartsAu)
+      .order("on_date"),
+    // Note du frigo (Sprint 20) : compteur des notes non lues écrites par l'AUTRE membre
+    // (head:true → count seul, aucune ligne ni body chargé). Alimente la pastille d'accueil.
+    supabase
+      .from("fridge_notes")
+      .select("id", { count: "exact", head: true })
+      .eq("household_id", householdId)
+      .is("read_at", null)
+      .neq("author_id", user.id),
+    fetchCycleTemplateWithFallback(supabase, householdId),
+  ]);
   if (exceptionsRes.error) {
     throw exceptionsRes.error;
   }
@@ -246,6 +261,11 @@ export default async function AccueilPage({
       reglagePaye={reglagePaye}
       notes={notes}
       noteHandlers={noteHandlers}
+      // WHY pas de throw (contrairement aux requêtes ci-dessus) : la pastille du frigo est
+      // NON critique, et la migration fridge_notes est une tâche opérationnelle encore en
+      // attente. Échouer fort ici ferait planter TOUT l'accueil tant que la table n'est pas
+      // déployée — dégradation gracieuse à 0 (badge masqué) plutôt qu'un 500 généralisé.
+      frigoNonLues={frigoNonLuesRes.count ?? 0}
       coplanification={coplanification}
     />
   );
