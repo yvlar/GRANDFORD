@@ -25,3 +25,17 @@ export const FORMAT_DATE_COURTE = new Intl.DateTimeFormat("fr-CA", {
   year: "numeric",
   timeZone: "UTC",
 });
+
+/**
+ * « 3 juin, 14:05 » — horodatage d'une note du frigo (Sprint 20). À la différence des
+ * formateurs ci-dessus (chaîne civile 'AAAA-MM-JJ' interprétée en UTC), il formate un
+ * `timestamptz` réel : on raisonne en heure civile locale America/Toronto (règle
+ * conventions-frontend.md) pour que l'heure affichée colle à celle du foyer.
+ */
+export const FORMAT_HORODATAGE = new Intl.DateTimeFormat("fr-CA", {
+  day: "numeric",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: "America/Toronto",
+});

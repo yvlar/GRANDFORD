@@ -4,6 +4,7 @@ export const fr = {
   // Libellés transverses, réutilisés par plusieurs écrans (boutons partagés…).
   commun: {
     envoiEnCours: "Envoi…",
+    retour: "Accueil",
   },
   accueil: {
     titre: "GRANDFORD",
@@ -194,6 +195,32 @@ export const fr = {
     vide: "Aucune note pour cette date.",
     erreurCreation: "L'ajout de la note a échoué. Réessayez.",
     erreurSuppression: "La suppression de la note a échoué. Réessayez.",
+  },
+  frigo: {
+    titre: "Note du frigo",
+    lien: "Note du frigo",
+    sousTitre: "Le tableau partagé du foyer.",
+    placeholder: "Écrire une note…",
+    ajouter: "Coller au frigo",
+    supprimer: "Retirer",
+    confirmerSuppression: "Confirmer le retrait",
+    annuler: "Annuler",
+    vide: "Aucune note au frigo pour l'instant.",
+    parMoi: "Moi",
+    lu: "Lu",
+    nonLu: "Pas encore lu",
+    nouveau: "Nouveau",
+    nouvelleNoteToast: "Nouvelle note au frigo.",
+    pastilleAria: "notes non lues",
+    aimantAria: "aimant",
+    erreurCreation: "L'ajout de la note a échoué. Réessayez.",
+    erreurSuppression: "Le retrait de la note a échoué. Réessayez.",
+    erreurLecture: "Impossible de marquer la note comme lue.",
+    demo: {
+      intro:
+        "Démo sans BD : poser une note, retrait réservé à l'auteur, badge « Nouveau », accusé « Lu ✓ ».",
+      conjoint: "Conjoint(e)",
+    },
   },
   requetes: {
     titre: "Demandes",
