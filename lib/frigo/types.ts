@@ -27,6 +27,7 @@ export type ResultatCreation = EtatFrigo & { note: FrigoNote | null };
 
 export interface FrigoHandlers {
   readonly creer: (body: string) => Promise<ResultatCreation>;
+  readonly modifier: (noteId: string, body: string) => Promise<ResultatCreation>;
   readonly supprimer: (noteId: string) => Promise<EtatFrigo>;
   readonly marquerLue: (noteId: string) => Promise<EtatFrigo>;
 }

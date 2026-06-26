@@ -4,6 +4,7 @@ import { FIX, asAdmin, asUser, closePool, queryAs, seed } from "./helpers";
 // Isolation RLS de la note du frigo (Sprint 20) — livrable de 1re classe (R7).
 // Contrairement à la paye (worker-private), le tableau du frigo est PARTAGÉ dans le foyer :
 //   • SELECT/INSERT : membre du foyer (les deux conjoints voient et écrivent) ;
+//   • UPDATE        : auteur SEUL (édition du corps, Sprint 21 ; réinitialise l'accusé) ;
 //   • DELETE        : auteur SEUL ;
 //   • accusé de lecture : posé par l'AUTRE membre via le RPC marquer_note_frigo_lue
 //     (SECURITY DEFINER), jamais par un UPDATE direct du non-auteur.
@@ -180,6 +181,118 @@ describe.skipIf(!rlsAvailable)("Isolation RLS de la note du frigo (Postgres rée
       [noteA],
     );
     expect(second[0]?.read_at).toBe(premier[0]?.read_at);
+  });
+
+  // ── Édition du corps (Sprint 21) : UPDATE auteur seul (fridge_notes_update) ──────────
+  it("l'auteur modifie le corps de SA note (1 ligne, corps reflété pour les deux)", async () => {
+    await insertNoteA();
+    const rowCount = await asUser(FIX.workerA, async (client) => {
+      const res = await client.query(
+        "update public.fridge_notes set body = 'Acheter du lait ET du pain' where id = $1",
+        [noteA],
+      );
+      return res.rowCount;
+    });
+    expect(rowCount).toBe(1);
+    const rows = await queryAs<{ body: string }>(
+      FIX.spouseA,
+      "select body from public.fridge_notes where id = $1",
+      [noteA],
+    );
+    expect(rows[0]?.body).toBe("Acheter du lait ET du pain");
+  });
+
+  it("la conjointe (non-auteure) ne peut PAS modifier le corps (0 ligne, corps intact)", async () => {
+    await insertNoteA();
+    const rowCount = await asUser(FIX.spouseA, async (client) => {
+      const res = await client.query(
+        "update public.fridge_notes set body = 'détournement' where id = $1",
+        [noteA],
+      );
+      return res.rowCount;
+    });
+    expect(rowCount).toBe(0);
+    const rows = await queryAs<{ body: string }>(
+      FIX.workerA,
+      "select body from public.fridge_notes where id = $1",
+      [noteA],
+    );
+    expect(rows[0]?.body).toBe("Acheter du lait");
+  });
+
+  it("l'auteur réinitialise l'accusé en éditant sa note déjà lue (corps changé, read_* nuls)", async () => {
+    await insertNoteA();
+    expect(await marquerLue(FIX.spouseA)).toBe(true); // la note devient « lue »
+    const rowCount = await asUser(FIX.workerA, async (client) => {
+      const res = await client.query(
+        "update public.fridge_notes set body = 'Corrigé', read_at = null, read_by = null where id = $1",
+        [noteA],
+      );
+      return res.rowCount;
+    });
+    expect(rowCount).toBe(1);
+    const rows = await queryAs<{ body: string; read_at: string | null; read_by: string | null }>(
+      FIX.workerA,
+      "select body, read_at::text as read_at, read_by from public.fridge_notes where id = $1",
+      [noteA],
+    );
+    expect(rows[0]?.body).toBe("Corrigé");
+    expect(rows[0]?.read_at).toBeNull();
+    expect(rows[0]?.read_by).toBeNull();
+  });
+
+  it("l'auteur ne peut pas FORGER un accusé non-nul par UPDATE direct (with check)", async () => {
+    // Durcissement Sprint 21 : poser un accusé n'appartient qu'au RPC (SECURITY DEFINER).
+    // L'auteur qui tenterait de se forger un « Lu ✓ » par UPDATE viole le with check.
+    await insertNoteA();
+    await expect(
+      asUser(FIX.workerA, (client) =>
+        client.query("update public.fridge_notes set read_at = now(), read_by = $2 where id = $1", [
+          noteA,
+          FIX.spouseA,
+        ]),
+      ),
+    ).rejects.toThrow();
+    const rows = await queryAs<{ read_at: string | null }>(
+      FIX.workerA,
+      "select read_at from public.fridge_notes where id = $1",
+      [noteA],
+    );
+    expect(rows[0]?.read_at).toBeNull();
+  });
+
+  it("un non-auteur ne peut pas réinitialiser l'accusé par UPDATE direct (0 ligne, accusé intact)", async () => {
+    await insertNoteA();
+    expect(await marquerLue(FIX.spouseA)).toBe(true);
+    const rowCount = await asUser(FIX.spouseA, async (client) => {
+      const res = await client.query(
+        "update public.fridge_notes set read_at = null, read_by = null where id = $1",
+        [noteA],
+      );
+      return res.rowCount;
+    });
+    expect(rowCount).toBe(0);
+    const rows = await queryAs<{ read_by: string | null }>(
+      FIX.workerA,
+      "select read_by from public.fridge_notes where id = $1",
+      [noteA],
+    );
+    expect(rows[0]?.read_by).toBe(FIX.spouseA);
+  });
+
+  it("l'édition refuse un corps vide (CHECK longueur 1–500, body intact)", async () => {
+    await insertNoteA();
+    await expect(
+      asUser(FIX.workerA, (client) =>
+        client.query("update public.fridge_notes set body = '   ' where id = $1", [noteA]),
+      ),
+    ).rejects.toThrow();
+    const rows = await queryAs<{ body: string }>(
+      FIX.workerA,
+      "select body from public.fridge_notes where id = $1",
+      [noteA],
+    );
+    expect(rows[0]?.body).toBe("Acheter du lait");
   });
 
   it("un membre RÉVOQUÉ perd tout accès (lecture 0, RPC → false)", async () => {

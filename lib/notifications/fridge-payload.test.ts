@@ -10,7 +10,7 @@ import { describe, expect, it } from "vitest";
 // ET l'absence de tout contenu de note dans le texte (impossible par construction).
 
 describe("fridgePayload — forme et étanchéité (R7)", () => {
-  const evenements: FridgeEvent[] = ["nouvelle", "lue"];
+  const evenements: FridgeEvent[] = ["nouvelle", "lue", "modifiee"];
 
   it.each(evenements)("l'événement « %s » produit exactement {title, body, url}", (event) => {
     const p = fridgePayload(event);
@@ -22,6 +22,10 @@ describe("fridgePayload — forme et étanchéité (R7)", () => {
 
   it("le texte « nouvelle » annonce une note sans en révéler le contenu", () => {
     expect(fridgePayload("nouvelle").body).toBe("Une nouvelle note vous attend au frigo.");
+  });
+
+  it("le texte « modifiee » annonce une note changée sans en révéler le contenu", () => {
+    expect(fridgePayload("modifiee").body).toBe("Une note du frigo a été modifiée.");
   });
 
   it("le texte « lue » annonce l'accusé sans contenu", () => {
