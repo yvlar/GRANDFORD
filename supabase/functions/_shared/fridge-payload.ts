@@ -8,8 +8,8 @@
 // R7 structurel : `fridgePayload` ne REÇOIT QUE le type d'événement — JAMAIS le corps de
 // la note. Il est donc impossible qu'un texte de note fuie dans une notification ou un log ici.
 
-/** Événements poussés du frigo : une nouvelle note, ou « votre note a été lue ». */
-export type FridgeEvent = "nouvelle" | "lue";
+/** Événements poussés du frigo : une nouvelle note, une note modifiée, ou « votre note a été lue ». */
+export type FridgeEvent = "nouvelle" | "lue" | "modifiee";
 
 /** Ce que reçoit le service worker (event.data.json()) et le courriel de repli. */
 export interface FridgePayload {
@@ -30,13 +30,14 @@ export const FALLBACK_FRIDGE: FridgePayload = {
 
 const CORPS: Record<FridgeEvent, string> = {
   nouvelle: "Une nouvelle note vous attend au frigo.",
+  modifiee: "Une note du frigo a été modifiée.",
   lue: "Votre note du frigo a été lue.",
 };
 
 /**
  * Construit la notification d'un événement du frigo : le type d'événement, rien d'autre.
- * Le destinataire (l'autre membre pour « nouvelle », l'auteur pour « lue ») est résolu
- * côté Edge Function — pas ici, qui reste pur et sans contenu (R7).
+ * Le destinataire (l'autre membre pour « nouvelle »/« modifiée », l'auteur pour « lue »)
+ * est résolu côté Edge Function — pas ici, qui reste pur et sans contenu (R7).
  */
 export function fridgePayload(event: FridgeEvent): FridgePayload {
   return {

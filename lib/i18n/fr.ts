@@ -204,6 +204,8 @@ export const fr = {
     ajouter: "Coller au frigo",
     supprimer: "Retirer",
     confirmerSuppression: "Confirmer le retrait",
+    editer: "Éditer",
+    enregistrer: "Enregistrer",
     annuler: "Annuler",
     vide: "Aucune note au frigo pour l'instant.",
     parMoi: "Moi",
@@ -214,11 +216,12 @@ export const fr = {
     pastilleAria: "notes non lues",
     aimantAria: "aimant",
     erreurCreation: "L'ajout de la note a échoué. Réessayez.",
+    erreurModification: "La modification de la note a échoué. Réessayez.",
     erreurSuppression: "Le retrait de la note a échoué. Réessayez.",
     erreurLecture: "Impossible de marquer la note comme lue.",
     demo: {
       intro:
-        "Démo sans BD : poser une note, retrait réservé à l'auteur, badge « Nouveau », accusé « Lu ✓ ».",
+        "Démo sans BD : poser une note, l'éditer (l'accusé « Lu ✓ » se réinitialise), retrait réservé à l'auteur, badge « Nouveau », accusé « Lu ✓ ».",
       conjoint: "Conjoint(e)",
     },
   },

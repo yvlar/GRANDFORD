@@ -59,6 +59,9 @@ export function TableauFrigo({
   const [erreur, setErreur] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  // Édition inline : note en cours d'édition + son brouillon de corps (auteur seul).
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editCorps, setEditCorps] = useState("");
   const [enCours, startTransition] = useTransition();
   // Notes déjà marquées lues dans cette session — évite de rappeler le RPC en boucle.
   const dejaMarquees = useRef<Set<string>>(new Set());
@@ -127,6 +130,12 @@ export function TableauFrigo({
           (payload) => {
             const note = parseRealtimeRow(payload.new);
             if (note) {
+              // Reset d'accusé (l'auteur a réédité la note) : on RETIRE l'id du garde
+              // anti-tempête pour que l'auto-marquage puisse re-poser l'accusé. Sans ça, la
+              // note rééditée réafficherait « Nouveau » sans jamais redevenir « lue ».
+              if (note.readAt === null) {
+                dejaMarquees.current.delete(note.id);
+              }
               upsertNote(note);
             }
           },
@@ -226,6 +235,35 @@ export function TableauFrigo({
     });
   };
 
+  // Ouvre l'édition d'une note : précharge son corps, ferme une éventuelle confirmation de
+  // retrait (les deux modes s'excluent sur une même carte).
+  const demanderEdition = (note: FrigoNote) => {
+    setConfirmId(null);
+    setErreur(null); // un bandeau d'erreur d'une action précédente ne doit pas traîner pendant l'édition
+    setEditCorps(note.body);
+    setEditId(note.id);
+  };
+
+  const enregistrerEdition = (noteId: string) => {
+    const texte = editCorps.trim();
+    if (!texte || enCours) {
+      return;
+    }
+    startTransition(async () => {
+      const etat = await handlers.modifier(noteId, texte);
+      if (etat.ok) {
+        setEditId(null);
+        setErreur(null);
+        // Optimisme : le live Realtime redélivrera la note modifiée (upsertNote dédoublonne).
+        if (etat.note) {
+          upsertNote(etat.note);
+        }
+      } else {
+        setErreur(etat.erreur);
+      }
+    });
+  };
+
   return (
     <section aria-label={t.titre} className="flex flex-col gap-5">
       <header className="flex flex-col gap-1">
@@ -285,10 +323,19 @@ export function TableauFrigo({
               currentUserId={currentUserId}
               authorNames={authorNames}
               confirmActif={confirmId === note.id}
+              editActif={editId === note.id}
+              editCorps={editCorps}
               enCours={enCours}
-              onDemanderRetrait={() => setConfirmId(note.id)}
+              onDemanderRetrait={() => {
+                setEditId(null);
+                setConfirmId(note.id);
+              }}
               onAnnuler={() => setConfirmId(null)}
               onConfirmerRetrait={() => retirer(note.id)}
+              onDemanderEdition={() => demanderEdition(note)}
+              onChangerEditCorps={setEditCorps}
+              onAnnulerEdition={() => setEditId(null)}
+              onEnregistrerEdition={() => enregistrerEdition(note.id)}
             />
           ))}
         </ul>
@@ -303,10 +350,16 @@ interface CarteNoteProps {
   readonly currentUserId: string;
   readonly authorNames: Record<string, string>;
   readonly confirmActif: boolean;
+  readonly editActif: boolean;
+  readonly editCorps: string;
   readonly enCours: boolean;
   readonly onDemanderRetrait: () => void;
   readonly onAnnuler: () => void;
   readonly onConfirmerRetrait: () => void;
+  readonly onDemanderEdition: () => void;
+  readonly onChangerEditCorps: (valeur: string) => void;
+  readonly onAnnulerEdition: () => void;
+  readonly onEnregistrerEdition: () => void;
 }
 
 function CarteNote({
@@ -315,13 +368,27 @@ function CarteNote({
   currentUserId,
   authorNames,
   confirmActif,
+  editActif,
+  editCorps,
   enCours,
   onDemanderRetrait,
   onAnnuler,
   onConfirmerRetrait,
+  onDemanderEdition,
+  onChangerEditCorps,
+  onAnnulerEdition,
+  onEnregistrerEdition,
 }: CarteNoteProps) {
   const t = fr.frigo;
   const estMienne = note.authorId === currentUserId;
+  // À l'ouverture de l'édition, on porte le focus dans la zone de texte (NFR-12 :
+  // reconnaissance > rappel, parcours clavier/lecteur d'écran sans chasse au champ).
+  const zoneEdition = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (editActif) {
+      zoneEdition.current?.focus();
+    }
+  }, [editActif]);
   const statut = statutLecture(note, currentUserId);
   const nouvelle = estNouvellePourMoi(note, currentUserId);
   const auteur = estMienne ? t.parMoi : (authorNames[note.authorId] ?? "—");
@@ -345,7 +412,24 @@ function CarteNote({
         </span>
       ) : null}
 
-      <p className="whitespace-pre-wrap break-words text-sm">{note.body}</p>
+      {editActif ? (
+        <>
+          <label htmlFor={`frigo-edit-${note.id}`} className="sr-only">
+            {t.editer}
+          </label>
+          <textarea
+            ref={zoneEdition}
+            id={`frigo-edit-${note.id}`}
+            value={editCorps}
+            onChange={(e) => onChangerEditCorps(e.target.value)}
+            maxLength={500}
+            rows={3}
+            className="w-full resize-y rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-neutral-900"
+          />
+        </>
+      ) : (
+        <p className="whitespace-pre-wrap break-words text-sm">{note.body}</p>
+      )}
 
       <footer className="mt-auto flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-600">
         <span>
@@ -363,10 +447,29 @@ function CarteNote({
         ) : null}
       </footer>
 
-      {/* Retrait : auteur seul. Confirmation en 2 temps (anti-suppression accidentelle). */}
+      {/* Édition + retrait : auteur seul. Édition inline et retrait (confirmé en 2 temps,
+          anti-suppression accidentelle) s'excluent l'un l'autre sur une même carte. */}
       {estMienne ? (
         <div className="flex justify-end gap-2 border-t border-amber-200 pt-2">
-          {confirmActif ? (
+          {editActif ? (
+            <>
+              <button
+                type="button"
+                onClick={onAnnulerEdition}
+                className="inline-flex min-h-11 items-center rounded-lg px-3 text-xs font-medium text-neutral-700 hover:bg-amber-200"
+              >
+                {t.annuler}
+              </button>
+              <button
+                type="button"
+                disabled={enCours || !editCorps.trim()}
+                onClick={onEnregistrerEdition}
+                className="inline-flex min-h-11 items-center gap-1 rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+              >
+                💾 {t.enregistrer}
+              </button>
+            </>
+          ) : confirmActif ? (
             <>
               <button
                 type="button"
@@ -385,14 +488,24 @@ function CarteNote({
               </button>
             </>
           ) : (
-            <button
-              type="button"
-              onClick={onDemanderRetrait}
-              aria-label={`${t.supprimer} : ${note.body.slice(0, 30)}`}
-              className="inline-flex min-h-11 items-center gap-1 rounded-lg px-3 text-xs font-medium text-neutral-700 hover:bg-amber-200"
-            >
-              🗑 {t.supprimer}
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={onDemanderEdition}
+                aria-label={`${t.editer} : ${note.body.slice(0, 30)}`}
+                className="inline-flex min-h-11 items-center gap-1 rounded-lg px-3 text-xs font-medium text-neutral-700 hover:bg-amber-200"
+              >
+                ✏️ {t.editer}
+              </button>
+              <button
+                type="button"
+                onClick={onDemanderRetrait}
+                aria-label={`${t.supprimer} : ${note.body.slice(0, 30)}`}
+                className="inline-flex min-h-11 items-center gap-1 rounded-lg px-3 text-xs font-medium text-neutral-700 hover:bg-amber-200"
+              >
+                🗑 {t.supprimer}
+              </button>
+            </>
           )}
         </div>
       ) : null}

@@ -1,4 +1,9 @@
-import { creerNoteFrigo, marquerNoteFrigoLue, supprimerNoteFrigo } from "@/app/frigo/actions";
+import {
+  creerNoteFrigo,
+  marquerNoteFrigoLue,
+  modifierNoteFrigo,
+  supprimerNoteFrigo,
+} from "@/app/frigo/actions";
 import { TableauFrigo } from "@/components/frigo/tableau-frigo";
 import { parseFrigoRows } from "@/lib/frigo/db-rows";
 import type { FrigoHandlers } from "@/lib/frigo/types";
@@ -70,6 +75,7 @@ export default async function FrigoPage() {
 
   const handlers: FrigoHandlers = {
     creer: creerNoteFrigo.bind(null, householdId),
+    modifier: modifierNoteFrigo,
     supprimer: supprimerNoteFrigo,
     marquerLue: marquerNoteFrigoLue,
   };
