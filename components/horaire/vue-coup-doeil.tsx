@@ -181,6 +181,8 @@ export interface VueCoupDoeilProps {
   /** Notes du foyer (FR-8, Sprint 9) — partagées, visibles des deux rôles. */
   readonly notes?: readonly Note[];
   readonly noteHandlers?: NoteHandlers | null;
+  /** Notes du frigo non lues écrites par l'autre (Sprint 20) — pastille du lien d'accueil. */
+  readonly frigoNonLues?: number;
   /**
    * Co-planification conjointe (FR-9, Sprint 9) — branche CONJOINTE seulement :
    * ses requêtes soumises + handler pour en créer. Le travailleur n'a pas cette prop.
@@ -210,6 +212,7 @@ export function VueCoupDoeil({
   reglagePaye = null,
   notes = [],
   noteHandlers = null,
+  frigoNonLues = 0,
   coplanification = null,
 }: VueCoupDoeilProps) {
   const t = fr.horaire;
@@ -323,12 +326,28 @@ export function VueCoupDoeil({
           <p className="text-sm font-bold tracking-widest text-neutral-400">GRANDFORD</p>
           {workerName ? <p className="text-lg font-semibold">{t.horaireDe(workerName)}</p> : null}
         </div>
-        <Link
-          href="/foyer"
-          className="inline-flex min-h-11 items-center text-sm text-neutral-400 underline hover:text-neutral-200"
-        >
-          {t.monFoyer}
-        </Link>
+        <nav className="flex flex-col items-end gap-1">
+          <Link
+            href="/frigo"
+            className="inline-flex min-h-11 items-center gap-2 text-sm text-neutral-400 underline hover:text-neutral-200"
+          >
+            📌 {fr.frigo.lien}
+            {frigoNonLues > 0 ? (
+              <span
+                aria-label={`${frigoNonLues} ${fr.frigo.pastilleAria}`}
+                className="inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-emerald-600 px-1.5 text-xs font-bold text-white"
+              >
+                {frigoNonLues}
+              </span>
+            ) : null}
+          </Link>
+          <Link
+            href="/foyer"
+            className="inline-flex min-h-11 items-center text-sm text-neutral-400 underline hover:text-neutral-200"
+          >
+            {t.monFoyer}
+          </Link>
+        </nav>
       </header>
 
       {/* Pastille « Aujourd'hui » : l'état du jour, lisible en < 2 s (NFR-1). */}

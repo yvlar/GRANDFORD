@@ -243,6 +243,61 @@ export type Database = {
           },
         ]
       }
+      fridge_notes: {
+        Row: {
+          author_id: string
+          body: string
+          created_at: string
+          household_id: string
+          id: string
+          read_at: string | null
+          read_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          body: string
+          created_at?: string
+          household_id: string
+          id?: string
+          read_at?: string | null
+          read_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          created_at?: string
+          household_id?: string
+          id?: string
+          read_at?: string | null
+          read_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fridge_notes_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fridge_notes_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fridge_notes_read_by_fkey"
+            columns: ["read_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       households: {
         Row: {
           created_at: string
@@ -806,6 +861,7 @@ export type Database = {
       }
       is_household_member: { Args: { hid: string }; Returns: boolean }
       is_household_owner: { Args: { hid: string }; Returns: boolean }
+      marquer_note_frigo_lue: { Args: { note_id: string }; Returns: boolean }
       redeem_invitation: { Args: { p_code: string }; Returns: string }
       shares_household_with: { Args: { other: string }; Returns: boolean }
     }
