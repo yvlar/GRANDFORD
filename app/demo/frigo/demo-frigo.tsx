@@ -41,6 +41,11 @@ const SEED: FrigoNote[] = [
   },
 ];
 
+// Conserve l'horodatage d'origine des notes du seed : en prod, l'UPDATE ne touche pas
+// created_at (seul updated_at est bumpé) → la note éditée garde sa place. La démo doit
+// refléter ce comportement (pas de saut en tête de liste).
+const CREATED_AT_PAR_ID = new Map(SEED.map((n) => [n.id, n.createdAt]));
+
 export function DemoFrigo() {
   const t = fr.frigo;
 
@@ -56,6 +61,20 @@ export function DemoFrigo() {
           authorId: MOI,
           body,
           createdAt: new Date().toISOString(),
+          readAt: null,
+          readBy: null,
+        },
+      }),
+      // Édition : on renvoie la note au corps modifié, accusé RÉINITIALISÉ (readAt/readBy
+      // null) — comme en prod, une note rééditée redevient « non lue ».
+      modifier: async (noteId: string, body: string) => ({
+        ok: true,
+        erreur: null,
+        note: {
+          id: noteId,
+          authorId: MOI,
+          body,
+          createdAt: CREATED_AT_PAR_ID.get(noteId) ?? new Date().toISOString(),
           readAt: null,
           readBy: null,
         },

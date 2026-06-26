@@ -1,6 +1,7 @@
 // Edge Function — push event-driven d'une note du frigo (Sprint 20).
 // Déclenchée par la server action (app/frigo/actions.ts) après une écriture réussie :
 //   • event "nouvelle" → notifie l'AUTRE membre qu'une note l'attend ;
+//   • event "modifiee" → notifie l'AUTRE membre qu'une note déjà lue a changé de contenu ;
 //   • event "lue"      → notifie l'AUTEUR que sa note a été lue (accusé de lecture).
 //
 // Contexte d'exécution : Deno (npm:), HORS du tsc racine (tsconfig.json l'exclut).
@@ -50,7 +51,10 @@ Deno.serve(async (req) => {
     return Response.json({ error: "corps illisible" }, { status: 400 });
   }
   const noteId = typeof corps.noteId === "string" ? corps.noteId : null;
-  const event = corps.event === "nouvelle" || corps.event === "lue" ? corps.event : null;
+  const event =
+    corps.event === "nouvelle" || corps.event === "lue" || corps.event === "modifiee"
+      ? corps.event
+      : null;
   if (!noteId || !event) {
     return Response.json({ error: "noteId/event manquant" }, { status: 400 });
   }
@@ -84,8 +88,8 @@ Deno.serve(async (req) => {
 });
 
 /**
- * « nouvelle » → l'AUTRE membre du foyer (≠ auteur) ; « lue » → l'auteur lui-même.
- * Un foyer est un couple : pour « nouvelle », il y a au plus un autre membre.
+ * « lue » → l'auteur lui-même ; « nouvelle »/« modifiée » → l'AUTRE membre du foyer (≠ auteur).
+ * Un foyer est un couple : pour ces deux derniers, il y a au plus un autre membre.
  */
 async function resolveDestinataire(
   supabase: ReturnType<typeof createClient>,

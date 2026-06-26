@@ -52,6 +52,57 @@ export async function creerNoteFrigo(householdId: string, body: string): Promise
   return { ok: true, erreur: null, note: parseFrigoRows([data])[0] ?? null };
 }
 
+export async function modifierNoteFrigo(noteId: string, body: string): Promise<ResultatCreation> {
+  const id = uuidSchema.safeParse(noteId);
+  const corps = frigoBodySchema.safeParse(body);
+  if (!id.success || !corps.success) {
+    return { ok: false, erreur: fr.frigo.erreurModification, note: null };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect("/connexion");
+  }
+
+  // Décision push : on ne re-signale que les notes DÉJÀ lues (contenu périmé). On lit donc
+  // l'état d'accusé AVANT l'édition. Scoping auteur : un non-auteur ne voit pas la ligne (RLS).
+  const { data: avant } = await supabase
+    .from("fridge_notes")
+    .select("read_at")
+    .eq("id", id.data)
+    .eq("author_id", user.id)
+    .maybeSingle();
+  const etaitLue = avant?.read_at != null;
+
+  // UPDATE auteur seul (RLS fridge_notes_update) + double-garde .eq("author_id").
+  // On RÉINITIALISE l'accusé : le contenu a changé, l'ancien « lu » est périmé → la note
+  // redevient « non lue ». Hardcoder read_at/read_by à null fait double emploi : c'est le
+  // reset voulu ET ça interdit de forger un accusé (on n'accepte jamais ces champs du client).
+  const { data, error } = await supabase
+    .from("fridge_notes")
+    .update({ body: corps.data, read_at: null, read_by: null })
+    .eq("id", id.data)
+    .eq("author_id", user.id)
+    .select("id, author_id, body, read_at, read_by, created_at");
+
+  if (error || data.length === 0) {
+    return { ok: false, erreur: fr.frigo.erreurModification, note: null };
+  }
+
+  // Best-effort : ne notifie l'autre membre que si la note était déjà lue (sinon une simple
+  // correction avant lecture resterait silencieuse). Un échec n'invalide pas l'écriture.
+  if (etaitLue) {
+    await declencherPushFrigo(id.data, "modifiee");
+  }
+
+  revalidatePath("/frigo");
+  revalidatePath("/"); // la pastille « non lues » de l'accueil (la note redevient non lue)
+  return { ok: true, erreur: null, note: parseFrigoRows(data)[0] ?? null };
+}
+
 export async function marquerNoteFrigoLue(noteId: string): Promise<EtatFrigo> {
   const id = uuidSchema.safeParse(noteId);
   if (!id.success) {
