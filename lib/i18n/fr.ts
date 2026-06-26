@@ -212,6 +212,7 @@ export const fr = {
     lu: "Lu",
     nonLu: "Pas encore lu",
     nouveau: "Nouveau",
+    edite: "Édité",
     nouvelleNoteToast: "Nouvelle note au frigo.",
     pastilleAria: "notes non lues",
     aimantAria: "aimant",

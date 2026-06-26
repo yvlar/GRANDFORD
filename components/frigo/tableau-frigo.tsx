@@ -4,6 +4,7 @@ import { parseFrigoRows } from "@/lib/frigo/db-rows";
 import {
   type FrigoHandlers,
   type FrigoNote,
+  estEditee,
   estNouvellePourMoi,
   statutLecture,
 } from "@/lib/frigo/types";
@@ -391,6 +392,9 @@ function CarteNote({
   }, [editActif]);
   const statut = statutLecture(note, currentUserId);
   const nouvelle = estNouvellePourMoi(note, currentUserId);
+  // « Édité » : visible des deux membres (l'indice que le corps a changé). Distinct de
+  // l'accusé de lecture, qui ne concerne que mes propres notes.
+  const editee = estEditee(note);
   const auteur = estMienne ? t.parMoi : (authorNames[note.authorId] ?? "—");
   // Légère inclinaison alternée pour l'effet « collé au frigo » (purement décoratif).
   const inclinaison = index % 2 === 0 ? "-rotate-1" : "rotate-1";
@@ -435,6 +439,11 @@ function CarteNote({
         <span>
           <span className="font-semibold">{auteur}</span> ·{" "}
           {FORMAT_HORODATAGE.format(new Date(note.createdAt))}
+          {editee ? (
+            <span className="ml-1 inline-flex items-center gap-1 italic text-neutral-500">
+              · ✎ {t.edite}
+            </span>
+          ) : null}
         </span>
 
         {/* Accusé de lecture : seulement sur MES notes (l'autre a-t-il lu ?). */}

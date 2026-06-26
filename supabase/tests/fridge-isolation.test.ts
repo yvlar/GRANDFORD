@@ -295,6 +295,35 @@ describe.skipIf(!rlsAvailable)("Isolation RLS de la note du frigo (Postgres rée
     expect(rows[0]?.body).toBe("Acheter du lait");
   });
 
+  // ── Indicateur « Édité » (Sprint 22) : updated_at ne bouge QUE sur un vrai changement de
+  // corps (trigger set_fridge_notes_updated). C'est ce qui rend « updatedAt > createdAt »
+  // fiable côté UI : une simple LECTURE ne doit pas faire passer la note pour « éditée ».
+  const estEditeeEnBd = (userId: string) =>
+    queryAs<{ edite: boolean }>(
+      userId,
+      "select (updated_at > created_at) as edite from public.fridge_notes where id = $1",
+      [noteA],
+    );
+
+  it("une lecture (accusé via RPC) NE bumpe PAS updated_at (lire ≠ éditer)", async () => {
+    await insertNoteA();
+    // À l'insertion, now() est stable dans la transaction → updated_at == created_at.
+    expect((await estEditeeEnBd(FIX.workerA))[0]?.edite).toBe(false);
+    expect(await marquerLue(FIX.spouseA)).toBe(true); // UPDATE de read_at/read_by, corps inchangé
+    expect((await estEditeeEnBd(FIX.workerA))[0]?.edite).toBe(false); // updated_at intact
+  });
+
+  it("une édition du corps par l'auteur AVANCE updated_at au-delà de created_at", async () => {
+    await insertNoteA();
+    await asUser(FIX.workerA, (client) =>
+      client.query(
+        "update public.fridge_notes set body = 'Acheter du lait ET du pain' where id = $1",
+        [noteA],
+      ),
+    );
+    expect((await estEditeeEnBd(FIX.workerA))[0]?.edite).toBe(true);
+  });
+
   it("un membre RÉVOQUÉ perd tout accès (lecture 0, RPC → false)", async () => {
     await insertNoteA();
     // Révocation : on retire l'appartenance de la conjointe au foyer A (comme un retrait

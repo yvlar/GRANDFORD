@@ -35,7 +35,7 @@ export async function creerNoteFrigo(householdId: string, body: string): Promise
   const { data, error } = await supabase
     .from("fridge_notes")
     .insert({ household_id: hid.data, author_id: user.id, body: corps.data })
-    .select("id, author_id, body, read_at, read_by, created_at")
+    .select("id, author_id, body, read_at, read_by, created_at, updated_at")
     .single();
 
   if (error || !data) {
@@ -86,7 +86,7 @@ export async function modifierNoteFrigo(noteId: string, body: string): Promise<R
     .update({ body: corps.data, read_at: null, read_by: null })
     .eq("id", id.data)
     .eq("author_id", user.id)
-    .select("id, author_id, body, read_at, read_by, created_at");
+    .select("id, author_id, body, read_at, read_by, created_at, updated_at");
 
   if (error || data.length === 0) {
     return { ok: false, erreur: fr.frigo.erreurModification, note: null };

@@ -20,6 +20,7 @@ const SEED: FrigoNote[] = [
     authorId: AUTRE,
     body: "N'oublie pas le rendez-vous chez le dentiste jeudi !",
     createdAt: "2026-06-26T11:00:00Z",
+    updatedAt: "2026-06-26T11:00:00Z", // jamais éditée → updatedAt == createdAt (pas de badge « Édité »)
     readAt: null, // non lue par moi → badge « Nouveau » (effacé par l'auto-marquage)
     readBy: null,
   },
@@ -28,6 +29,7 @@ const SEED: FrigoNote[] = [
     authorId: MOI,
     body: "J'ai pris du lait et des œufs.",
     createdAt: "2026-06-26T10:00:00Z",
+    updatedAt: "2026-06-26T10:00:00Z", // LUE mais jamais éditée → « Lu ✓ » SANS « Édité » (preuve : lire ≠ éditer)
     readAt: "2026-06-26T10:30:00Z", // ma note, lue par l'autre → « Lu ✓ »
     readBy: AUTRE,
   },
@@ -36,7 +38,17 @@ const SEED: FrigoNote[] = [
     authorId: MOI,
     body: "On soupe chez tes parents dimanche ?",
     createdAt: "2026-06-26T09:00:00Z",
+    updatedAt: "2026-06-26T09:00:00Z", // jamais éditée
     readAt: null, // ma note, pas encore lue → « Pas encore lu »
+    readBy: null,
+  },
+  {
+    id: "a0000000-0000-4000-8000-000000000004",
+    authorId: MOI,
+    body: "Liste d'épicerie : pain, beurre, café (corrigée).",
+    createdAt: "2026-06-26T08:00:00Z",
+    updatedAt: "2026-06-26T11:30:00Z", // ÉDITÉE (corps modifié après création) → badge « Édité » ; l'accusé a été réinitialisé (Sprint 21)
+    readAt: null,
     readBy: null,
   },
 ];
@@ -53,20 +65,26 @@ export function DemoFrigo() {
   // creer/supprimer, effacement du badge sur marquerLue) — on renvoie juste des succès.
   const handlers = useMemo<FrigoHandlers>(
     () => ({
-      creer: async (body: string) => ({
-        ok: true,
-        erreur: null,
-        note: {
-          id: crypto.randomUUID(),
-          authorId: MOI,
-          body,
-          createdAt: new Date().toISOString(),
-          readAt: null,
-          readBy: null,
-        },
-      }),
+      creer: async (body: string) => {
+        const maintenant = new Date().toISOString();
+        return {
+          ok: true,
+          erreur: null,
+          note: {
+            id: crypto.randomUUID(),
+            authorId: MOI,
+            body,
+            createdAt: maintenant,
+            updatedAt: maintenant, // note neuve → pas de badge « Édité »
+            readAt: null,
+            readBy: null,
+          },
+        };
+      },
       // Édition : on renvoie la note au corps modifié, accusé RÉINITIALISÉ (readAt/readBy
-      // null) — comme en prod, une note rééditée redevient « non lue ».
+      // null) — comme en prod, une note rééditée redevient « non lue ». updatedAt avance
+      // au-delà de createdAt → la note affiche désormais « Édité » (comme le ferait le
+      // trigger BD set_fridge_notes_updated en prod).
       modifier: async (noteId: string, body: string) => ({
         ok: true,
         erreur: null,
@@ -75,6 +93,7 @@ export function DemoFrigo() {
           authorId: MOI,
           body,
           createdAt: CREATED_AT_PAR_ID.get(noteId) ?? new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
           readAt: null,
           readBy: null,
         },
