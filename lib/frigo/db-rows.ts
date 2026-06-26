@@ -10,6 +10,7 @@ const fridgeNoteRowSchema = z.object({
   author_id: z.uuid(),
   body: z.string(),
   created_at: z.string(),
+  updated_at: z.string(),
   read_at: z.string().nullable(),
   read_by: z.uuid().nullable(),
 });
@@ -23,6 +24,7 @@ export function parseFrigoRows(rows: readonly unknown[]): FrigoNote[] {
       authorId: parsed.author_id,
       body: parsed.body,
       createdAt: parsed.created_at,
+      updatedAt: parsed.updated_at,
       readAt: parsed.read_at,
       readBy: parsed.read_by,
     };

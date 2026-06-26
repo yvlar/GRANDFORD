@@ -12,6 +12,7 @@ export interface FrigoNote {
   readonly authorId: string;
   readonly body: string;
   readonly createdAt: string; // horodatage ISO (timestamptz)
+  readonly updatedAt: string; // horodatage ISO ; n'avance au-delà de createdAt QUE si le corps a été édité (trigger set_fridge_notes_updated, Sprint 22)
   readonly readAt: string | null; // horodatage ISO de lecture par l'autre, ou null
   readonly readBy: string | null;
 }
@@ -50,4 +51,15 @@ export function statutLecture(note: FrigoNote, currentUserId: string): StatutLec
  */
 export function estNouvellePourMoi(note: FrigoNote, currentUserId: string): boolean {
   return note.authorId !== currentUserId && note.readAt === null;
+}
+
+/**
+ * Une note est « éditée » si son corps a été modifié après sa création. Le trigger BD
+ * (set_fridge_notes_updated, Sprint 22) ne fait avancer updatedAt au-delà de createdAt
+ * QUE sur un vrai changement de corps — une simple lecture (accusé) ne compte pas.
+ * Comparaison en temps epoch (et non lexicographique) pour rester robuste au format de
+ * sérialisation timestamptz (offset de fuseau).
+ */
+export function estEditee(note: FrigoNote): boolean {
+  return new Date(note.updatedAt).getTime() > new Date(note.createdAt).getTime();
 }

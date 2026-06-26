@@ -50,7 +50,7 @@ export default async function FrigoPage() {
   const [notesRes, membresRes] = await Promise.all([
     supabase
       .from("fridge_notes")
-      .select("id, author_id, body, read_at, read_by, created_at")
+      .select("id, author_id, body, read_at, read_by, created_at, updated_at")
       .eq("household_id", householdId)
       .order("created_at", { ascending: false }),
     supabase
