@@ -448,4 +448,101 @@ describe.skipIf(!rlsAvailable)("Isolation RLS de la note du frigo (Postgres rée
     );
     expect(rows[0]?.read_at).toBeNull();
   });
+
+  // ── Épingle (Sprint 24) : RPC epingler_note_frigo (auteur seul, une épingle/foyer) ──────
+  const noteSpouse = "c5555555-5555-4555-8555-555555555555";
+  const insertNoteSpouse = () =>
+    asUser(FIX.spouseA, (client) =>
+      client.query(
+        "insert into public.fridge_notes (id, household_id, author_id, body) values ($1, $2, $3, 'Note conjointe')",
+        [noteSpouse, FIX.householdA, FIX.spouseA],
+      ),
+    );
+  const epingler = (userId: string, noteId: string, pin: boolean) =>
+    asUser(userId, (client) =>
+      client.query("select public.epingler_note_frigo($1, $2)", [noteId, pin]),
+    );
+  const estEpinglee = (noteId: string) =>
+    queryAs<{ is_pinned: boolean }>(
+      FIX.workerA,
+      "select is_pinned from public.fridge_notes where id = $1",
+      [noteId],
+    );
+
+  it("l'auteur épingle SA note de tête (RPC) → is_pinned true", async () => {
+    await insertNoteA();
+    await epingler(FIX.workerA, noteA, true);
+    expect((await estEpinglee(noteA))[0]?.is_pinned).toBe(true);
+  });
+
+  it("un non-auteur ne peut PAS épingler la note de l'autre (RPC raise, note intacte)", async () => {
+    await insertNoteA();
+    await expect(epingler(FIX.spouseA, noteA, true)).rejects.toThrow();
+    expect((await estEpinglee(noteA))[0]?.is_pinned).toBe(false);
+  });
+
+  it("une seule épingle par foyer : épingler une 2ᵉ note détache la 1ʳᵉ — y compris cross-auteur", async () => {
+    await insertNoteA(); // note de workerA
+    await insertNoteSpouse(); // note de spouseA, MÊME foyer
+    await epingler(FIX.workerA, noteA, true); // workerA épingle la sienne
+    expect((await estEpinglee(noteA))[0]?.is_pinned).toBe(true);
+    // spouseA épingle la sienne → le RPC (DEFINER) détache l'épingle de workerA.
+    await epingler(FIX.spouseA, noteSpouse, true);
+    expect((await estEpinglee(noteSpouse))[0]?.is_pinned).toBe(true);
+    expect((await estEpinglee(noteA))[0]?.is_pinned).toBe(false);
+  });
+
+  it("le RPC REFUSE d'épingler une réponse (épingle = note de tête seulement)", async () => {
+    await insertNoteA();
+    await insertReponse(FIX.spouseA); // réponse de la conjointe
+    await expect(epingler(FIX.spouseA, reponseA, true)).rejects.toThrow();
+    expect((await estEpinglee(reponseA))[0]?.is_pinned).toBe(false);
+  });
+
+  it("l'index unique partiel bloque 2 épingles dans le foyer (UPDATE direct hors RPC)", async () => {
+    await insertNoteA();
+    await insertNoteSpouse();
+    // Chaque auteur épingle SA note non lue par UPDATE direct (with check read_* nuls OK).
+    await asUser(FIX.workerA, (client) =>
+      client.query("update public.fridge_notes set is_pinned = true where id = $1", [noteA]),
+    );
+    // La 2ᵉ épingle dans le même foyer viole l'index unique partiel (rempart BD tous chemins).
+    await expect(
+      asUser(FIX.spouseA, (client) =>
+        client.query("update public.fridge_notes set is_pinned = true where id = $1", [noteSpouse]),
+      ),
+    ).rejects.toThrow();
+  });
+
+  it("un membre RÉVOQUÉ ne peut plus épingler ses anciennes notes (RPC raise, parité accusé)", async () => {
+    // La conjointe colle une note, puis on la révoque du foyer A. Elle garde author_id sur
+    // sa note ; le RPC doit refuser (is_household_member faux) malgré l'auteur correct.
+    await asUser(FIX.spouseA, (client) =>
+      client.query(
+        "insert into public.fridge_notes (id, household_id, author_id, body) values ($1, $2, $3, 'Note conjointe')",
+        [noteSpouse, FIX.householdA, FIX.spouseA],
+      ),
+    );
+    await asAdmin((client) =>
+      client.query("delete from public.memberships where household_id = $1 and profile_id = $2", [
+        FIX.householdA,
+        FIX.spouseA,
+      ]),
+    );
+    await expect(epingler(FIX.spouseA, noteSpouse, true)).rejects.toThrow();
+    expect((await estEpinglee(noteSpouse))[0]?.is_pinned).toBe(false);
+  });
+
+  it("épingler ne bumpe PAS updated_at (pas de faux « Édité ») et ne réinitialise PAS l'accusé", async () => {
+    await insertNoteA();
+    expect(await marquerLue(FIX.spouseA)).toBe(true); // la note devient « lue »
+    await epingler(FIX.workerA, noteA, true); // épingle d'une note DÉJÀ lue
+    const rows = await queryAs<{ edite: boolean; read_by: string | null }>(
+      FIX.workerA,
+      "select (updated_at > created_at) as edite, read_by from public.fridge_notes where id = $1",
+      [noteA],
+    );
+    expect(rows[0]?.edite).toBe(false); // updated_at intact
+    expect(rows[0]?.read_by).toBe(FIX.spouseA); // accusé préservé (le RPC ne touche pas read_at)
+  });
 });

@@ -16,6 +16,7 @@ export interface FrigoNote {
   readonly readAt: string | null; // horodatage ISO de lecture par l'autre, ou null
   readonly readBy: string | null;
   readonly parentId: string | null; // null = note de tête ; sinon = réponse à cette note (Sprint 23, fil à un seul niveau)
+  readonly isPinned: boolean; // épinglée en tête du tableau (Sprint 24) ; une seule épingle par foyer, notes de tête seulement
 }
 
 /** Une note de tête et ses réponses (fil à un seul niveau, Sprint 23). */
@@ -39,6 +40,7 @@ export interface FrigoHandlers {
   readonly modifier: (noteId: string, body: string) => Promise<ResultatCreation>;
   readonly supprimer: (noteId: string) => Promise<EtatFrigo>;
   readonly marquerLue: (noteId: string) => Promise<EtatFrigo>;
+  readonly epingler: (noteId: string, pin: boolean) => Promise<EtatFrigo>;
 }
 
 /**
@@ -78,9 +80,10 @@ export function estEditee(note: FrigoNote): boolean {
 
 /**
  * Regroupe une liste plate de notes (chargement + Realtime livrent à plat) en fils :
- * chaque note de tête (parentId null) avec ses réponses. Les notes de tête sortent les
- * plus récentes d'abord (convention du tableau) ; les réponses d'un fil se lisent dans
- * l'ordre CHRONOLOGIQUE (plus anciennes d'abord) — un échange se lit du haut vers le bas.
+ * chaque note de tête (parentId null) avec ses réponses. Les notes de tête sortent
+ * ÉPINGLÉE d'abord (Sprint 24 — une seule par foyer), puis les plus récentes d'abord
+ * (convention du tableau) ; les réponses d'un fil se lisent dans l'ordre CHRONOLOGIQUE
+ * (plus anciennes d'abord) — un échange se lit du haut vers le bas.
  *
  * Robustesse : une réponse orpheline (son parent absent de la liste, p. ex. filtré par la
  * RLS ou pas encore arrivé) est ÉCARTÉE plutôt que rendue sans contexte.
@@ -96,7 +99,11 @@ export function grouperEnFils(notes: readonly FrigoNote[]): FilFrigo[] {
     liste.push(note);
     reponsesParParent.set(note.parentId, liste);
   }
-  const tetesTriees = [...tetes].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  // Tri à deux niveaux : l'épingle passe avant tout (Number(true)=1 > Number(false)=0),
+  // puis récent-d'abord entre notes de même statut d'épingle.
+  const tetesTriees = [...tetes].sort(
+    (a, b) => Number(b.isPinned) - Number(a.isPinned) || b.createdAt.localeCompare(a.createdAt),
+  );
   return tetesTriees.map((parent) => ({
     parent,
     reponses: (reponsesParParent.get(parent.id) ?? []).sort((a, b) =>

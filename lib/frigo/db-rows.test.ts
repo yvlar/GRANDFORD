@@ -13,6 +13,7 @@ const LIGNE = {
   read_at: null,
   read_by: null,
   parent_id: null,
+  is_pinned: false,
 };
 
 describe("parseFrigoRows — frontière BD de la note du frigo", () => {
@@ -41,5 +42,20 @@ describe("parseFrigoRows — frontière BD de la note du frigo", () => {
   it("rejette une ligne sans parent_id (colonne désormais requise)", () => {
     const { parent_id: _omis, ...sansParentId } = LIGNE;
     expect(() => parseFrigoRows([sansParentId])).toThrow();
+  });
+
+  it("mappe is_pinned → isPinned, false par défaut (Sprint 24)", () => {
+    const [note] = parseFrigoRows([LIGNE]);
+    expect(note?.isPinned).toBe(false);
+  });
+
+  it("mappe is_pinned → isPinned d'une note épinglée (Sprint 24)", () => {
+    const [note] = parseFrigoRows([{ ...LIGNE, is_pinned: true }]);
+    expect(note?.isPinned).toBe(true);
+  });
+
+  it("rejette une ligne sans is_pinned (colonne désormais requise)", () => {
+    const { is_pinned: _omis, ...sansIsPinned } = LIGNE;
+    expect(() => parseFrigoRows([sansIsPinned])).toThrow();
   });
 });
