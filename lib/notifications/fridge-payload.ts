@@ -10,8 +10,8 @@
 // la note. Il est donc impossible qu'un texte de note fuie dans une notification, un
 // courriel ou un log construit ici. La notif dit « une note vous attend », jamais son contenu.
 
-/** Événements poussés du frigo : une nouvelle note, une note modifiée, ou « votre note a été lue ». */
-export type FridgeEvent = "nouvelle" | "lue" | "modifiee";
+/** Événements poussés du frigo : nouvelle note, note modifiée, « votre note a été lue », ou réponse. */
+export type FridgeEvent = "nouvelle" | "lue" | "modifiee" | "reponse";
 
 /** Ce que reçoit le service worker (event.data.json()) et le courriel de repli. */
 export interface FridgePayload {
@@ -34,6 +34,7 @@ const CORPS: Record<FridgeEvent, string> = {
   nouvelle: "Une nouvelle note vous attend au frigo.",
   modifiee: "Une note du frigo a été modifiée.",
   lue: "Votre note du frigo a été lue.",
+  reponse: "Une réponse à une note du frigo vous attend.",
 };
 
 /**

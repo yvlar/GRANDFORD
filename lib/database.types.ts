@@ -250,6 +250,7 @@ export type Database = {
           created_at: string
           household_id: string
           id: string
+          parent_id: string | null
           read_at: string | null
           read_by: string | null
           updated_at: string
@@ -260,6 +261,7 @@ export type Database = {
           created_at?: string
           household_id: string
           id?: string
+          parent_id?: string | null
           read_at?: string | null
           read_by?: string | null
           updated_at?: string
@@ -270,6 +272,7 @@ export type Database = {
           created_at?: string
           household_id?: string
           id?: string
+          parent_id?: string | null
           read_at?: string | null
           read_by?: string | null
           updated_at?: string
@@ -280,6 +283,13 @@ export type Database = {
             columns: ["author_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fridge_notes_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "fridge_notes"
             referencedColumns: ["id"]
           },
           {

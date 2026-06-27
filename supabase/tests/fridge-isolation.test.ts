@@ -338,4 +338,114 @@ describe.skipIf(!rlsAvailable)("Isolation RLS de la note du frigo (Postgres rée
     expect(rows).toHaveLength(0);
     expect(await marquerLue(FIX.spouseA)).toBe(false);
   });
+
+  // ── Réponses (Sprint 23) : fil à UN SEUL niveau, héritage de l'isolation de foyer ──────
+  const reponseA = "c2222222-2222-4222-8222-222222222222";
+
+  const insertReponse = (
+    auteur: string,
+    opts: { id?: string; parent?: string; household?: string } = {},
+  ) =>
+    asUser(auteur, (client) =>
+      client.query(
+        "insert into public.fridge_notes (id, household_id, author_id, body, parent_id) values ($1, $2, $3, 'Réponse', $4)",
+        [opts.id ?? reponseA, opts.household ?? FIX.householdA, auteur, opts.parent ?? noteA],
+      ),
+    );
+
+  it("la conjointe répond à la note de l'autre ; les deux membres lisent la réponse", async () => {
+    await insertNoteA();
+    await insertReponse(FIX.spouseA);
+    const rows = await queryAs<{ body: string; parent_id: string }>(
+      FIX.workerA,
+      "select body, parent_id from public.fridge_notes where parent_id = $1",
+      [noteA],
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.parent_id).toBe(noteA);
+  });
+
+  it("un membre d'un autre foyer ne peut PAS répondre à une note du foyer A", async () => {
+    await insertNoteA();
+    // workerB tente une réponse dans le foyer A : la RLS INSERT (with check membre) la refuse.
+    await expect(insertReponse(FIX.workerB, { household: FIX.householdA })).rejects.toThrow();
+  });
+
+  it("un seul niveau : on ne peut pas répondre à une réponse (trigger)", async () => {
+    await insertNoteA();
+    await insertReponse(FIX.spouseA); // réponse de 1er niveau
+    // Tenter de répondre à la réponse (parent = reponseA) → le trigger refuse.
+    await expect(
+      insertReponse(FIX.workerA, {
+        id: "c3333333-3333-4333-8333-333333333333",
+        parent: reponseA,
+      }),
+    ).rejects.toThrow();
+  });
+
+  it("un seul niveau (UPDATE) : une note ayant des réponses ne peut pas devenir une réponse (trigger)", async () => {
+    await insertNoteA();
+    await insertReponse(FIX.spouseA); // noteA a maintenant une réponse
+    // L'auteur de noteA crée une 2e note de tête, puis tente de re-parenter noteA dessous
+    // (Q→noteA→reponseA = deux niveaux). Le trigger doit refuser (sinon reponseA orpheline).
+    const noteQ = "c4444444-4444-4444-8444-444444444444";
+    await asUser(FIX.workerA, (client) =>
+      client.query(
+        "insert into public.fridge_notes (id, household_id, author_id, body) values ($1, $2, $3, 'Autre note')",
+        [noteQ, FIX.householdA, FIX.workerA],
+      ),
+    );
+    await expect(
+      asUser(FIX.workerA, (client) =>
+        client.query("update public.fridge_notes set parent_id = $2 where id = $1", [noteA, noteQ]),
+      ),
+    ).rejects.toThrow();
+  });
+
+  it("une réponse doit appartenir au foyer de sa note parente (trigger, défense en profondeur)", async () => {
+    await insertNoteA();
+    // En admin (exempt de RLS) : on force un foyer ≠ celui du parent → seul le trigger garde.
+    await expect(
+      asAdmin((client) =>
+        client.query(
+          "insert into public.fridge_notes (id, household_id, author_id, body, parent_id) values ($1, $2, $3, 'incohérente', $4)",
+          [reponseA, FIX.householdB, FIX.workerB, noteA],
+        ),
+      ),
+    ).rejects.toThrow();
+  });
+
+  it("retirer une note de tête retire ses réponses (on delete cascade)", async () => {
+    await insertNoteA();
+    await insertReponse(FIX.spouseA);
+    await asUser(FIX.workerA, (client) =>
+      client.query("delete from public.fridge_notes where id = $1", [noteA]),
+    );
+    const reste = await queryAs<{ n: number }>(
+      FIX.workerA,
+      "select count(*)::int as n from public.fridge_notes where id = $1",
+      [reponseA],
+    );
+    expect(reste[0]?.n).toBe(0);
+  });
+
+  it("D1 : le RPC d'accusé REFUSE une réponse (pas d'accusé de lecture sur une réponse)", async () => {
+    await insertNoteA();
+    await insertReponse(FIX.spouseA); // réponse écrite par la conjointe
+    // Le travailleur (non-auteur de la réponse) tente de l'accuser → false (parent_id non nul).
+    const ok = await asUser(FIX.workerA, async (client) => {
+      const res = await client.query<{ ok: boolean }>(
+        "select public.marquer_note_frigo_lue($1) as ok",
+        [reponseA],
+      );
+      return res.rows[0]?.ok;
+    });
+    expect(ok).toBe(false);
+    const rows = await queryAs<{ read_at: string | null }>(
+      FIX.workerA,
+      "select read_at from public.fridge_notes where id = $1",
+      [reponseA],
+    );
+    expect(rows[0]?.read_at).toBeNull();
+  });
 });

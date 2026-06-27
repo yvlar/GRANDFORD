@@ -12,6 +12,7 @@ const LIGNE = {
   updated_at: "2026-06-26T12:05:00Z",
   read_at: null,
   read_by: null,
+  parent_id: null,
 };
 
 describe("parseFrigoRows — frontière BD de la note du frigo", () => {
@@ -24,5 +25,21 @@ describe("parseFrigoRows — frontière BD de la note du frigo", () => {
   it("rejette une ligne sans updated_at (colonne désormais requise)", () => {
     const { updated_at: _omis, ...sansUpdatedAt } = LIGNE;
     expect(() => parseFrigoRows([sansUpdatedAt])).toThrow();
+  });
+
+  it("mappe parent_id → parentId, null sur une note de tête (Sprint 23)", () => {
+    const [note] = parseFrigoRows([LIGNE]);
+    expect(note?.parentId).toBeNull();
+  });
+
+  it("mappe parent_id → parentId d'une réponse (Sprint 23)", () => {
+    const parentId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    const [note] = parseFrigoRows([{ ...LIGNE, parent_id: parentId }]);
+    expect(note?.parentId).toBe(parentId);
+  });
+
+  it("rejette une ligne sans parent_id (colonne désormais requise)", () => {
+    const { parent_id: _omis, ...sansParentId } = LIGNE;
+    expect(() => parseFrigoRows([sansParentId])).toThrow();
   });
 });

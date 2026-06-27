@@ -2,10 +2,11 @@ import {
   creerNoteFrigo,
   marquerNoteFrigoLue,
   modifierNoteFrigo,
+  repondreNoteFrigo,
   supprimerNoteFrigo,
 } from "@/app/frigo/actions";
 import { TableauFrigo } from "@/components/frigo/tableau-frigo";
-import { parseFrigoRows } from "@/lib/frigo/db-rows";
+import { FRIGO_NOTE_COLUMNS, parseFrigoRows } from "@/lib/frigo/db-rows";
 import type { FrigoHandlers } from "@/lib/frigo/types";
 import { fr } from "@/lib/i18n/fr";
 import { createClient } from "@/lib/supabase/server";
@@ -50,7 +51,7 @@ export default async function FrigoPage() {
   const [notesRes, membresRes] = await Promise.all([
     supabase
       .from("fridge_notes")
-      .select("id, author_id, body, read_at, read_by, created_at, updated_at")
+      .select(FRIGO_NOTE_COLUMNS)
       .eq("household_id", householdId)
       .order("created_at", { ascending: false }),
     supabase
@@ -75,6 +76,7 @@ export default async function FrigoPage() {
 
   const handlers: FrigoHandlers = {
     creer: creerNoteFrigo.bind(null, householdId),
+    repondre: repondreNoteFrigo,
     modifier: modifierNoteFrigo,
     supprimer: supprimerNoteFrigo,
     marquerLue: marquerNoteFrigoLue,
