@@ -158,10 +158,13 @@ export default async function AccueilPage({
       .order("on_date"),
     // Note du frigo (Sprint 20) : compteur des notes non lues écrites par l'AUTRE membre
     // (head:true → count seul, aucune ligne ni body chargé). Alimente la pastille d'accueil.
+    // Sprint 23 : on ne compte QUE les notes de tête (parent_id is null) — une réponse n'a
+    // pas d'accusé (D1), elle resterait éternellement « non lue » et figerait la pastille.
     supabase
       .from("fridge_notes")
       .select("id", { count: "exact", head: true })
       .eq("household_id", householdId)
+      .is("parent_id", null)
       .is("read_at", null)
       .neq("author_id", user.id),
     fetchCycleTemplateWithFallback(supabase, householdId),

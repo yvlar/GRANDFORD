@@ -2,6 +2,7 @@
 // Déclenchée par la server action (app/frigo/actions.ts) après une écriture réussie :
 //   • event "nouvelle" → notifie l'AUTRE membre qu'une note l'attend ;
 //   • event "modifiee" → notifie l'AUTRE membre qu'une note déjà lue a changé de contenu ;
+//   • event "reponse"  → notifie l'AUTRE membre qu'une réponse l'attend (Sprint 23) ;
 //   • event "lue"      → notifie l'AUTEUR que sa note a été lue (accusé de lecture).
 //
 // Contexte d'exécution : Deno (npm:), HORS du tsc racine (tsconfig.json l'exclut).
@@ -52,7 +53,10 @@ Deno.serve(async (req) => {
   }
   const noteId = typeof corps.noteId === "string" ? corps.noteId : null;
   const event =
-    corps.event === "nouvelle" || corps.event === "lue" || corps.event === "modifiee"
+    corps.event === "nouvelle" ||
+    corps.event === "lue" ||
+    corps.event === "modifiee" ||
+    corps.event === "reponse"
       ? corps.event
       : null;
   if (!noteId || !event) {
@@ -88,8 +92,9 @@ Deno.serve(async (req) => {
 });
 
 /**
- * « lue » → l'auteur lui-même ; « nouvelle »/« modifiée » → l'AUTRE membre du foyer (≠ auteur).
- * Un foyer est un couple : pour ces deux derniers, il y a au plus un autre membre.
+ * « lue » → l'auteur lui-même ; « nouvelle »/« modifiée »/« reponse » → l'AUTRE membre du
+ * foyer (≠ auteur). Un foyer est un couple : pour ces trois derniers, il y a au plus un
+ * autre membre (le destinataire de la réponse = celui qui n'a PAS écrit la réponse).
  */
 async function resolveDestinataire(
   supabase: ReturnType<typeof createClient>,
