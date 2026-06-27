@@ -23,6 +23,7 @@ const SEED: FrigoNote[] = [
     updatedAt: "2026-06-26T11:00:00Z", // jamais éditée → updatedAt == createdAt (pas de badge « Édité »)
     readAt: null, // non lue par moi → badge « Nouveau » (effacé par l'auto-marquage)
     readBy: null,
+    parentId: null, // note de tête
   },
   {
     id: "a0000000-0000-4000-8000-000000000002",
@@ -32,6 +33,7 @@ const SEED: FrigoNote[] = [
     updatedAt: "2026-06-26T10:00:00Z", // LUE mais jamais éditée → « Lu ✓ » SANS « Édité » (preuve : lire ≠ éditer)
     readAt: "2026-06-26T10:30:00Z", // ma note, lue par l'autre → « Lu ✓ »
     readBy: AUTRE,
+    parentId: null,
   },
   {
     id: "a0000000-0000-4000-8000-000000000003",
@@ -41,6 +43,19 @@ const SEED: FrigoNote[] = [
     updatedAt: "2026-06-26T09:00:00Z", // jamais éditée
     readAt: null, // ma note, pas encore lue → « Pas encore lu »
     readBy: null,
+    parentId: null,
+  },
+  {
+    // Réponse de l'AUTRE à ma note 0003 (fil à un seul niveau, Sprint 23) : indentée sous
+    // sa note de tête, SANS accusé de lecture (D1), SANS bouton « Répondre » (un seul niveau).
+    id: "a0000000-0000-4000-8000-000000000005",
+    authorId: AUTRE,
+    body: "Oui, je confirme avec eux !",
+    createdAt: "2026-06-26T09:15:00Z",
+    updatedAt: "2026-06-26T09:15:00Z",
+    readAt: null,
+    readBy: null,
+    parentId: "a0000000-0000-4000-8000-000000000003",
   },
   {
     id: "a0000000-0000-4000-8000-000000000004",
@@ -50,6 +65,7 @@ const SEED: FrigoNote[] = [
     updatedAt: "2026-06-26T11:30:00Z", // ÉDITÉE (corps modifié après création) → badge « Édité » ; l'accusé a été réinitialisé (Sprint 21)
     readAt: null,
     readBy: null,
+    parentId: null,
   },
 ];
 
@@ -78,6 +94,26 @@ export function DemoFrigo() {
             updatedAt: maintenant, // note neuve → pas de badge « Édité »
             readAt: null,
             readBy: null,
+            parentId: null,
+          },
+        };
+      },
+      // Réponse (Sprint 23) : nouvelle note rattachée au parent (parentId) → s'affiche
+      // indentée sous sa note de tête, sans accusé (D1).
+      repondre: async (parentId: string, body: string) => {
+        const maintenant = new Date().toISOString();
+        return {
+          ok: true,
+          erreur: null,
+          note: {
+            id: crypto.randomUUID(),
+            authorId: MOI,
+            body,
+            createdAt: maintenant,
+            updatedAt: maintenant,
+            readAt: null,
+            readBy: null,
+            parentId,
           },
         };
       },
@@ -96,6 +132,7 @@ export function DemoFrigo() {
           updatedAt: new Date().toISOString(),
           readAt: null,
           readBy: null,
+          parentId: null,
         },
       }),
       supprimer: async () => ({ ok: true, erreur: null }),

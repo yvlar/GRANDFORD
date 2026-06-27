@@ -15,6 +15,13 @@ export interface FrigoNote {
   readonly updatedAt: string; // horodatage ISO ; n'avance au-delà de createdAt QUE si le corps a été édité (trigger set_fridge_notes_updated, Sprint 22)
   readonly readAt: string | null; // horodatage ISO de lecture par l'autre, ou null
   readonly readBy: string | null;
+  readonly parentId: string | null; // null = note de tête ; sinon = réponse à cette note (Sprint 23, fil à un seul niveau)
+}
+
+/** Une note de tête et ses réponses (fil à un seul niveau, Sprint 23). */
+export interface FilFrigo {
+  readonly parent: FrigoNote;
+  readonly reponses: readonly FrigoNote[];
 }
 
 /** Statut d'accusé de lecture d'une note, du point de vue de `currentUserId`. */
@@ -28,6 +35,7 @@ export type ResultatCreation = EtatFrigo & { note: FrigoNote | null };
 
 export interface FrigoHandlers {
   readonly creer: (body: string) => Promise<ResultatCreation>;
+  readonly repondre: (parentId: string, body: string) => Promise<ResultatCreation>;
   readonly modifier: (noteId: string, body: string) => Promise<ResultatCreation>;
   readonly supprimer: (noteId: string) => Promise<EtatFrigo>;
   readonly marquerLue: (noteId: string) => Promise<EtatFrigo>;
@@ -38,7 +46,9 @@ export interface FrigoHandlers {
  * a lu). Sur la note de quelqu'un d'autre, l'accusé ne me regarde pas → « non-applicable ».
  */
 export function statutLecture(note: FrigoNote, currentUserId: string): StatutLecture {
-  if (note.authorId !== currentUserId) {
+  // D1 (Sprint 23) : une réponse n'a PAS d'accusé de lecture — la règle vit ici (helper),
+  // pas seulement dans la vue, pour que TOUT consommateur (badge, auto-marquage) la respecte.
+  if (note.parentId !== null || note.authorId !== currentUserId) {
     return "non-applicable";
   }
   return note.readAt !== null ? "lu" : "non-lu";
@@ -50,7 +60,9 @@ export function statutLecture(note: FrigoNote, currentUserId: string): StatutLec
  * compte SA pastille directement en SQL (count exact, app/page.tsx) pour ne charger aucun corps.
  */
 export function estNouvellePourMoi(note: FrigoNote, currentUserId: string): boolean {
-  return note.authorId !== currentUserId && note.readAt === null;
+  // D1 (Sprint 23) : une réponse ne porte jamais « Nouveau » ni d'auto-accusé (pas de RPC
+  // inutile sur les réponses) — on exclut donc les réponses (parentId non nul) à la source.
+  return note.parentId === null && note.authorId !== currentUserId && note.readAt === null;
 }
 
 /**
@@ -62,4 +74,33 @@ export function estNouvellePourMoi(note: FrigoNote, currentUserId: string): bool
  */
 export function estEditee(note: FrigoNote): boolean {
   return new Date(note.updatedAt).getTime() > new Date(note.createdAt).getTime();
+}
+
+/**
+ * Regroupe une liste plate de notes (chargement + Realtime livrent à plat) en fils :
+ * chaque note de tête (parentId null) avec ses réponses. Les notes de tête sortent les
+ * plus récentes d'abord (convention du tableau) ; les réponses d'un fil se lisent dans
+ * l'ordre CHRONOLOGIQUE (plus anciennes d'abord) — un échange se lit du haut vers le bas.
+ *
+ * Robustesse : une réponse orpheline (son parent absent de la liste, p. ex. filtré par la
+ * RLS ou pas encore arrivé) est ÉCARTÉE plutôt que rendue sans contexte.
+ */
+export function grouperEnFils(notes: readonly FrigoNote[]): FilFrigo[] {
+  const tetes = notes.filter((n) => n.parentId === null);
+  const reponsesParParent = new Map<string, FrigoNote[]>();
+  for (const note of notes) {
+    if (note.parentId === null) {
+      continue;
+    }
+    const liste = reponsesParParent.get(note.parentId) ?? [];
+    liste.push(note);
+    reponsesParParent.set(note.parentId, liste);
+  }
+  const tetesTriees = [...tetes].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return tetesTriees.map((parent) => ({
+    parent,
+    reponses: (reponsesParParent.get(parent.id) ?? []).sort((a, b) =>
+      a.createdAt.localeCompare(b.createdAt),
+    ),
+  }));
 }

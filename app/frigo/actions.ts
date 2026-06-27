@@ -1,6 +1,6 @@
 "use server";
 
-import { parseFrigoRows } from "@/lib/frigo/db-rows";
+import { FRIGO_NOTE_COLUMNS, parseFrigoRows } from "@/lib/frigo/db-rows";
 import type { EtatFrigo, ResultatCreation } from "@/lib/frigo/types";
 import { fr } from "@/lib/i18n/fr";
 import { declencherPushFrigo } from "@/lib/notifications/notify-fridge-client";
@@ -35,7 +35,7 @@ export async function creerNoteFrigo(householdId: string, body: string): Promise
   const { data, error } = await supabase
     .from("fridge_notes")
     .insert({ household_id: hid.data, author_id: user.id, body: corps.data })
-    .select("id, author_id, body, read_at, read_by, created_at, updated_at")
+    .select(FRIGO_NOTE_COLUMNS)
     .single();
 
   if (error || !data) {
@@ -49,6 +49,56 @@ export async function creerNoteFrigo(householdId: string, body: string): Promise
   revalidatePath("/frigo");
   revalidatePath("/"); // la pastille « non lues » de l'accueil
   // parseFrigoRows = la seule frontière BD→métier (réutilisée par la page et le Realtime).
+  return { ok: true, erreur: null, note: parseFrigoRows([data])[0] ?? null };
+}
+
+export async function repondreNoteFrigo(parentId: string, body: string): Promise<ResultatCreation> {
+  const pid = uuidSchema.safeParse(parentId);
+  const corps = frigoBodySchema.safeParse(body);
+  if (!pid.success || !corps.success) {
+    return { ok: false, erreur: fr.frigo.erreurReponse, note: null };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect("/connexion");
+  }
+
+  // On NE FAIT PAS confiance au client pour le foyer : on le dérive de la note parente,
+  // lue sous RLS (un non-membre ne voit pas la ligne → maybeSingle null → échec propre).
+  // Le trigger BD enforce_fridge_note_single_level vérifie en plus que le parent est bien
+  // une note de tête et du même foyer (un seul niveau).
+  const { data: parent } = await supabase
+    .from("fridge_notes")
+    .select("household_id")
+    .eq("id", pid.data)
+    .maybeSingle();
+  if (!parent) {
+    return { ok: false, erreur: fr.frigo.erreurReponse, note: null };
+  }
+
+  const { data, error } = await supabase
+    .from("fridge_notes")
+    .insert({
+      household_id: parent.household_id,
+      author_id: user.id,
+      body: corps.data,
+      parent_id: pid.data,
+    })
+    .select(FRIGO_NOTE_COLUMNS)
+    .single();
+
+  if (error || !data) {
+    return { ok: false, erreur: fr.frigo.erreurReponse, note: null };
+  }
+
+  // Best-effort : notifie l'AUTRE membre qu'une réponse l'attend (event "reponse").
+  await declencherPushFrigo(data.id, "reponse");
+
+  revalidatePath("/frigo");
   return { ok: true, erreur: null, note: parseFrigoRows([data])[0] ?? null };
 }
 
@@ -86,7 +136,7 @@ export async function modifierNoteFrigo(noteId: string, body: string): Promise<R
     .update({ body: corps.data, read_at: null, read_by: null })
     .eq("id", id.data)
     .eq("author_id", user.id)
-    .select("id, author_id, body, read_at, read_by, created_at, updated_at");
+    .select(FRIGO_NOTE_COLUMNS);
 
   if (error || data.length === 0) {
     return { ok: false, erreur: fr.frigo.erreurModification, note: null };
