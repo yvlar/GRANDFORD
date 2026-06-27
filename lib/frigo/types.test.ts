@@ -1,4 +1,4 @@
-import { type FrigoNote, estNouvellePourMoi, statutLecture } from "@/lib/frigo/types";
+import { type FrigoNote, estEditee, estNouvellePourMoi, statutLecture } from "@/lib/frigo/types";
 import { describe, expect, it } from "vitest";
 
 // Helpers PURS de la note du frigo (Sprint 20) : statut d'accusé et « nouvelle pour moi ».
@@ -13,6 +13,7 @@ function note(partiel: Partial<FrigoNote>): FrigoNote {
     authorId: MOI,
     body: "Acheter du lait",
     createdAt: "2026-06-26T12:00:00Z",
+    updatedAt: "2026-06-26T12:00:00Z", // défaut : jamais éditée (== createdAt)
     readAt: null,
     readBy: null,
     ...partiel,
@@ -51,5 +52,28 @@ describe("estNouvellePourMoi — note de l'autre que je n'ai pas lue", () => {
 
   it("ma propre note n'est jamais « nouvelle pour moi »", () => {
     expect(estNouvellePourMoi(note({ authorId: MOI, readAt: null }), MOI)).toBe(false);
+  });
+});
+
+describe("estEditee — le corps a-t-il été modifié après création ?", () => {
+  it("une note jamais éditée (updatedAt == createdAt) n'est pas éditée", () => {
+    expect(
+      estEditee(note({ createdAt: "2026-06-26T12:00:00Z", updatedAt: "2026-06-26T12:00:00Z" })),
+    ).toBe(false);
+  });
+
+  it("une note dont le corps a été modifié (updatedAt > createdAt) est éditée", () => {
+    expect(
+      estEditee(note({ createdAt: "2026-06-26T12:00:00Z", updatedAt: "2026-06-26T12:05:00Z" })),
+    ).toBe(true);
+  });
+
+  it("la comparaison se fait en temps (epoch), robuste aux offsets de fuseau équivalents", () => {
+    // Même instant exprimé en UTC et en heure de l'Est (−04:00) → PAS une édition.
+    expect(
+      estEditee(
+        note({ createdAt: "2026-06-26T12:00:00Z", updatedAt: "2026-06-26T08:00:00-04:00" }),
+      ),
+    ).toBe(false);
   });
 });
