@@ -308,6 +308,29 @@ export function TableauFrigo({
     });
   };
 
+  // Épingle/détache une note de tête (auteur seul ; une seule épingle par foyer). Le RPC
+  // tient l'invariant côté BD ; ici on reflète l'effet OPTIMISTE : la cible passe épinglée
+  // et, si on épingle, toute autre note se détache localement (le tri épingle-d'abord de
+  // grouperEnFils la fait remonter ; Realtime redélivrera la transition aux deux membres).
+  const basculerEpingle = (noteId: string, pin: boolean) => {
+    if (enCours) {
+      return;
+    }
+    startTransition(async () => {
+      const etat = await handlers.epingler(noteId, pin);
+      if (etat.ok) {
+        setErreur(null);
+        setNotes((courantes) =>
+          courantes.map((n) =>
+            n.id === noteId ? { ...n, isPinned: pin } : pin ? { ...n, isPinned: false } : n,
+          ),
+        );
+      } else {
+        setErreur(etat.erreur);
+      }
+    });
+  };
+
   // Regroupement en fils, mémoïsé : ne recalcule que quand les notes changent (pas à chaque
   // frappe dans un brouillon ni à chaque bascule d'UI).
   const fils = useMemo(() => grouperEnFils(notes), [notes]);
@@ -326,6 +349,10 @@ export function TableauFrigo({
       enCours={enCours}
       // Répondre : seulement sur une note de tête (fil à un seul niveau). Ouvert aux DEUX membres.
       onRepondre={note.parentId === null ? () => demanderReponse(note.id) : undefined}
+      // Épingler/détacher : note de tête seulement ; CarteNote ne l'affiche que sur MES notes.
+      onBasculerEpingle={
+        note.parentId === null ? () => basculerEpingle(note.id, !note.isPinned) : undefined
+      }
       onDemanderRetrait={() => {
         setEditId(null);
         setReplyToId(null); // modes exclusifs : la confirmation de retrait ferme un composeur ouvert
@@ -496,6 +523,8 @@ interface CarteNoteProps {
   readonly enCours: boolean;
   /** Ouvre la réponse à cette note ; absent sur une réponse (fil à un seul niveau). */
   readonly onRepondre?: () => void;
+  /** Bascule l'épingle de cette note ; absent sur une réponse (épingle = note de tête seulement). */
+  readonly onBasculerEpingle?: () => void;
   readonly onDemanderRetrait: () => void;
   readonly onAnnuler: () => void;
   readonly onConfirmerRetrait: () => void;
@@ -515,6 +544,7 @@ function CarteNote({
   editCorps,
   enCours,
   onRepondre,
+  onBasculerEpingle,
   onDemanderRetrait,
   onAnnuler,
   onConfirmerRetrait,
@@ -564,6 +594,13 @@ function CarteNote({
       {nouvelle ? (
         <span className="inline-flex w-fit items-center gap-1 rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-semibold text-white">
           ✦ {t.nouveau}
+        </span>
+      ) : null}
+
+      {/* Badge « Épinglée » : visible des DEUX membres (le bouton bascule, lui, reste à l'auteur). */}
+      {note.isPinned ? (
+        <span className="inline-flex w-fit items-center gap-1 rounded-full bg-amber-700 px-2 py-0.5 text-xs font-semibold text-white">
+          📌 {t.epinglee}
         </span>
       ) : null}
 
@@ -664,6 +701,17 @@ function CarteNote({
             </>
           ) : (
             <>
+              {/* Épingler/détacher : note de tête seulement (onBasculerEpingle absent sur réponse). */}
+              {onBasculerEpingle ? (
+                <button
+                  type="button"
+                  onClick={onBasculerEpingle}
+                  aria-label={`${note.isPinned ? t.detacher : t.epingler} : ${note.body.slice(0, 30)}`}
+                  className="inline-flex min-h-11 items-center gap-1 rounded-lg px-3 text-xs font-medium text-neutral-700 hover:bg-amber-200"
+                >
+                  📌 {note.isPinned ? t.detacher : t.epingler}
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={onDemanderEdition}

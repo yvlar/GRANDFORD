@@ -23,6 +23,7 @@ function note(partiel: Partial<FrigoNote>): FrigoNote {
     readAt: null,
     readBy: null,
     parentId: null, // défaut : note de tête
+    isPinned: false, // défaut : non épinglée
     ...partiel,
   };
 }
@@ -134,5 +135,22 @@ describe("grouperEnFils — regroupe les notes plates en fils (Sprint 23)", () =
       "2026-06-26T09:30:00Z",
     );
     expect(grouperEnFils([orpheline])).toHaveLength(0);
+  });
+
+  it("une note épinglée passe avant une note de tête plus récente non épinglée (Sprint 24)", () => {
+    const recente = tete("aaaaaaaa-aaaa-4aaa-8aaa-000000000001", "2026-06-26T10:00:00Z");
+    const epinglee = {
+      ...tete("aaaaaaaa-aaaa-4aaa-8aaa-000000000002", "2026-06-26T08:00:00Z"),
+      isPinned: true,
+    };
+    const fils = grouperEnFils([recente, epinglee]);
+    expect(fils.map((f) => f.parent.id)).toEqual([epinglee.id, recente.id]);
+  });
+
+  it("entre notes de même statut d'épingle, le tri reste récent-d'abord (Sprint 24)", () => {
+    const ancienne = tete("aaaaaaaa-aaaa-4aaa-8aaa-000000000001", "2026-06-26T08:00:00Z");
+    const recente = tete("aaaaaaaa-aaaa-4aaa-8aaa-000000000002", "2026-06-26T10:00:00Z");
+    const fils = grouperEnFils([ancienne, recente]);
+    expect(fils.map((f) => f.parent.id)).toEqual([recente.id, ancienne.id]);
   });
 });

@@ -250,6 +250,7 @@ export type Database = {
           created_at: string
           household_id: string
           id: string
+          is_pinned: boolean
           parent_id: string | null
           read_at: string | null
           read_by: string | null
@@ -261,6 +262,7 @@ export type Database = {
           created_at?: string
           household_id: string
           id?: string
+          is_pinned?: boolean
           parent_id?: string | null
           read_at?: string | null
           read_by?: string | null
@@ -272,6 +274,7 @@ export type Database = {
           created_at?: string
           household_id?: string
           id?: string
+          is_pinned?: boolean
           parent_id?: string | null
           read_at?: string | null
           read_by?: string | null
@@ -869,6 +872,7 @@ export type Database = {
         Args: { p_name: string }
         Returns: string
       }
+      epingler_note_frigo: { Args: { note_id: string; pin: boolean }; Returns: undefined }
       is_household_member: { Args: { hid: string }; Returns: boolean }
       is_household_owner: { Args: { hid: string }; Returns: boolean }
       marquer_note_frigo_lue: { Args: { note_id: string }; Returns: boolean }
