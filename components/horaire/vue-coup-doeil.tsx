@@ -27,7 +27,7 @@ import type {
   SleepWindow,
 } from "@/lib/schedule/types";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 // Vue « coup d'œil » (FR-2/FR-3) — composant CLIENT par nécessité : le moteur pur
 // tourne dans le navigateur, l'horaire ne dépend donc JAMAIS du réseau (NFR-4).
@@ -81,6 +81,38 @@ const FORMAT_LETTRE_JOUR = new Intl.DateTimeFormat("fr-CA", {
   weekday: "narrow",
   timeZone: "UTC",
 });
+
+/**
+ * Tuile de navigation d'accueil (NFR-12) : grande cible contrastée plutôt qu'un lien
+ * textuel — pictogramme + libellé court, reconnaissance > rappel. `children` porte un
+ * éventuel ornement (ex. pastille de non-lues) collé au libellé.
+ */
+function TuileNav({
+  href,
+  icone,
+  libelle,
+  children,
+}: {
+  readonly href: string;
+  readonly icone: string;
+  readonly libelle: string;
+  readonly children?: ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex min-h-16 flex-col justify-center gap-1 rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3 text-neutral-100 transition-colors hover:border-neutral-700 hover:bg-neutral-800"
+    >
+      <span className="text-2xl" aria-hidden="true">
+        {icone}
+      </span>
+      <span className="flex items-center gap-2 text-sm font-semibold">
+        {libelle}
+        {children}
+      </span>
+    </Link>
+  );
+}
 
 /** Point « écart à l'horaire » d'une case de la grille (même rendu pour les deux rôles). */
 function MarqueurEcart() {
@@ -321,34 +353,26 @@ export function VueCoupDoeil({
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-lg flex-col gap-6 bg-neutral-950 p-4 text-neutral-50">
-      <header className="flex items-start justify-between">
-        <div>
-          <p className="text-sm font-bold tracking-widest text-neutral-400">GRANDFORD</p>
-          {workerName ? <p className="text-lg font-semibold">{t.horaireDe(workerName)}</p> : null}
-        </div>
-        <nav className="flex flex-col items-end gap-1">
-          <Link
-            href="/frigo"
-            className="inline-flex min-h-11 items-center gap-2 text-sm text-neutral-400 underline hover:text-neutral-200"
-          >
-            📌 {fr.frigo.lien}
-            {frigoNonLues > 0 ? (
-              <span
-                aria-label={`${frigoNonLues} ${fr.frigo.pastilleAria}`}
-                className="inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-emerald-600 px-1.5 text-xs font-bold text-white"
-              >
-                {frigoNonLues}
-              </span>
-            ) : null}
-          </Link>
-          <Link
-            href="/foyer"
-            className="inline-flex min-h-11 items-center text-sm text-neutral-400 underline hover:text-neutral-200"
-          >
-            {t.monFoyer}
-          </Link>
-        </nav>
+      <header>
+        <p className="text-sm font-bold tracking-widest text-neutral-400">GRANDFORD</p>
+        {workerName ? <p className="text-lg font-semibold">{t.horaireDe(workerName)}</p> : null}
       </header>
+
+      {/* Navigation principale (NFR-12) : deux grandes tuiles contrastées plutôt que des
+          liens textuels discrets — Mon foyer à gauche, Note du frigo à droite. */}
+      <nav aria-label={t.navAria} className="grid grid-cols-2 gap-3">
+        <TuileNav href="/foyer" icone="🏠" libelle={t.monFoyer} />
+        <TuileNav href="/frigo" icone="📌" libelle={fr.frigo.lien}>
+          {frigoNonLues > 0 ? (
+            <span
+              aria-label={`${frigoNonLues} ${fr.frigo.pastilleAria}`}
+              className="inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-emerald-600 px-1.5 text-xs font-bold text-white"
+            >
+              {frigoNonLues}
+            </span>
+          ) : null}
+        </TuileNav>
+      </nav>
 
       {/* Pastille « Aujourd'hui » : l'état du jour, lisible en < 2 s (NFR-1). */}
       <section
