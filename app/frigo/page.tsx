@@ -1,5 +1,6 @@
 import {
   creerNoteFrigo,
+  epinglerNoteFrigo,
   marquerNoteFrigoLue,
   modifierNoteFrigo,
   repondreNoteFrigo,
@@ -80,6 +81,7 @@ export default async function FrigoPage() {
     modifier: modifierNoteFrigo,
     supprimer: supprimerNoteFrigo,
     marquerLue: marquerNoteFrigoLue,
+    epingler: epinglerNoteFrigo,
   };
 
   return (

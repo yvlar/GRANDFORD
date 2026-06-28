@@ -210,6 +210,9 @@ export const fr = {
     repondre: "Répondre",
     reponsePlaceholder: "Écrire une réponse…",
     reponsesAria: "réponses",
+    epingler: "Épingler",
+    detacher: "Détacher",
+    epinglee: "Épinglée",
     vide: "Aucune note au frigo pour l'instant.",
     parMoi: "Moi",
     lu: "Lu",
@@ -225,9 +228,10 @@ export const fr = {
     erreurModification: "La modification de la note a échoué. Réessayez.",
     erreurSuppression: "Le retrait de la note a échoué. Réessayez.",
     erreurLecture: "Impossible de marquer la note comme lue.",
+    erreurEpinglage: "L'épinglage de la note a échoué. Réessayez.",
     demo: {
       intro:
-        "Démo sans BD : poser une note, l'éditer (l'accusé « Lu ✓ » se réinitialise), répondre à une note (fil à un seul niveau), retrait réservé à l'auteur, badge « Nouveau », accusé « Lu ✓ ».",
+        "Démo sans BD : poser une note, l'éditer (l'accusé « Lu ✓ » se réinitialise), répondre à une note (fil à un seul niveau), épingler une note de tête (une seule par foyer, remonte en haut), retrait réservé à l'auteur, badge « Nouveau », accusé « Lu ✓ ».",
       conjoint: "Conjoint(e)",
     },
   },

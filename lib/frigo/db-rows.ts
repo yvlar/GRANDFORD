@@ -8,7 +8,7 @@ import { z } from "zod";
 /** Colonnes d'une note complète, alignées 1:1 sur `fridgeNoteRowSchema` (frontière unique) :
  * un seul endroit à toucher quand une colonne s'ajoute, jamais de SELECT désynchronisé. */
 export const FRIGO_NOTE_COLUMNS =
-  "id, author_id, body, read_at, read_by, created_at, updated_at, parent_id";
+  "id, author_id, body, read_at, read_by, created_at, updated_at, parent_id, is_pinned";
 
 const fridgeNoteRowSchema = z.object({
   id: z.uuid(),
@@ -19,6 +19,7 @@ const fridgeNoteRowSchema = z.object({
   read_at: z.string().nullable(),
   read_by: z.uuid().nullable(),
   parent_id: z.uuid().nullable(),
+  is_pinned: z.boolean(),
 });
 
 /** Lignes `fridge_notes` → notes consommables par la vue (partagées dans le foyer). */
@@ -34,6 +35,7 @@ export function parseFrigoRows(rows: readonly unknown[]): FrigoNote[] {
       readAt: parsed.read_at,
       readBy: parsed.read_by,
       parentId: parsed.parent_id,
+      isPinned: parsed.is_pinned,
     };
   });
 }

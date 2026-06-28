@@ -184,6 +184,38 @@ export async function marquerNoteFrigoLue(noteId: string): Promise<EtatFrigo> {
   return { ok: true, erreur: null };
 }
 
+export async function epinglerNoteFrigo(noteId: string, pin: boolean): Promise<EtatFrigo> {
+  const id = uuidSchema.safeParse(noteId);
+  const drapeau = z.boolean().safeParse(pin);
+  if (!id.success || !drapeau.success) {
+    return { ok: false, erreur: fr.frigo.erreurEpinglage };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect("/connexion");
+  }
+
+  // Le RPC (SECURITY DEFINER) vérifie « auteur seul » et tient l'invariant « une épingle par
+  // foyer » (il détache l'épingle existante avant de poser la nouvelle). Il ne touche ni body
+  // ni read_at → pas de faux « Édité », pas de reset d'accusé. Pas de push (action de tri).
+  const { error } = await supabase.rpc("epingler_note_frigo", {
+    note_id: id.data,
+    pin: drapeau.data,
+  });
+  if (error) {
+    return { ok: false, erreur: fr.frigo.erreurEpinglage };
+  }
+
+  // Realtime délivre déjà le changement d'épingle aux deux membres ; on revalide pour le
+  // rendu serveur (et le tri épingle-d'abord) au prochain chargement.
+  revalidatePath("/frigo");
+  return { ok: true, erreur: null };
+}
+
 export async function supprimerNoteFrigo(noteId: string): Promise<EtatFrigo> {
   const id = uuidSchema.safeParse(noteId);
   if (!id.success) {

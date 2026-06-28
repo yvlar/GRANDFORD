@@ -24,6 +24,7 @@ const SEED: FrigoNote[] = [
     readAt: null, // non lue par moi → badge « Nouveau » (effacé par l'auto-marquage)
     readBy: null,
     parentId: null, // note de tête
+    isPinned: true, // ÉPINGLÉE par l'AUTRE → badge « 📌 Épinglée » visible, mais AUCUN bouton bascule (auteur seul)
   },
   {
     id: "a0000000-0000-4000-8000-000000000002",
@@ -34,6 +35,7 @@ const SEED: FrigoNote[] = [
     readAt: "2026-06-26T10:30:00Z", // ma note, lue par l'autre → « Lu ✓ »
     readBy: AUTRE,
     parentId: null,
+    isPinned: false,
   },
   {
     id: "a0000000-0000-4000-8000-000000000003",
@@ -44,6 +46,7 @@ const SEED: FrigoNote[] = [
     readAt: null, // ma note, pas encore lue → « Pas encore lu »
     readBy: null,
     parentId: null,
+    isPinned: false,
   },
   {
     // Réponse de l'AUTRE à ma note 0003 (fil à un seul niveau, Sprint 23) : indentée sous
@@ -56,6 +59,7 @@ const SEED: FrigoNote[] = [
     readAt: null,
     readBy: null,
     parentId: "a0000000-0000-4000-8000-000000000003",
+    isPinned: false, // une réponse n'est jamais épinglable (pas de bouton)
   },
   {
     id: "a0000000-0000-4000-8000-000000000004",
@@ -66,6 +70,7 @@ const SEED: FrigoNote[] = [
     readAt: null,
     readBy: null,
     parentId: null,
+    isPinned: false,
   },
 ];
 
@@ -95,6 +100,7 @@ export function DemoFrigo() {
             readAt: null,
             readBy: null,
             parentId: null,
+            isPinned: false,
           },
         };
       },
@@ -114,6 +120,7 @@ export function DemoFrigo() {
             readAt: null,
             readBy: null,
             parentId,
+            isPinned: false,
           },
         };
       },
@@ -133,10 +140,14 @@ export function DemoFrigo() {
           readAt: null,
           readBy: null,
           parentId: null,
+          isPinned: false,
         },
       }),
       supprimer: async () => ({ ok: true, erreur: null }),
       marquerLue: async () => ({ ok: true, erreur: null }),
+      // Épingle : TableauFrigo applique l'effet optimiste (une seule épingle par foyer) — on
+      // renvoie juste un succès, comme les autres handlers démo.
+      epingler: async () => ({ ok: true, erreur: null }),
     }),
     [],
   );
