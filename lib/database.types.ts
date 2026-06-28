@@ -311,6 +311,113 @@ export type Database = {
           },
         ]
       }
+      grocery_items: {
+        Row: {
+          author_id: string
+          checked_at: string | null
+          checked_by: string | null
+          created_at: string
+          household_id: string
+          id: string
+          is_checked: boolean
+          label: string
+          list_id: string
+        }
+        Insert: {
+          author_id: string
+          checked_at?: string | null
+          checked_by?: string | null
+          created_at?: string
+          household_id: string
+          id?: string
+          is_checked?: boolean
+          label: string
+          list_id: string
+        }
+        Update: {
+          author_id?: string
+          checked_at?: string | null
+          checked_by?: string | null
+          created_at?: string
+          household_id?: string
+          id?: string
+          is_checked?: boolean
+          label?: string
+          list_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grocery_items_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grocery_items_checked_by_fkey"
+            columns: ["checked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grocery_items_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grocery_items_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "grocery_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      grocery_lists: {
+        Row: {
+          author_id: string
+          created_at: string
+          household_id: string
+          id: string
+          last_check_notified_at: string | null
+          title: string
+        }
+        Insert: {
+          author_id: string
+          created_at?: string
+          household_id: string
+          id?: string
+          last_check_notified_at?: string | null
+          title: string
+        }
+        Update: {
+          author_id?: string
+          created_at?: string
+          household_id?: string
+          id?: string
+          last_check_notified_at?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grocery_lists_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grocery_lists_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       households: {
         Row: {
           created_at: string
@@ -858,6 +965,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cocher_element_epicerie: { Args: { checked: boolean; item_id: string }; Returns: boolean }
       create_exception_with_motif: {
         Args: {
           p_effect: string

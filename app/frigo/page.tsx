@@ -1,4 +1,11 @@
 import {
+  ajouterElementEpicerie,
+  cocherElementEpicerie,
+  creerListeEpicerie,
+  retirerElementEpicerie,
+  supprimerListeEpicerie,
+} from "@/app/epicerie/actions";
+import {
   creerNoteFrigo,
   epinglerNoteFrigo,
   marquerNoteFrigoLue,
@@ -6,7 +13,15 @@ import {
   repondreNoteFrigo,
   supprimerNoteFrigo,
 } from "@/app/frigo/actions";
+import { ListesEpicerie } from "@/components/epicerie/listes-epicerie";
 import { TableauFrigo } from "@/components/frigo/tableau-frigo";
+import {
+  GROCERY_ITEM_COLUMNS,
+  GROCERY_LIST_COLUMNS,
+  parseGroceryItemRows,
+  parseGroceryListRows,
+} from "@/lib/epicerie/db-rows";
+import type { EpicerieHandlers } from "@/lib/epicerie/types";
 import { FRIGO_NOTE_COLUMNS, parseFrigoRows } from "@/lib/frigo/db-rows";
 import type { FrigoHandlers } from "@/lib/frigo/types";
 import { fr } from "@/lib/i18n/fr";
@@ -49,7 +64,7 @@ export default async function FrigoPage() {
   }
   const householdId = membershipRes.data.household_id;
 
-  const [notesRes, membresRes] = await Promise.all([
+  const [notesRes, membresRes, listesRes, itemsRes] = await Promise.all([
     supabase
       .from("fridge_notes")
       .select(FRIGO_NOTE_COLUMNS)
@@ -59,12 +74,28 @@ export default async function FrigoPage() {
       .from("memberships")
       .select("profile_id, profiles(full_name)")
       .eq("household_id", householdId),
+    supabase
+      .from("grocery_lists")
+      .select(GROCERY_LIST_COLUMNS)
+      .eq("household_id", householdId)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("grocery_items")
+      .select(GROCERY_ITEM_COLUMNS)
+      .eq("household_id", householdId)
+      .order("created_at", { ascending: true }),
   ]);
   if (notesRes.error) {
     throw notesRes.error;
   }
   if (membresRes.error) {
     throw membresRes.error;
+  }
+  if (listesRes.error) {
+    throw listesRes.error;
+  }
+  if (itemsRes.error) {
+    throw itemsRes.error;
   }
 
   const authorNames: Record<string, string> = {};
@@ -84,8 +115,16 @@ export default async function FrigoPage() {
     epingler: epinglerNoteFrigo,
   };
 
+  const epicerieHandlers: EpicerieHandlers = {
+    creerListe: creerListeEpicerie.bind(null, householdId),
+    supprimerListe: supprimerListeEpicerie,
+    ajouterElement: ajouterElementEpicerie,
+    retirerElement: retirerElementEpicerie,
+    cocherElement: cocherElementEpicerie,
+  };
+
   return (
-    <main className="mx-auto flex min-h-dvh max-w-lg flex-col gap-6 bg-neutral-950 p-4 text-neutral-50">
+    <main className="mx-auto flex min-h-dvh max-w-lg flex-col gap-8 bg-neutral-950 p-4 text-neutral-50">
       <Link
         href="/"
         className="inline-flex min-h-11 w-fit items-center text-sm text-neutral-400 underline hover:text-neutral-200"
@@ -98,6 +137,14 @@ export default async function FrigoPage() {
         authorNames={authorNames}
         initialNotes={parseFrigoRows(notesRes.data)}
         handlers={handlers}
+      />
+      <ListesEpicerie
+        householdId={householdId}
+        currentUserId={user.id}
+        authorNames={authorNames}
+        initialLists={parseGroceryListRows(listesRes.data)}
+        initialItems={parseGroceryItemRows(itemsRes.data)}
+        handlers={epicerieHandlers}
       />
     </main>
   );
