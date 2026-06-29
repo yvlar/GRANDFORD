@@ -2,6 +2,7 @@ import { SelecteurEquipe } from "@/components/equipe/selecteur-equipe";
 import { ActiverRappels } from "@/components/notifications/activer-rappels";
 import { FenetreSommeil } from "@/components/sommeil/fenetre-sommeil";
 import { BoutonSoumettre } from "@/components/ui/bouton-soumettre";
+import { CLASSES_TUILE, ContenuTuile, TuileNav } from "@/components/ui/tuile-nav";
 import { GRANDFORD_CYCLE } from "@/lib/engine";
 import { fr } from "@/lib/i18n/fr";
 import { signIcalToken } from "@/lib/ical/generate";
@@ -18,7 +19,6 @@ import { GABARITS_PREDEFINIS } from "@/lib/schedule/predefined-templates";
 import { defaultSleepWindow } from "@/lib/schedule/status";
 import { createClient } from "@/lib/supabase/server";
 import { equipeSchema } from "@/lib/validation";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   annulerInvitation,
@@ -200,24 +200,20 @@ export default async function FoyerPage({
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-lg flex-col gap-6 bg-neutral-950 p-4 text-neutral-50 sm:p-6">
-      {/* Retour vers la vue « coup d'œil » (l'accueil = l'horaire) : sans ce lien, un
-          nouveau membre arrivé sur /foyer après l'onboarding n'a aucun chemin vers son horaire. */}
-      <Link
-        href="/"
-        className="inline-flex min-h-11 items-center gap-1 self-start text-sm font-semibold text-emerald-400 hover:text-emerald-300"
-      >
-        ← {t.monHoraire}
-      </Link>
-      <header className="flex items-center justify-between gap-3">
-        <h1 className="text-3xl font-bold tracking-tight">{foyer.name}</h1>
-        <form action="/auth/deconnexion" method="post">
-          <button
-            type="submit"
-            className="inline-flex min-h-11 items-center text-sm text-neutral-400 underline hover:text-neutral-200"
-          >
-            {t.seDeconnecter}
+      {/* Navigation (NFR-12) : deux grandes tuiles contrastées plutôt que des liens textuels.
+          Retour vers l'horaire à gauche (sans ce lien, un nouveau membre arrivé sur /foyer après
+          l'onboarding n'a aucun chemin vers son horaire) ; déconnexion à droite — qui reste un
+          <button> dans un <form> POST (une action qui change l'état n'est jamais un GET). */}
+      <nav className="grid grid-cols-2 gap-3">
+        <TuileNav href="/" icone="📅" libelle={t.monHoraire} />
+        <form action="/auth/deconnexion" method="post" className="contents">
+          <button type="submit" className={CLASSES_TUILE}>
+            <ContenuTuile icone="🚪" libelle={t.seDeconnecter} />
           </button>
         </form>
+      </nav>
+      <header>
+        <h1 className="text-3xl font-bold tracking-tight">{foyer.name}</h1>
       </header>
 
       {erreur ? (
