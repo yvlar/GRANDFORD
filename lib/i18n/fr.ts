@@ -38,6 +38,7 @@ export const fr = {
     moisSuivant: "Mois suivant",
     monFoyer: "Mon foyer",
     horaireDe: (nom: string) => `Horaire de ${nom}`,
+    navAria: "Navigation principale",
   },
   capture: {
     saisirEcart: "Saisir un écart",
