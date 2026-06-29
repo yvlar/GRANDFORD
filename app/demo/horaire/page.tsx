@@ -74,6 +74,9 @@ const parametresSchema = z.object({
   sommeilActif: z.enum(["0", "1"]).optional(),
   ajustement: ajustementParamSchema.optional(),
   paye: payeParamSchema.optional(),
+  // Compte de notes du frigo non lues (Sprint 20) — démo seulement, pour constater la
+  // pastille des tuiles de navigation (Sprint 26). Défaut 0 sans le param.
+  frigo: z.coerce.number().int().min(0).optional(),
 });
 
 export default async function DemoHorairePage({
@@ -116,6 +119,7 @@ export default async function DemoHorairePage({
       workerName={params.role === "spouse" ? "Démo" : null}
       clockFrozen={params.date !== undefined}
       reglagePaye={params.paye ?? null}
+      frigoNonLues={params.frigo ?? 0}
     />
   );
 }
