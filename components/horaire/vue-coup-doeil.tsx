@@ -2,6 +2,7 @@
 
 import { PanneauCapture } from "@/components/capture/panneau-capture";
 import { PanneauJourConjointe } from "@/components/requetes/panneau-jour-conjointe";
+import { TuileNav } from "@/components/ui/tuile-nav";
 import type { CycleTemplate, Team } from "@/lib/engine";
 import { fr } from "@/lib/i18n/fr";
 import type { CaptureHandlers, OwnException } from "@/lib/schedule/capture";
@@ -27,7 +28,7 @@ import type {
   SleepWindow,
 } from "@/lib/schedule/types";
 import Link from "next/link";
-import { type ReactNode, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 // Vue « coup d'œil » (FR-2/FR-3) — composant CLIENT par nécessité : le moteur pur
 // tourne dans le navigateur, l'horaire ne dépend donc JAMAIS du réseau (NFR-4).
@@ -81,38 +82,6 @@ const FORMAT_LETTRE_JOUR = new Intl.DateTimeFormat("fr-CA", {
   weekday: "narrow",
   timeZone: "UTC",
 });
-
-/**
- * Tuile de navigation d'accueil (NFR-12) : grande cible contrastée plutôt qu'un lien
- * textuel — pictogramme + libellé court, reconnaissance > rappel. `children` porte un
- * éventuel ornement (ex. pastille de non-lues) collé au libellé.
- */
-function TuileNav({
-  href,
-  icone,
-  libelle,
-  children,
-}: {
-  readonly href: string;
-  readonly icone: string;
-  readonly libelle: string;
-  readonly children?: ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      className="flex min-h-16 flex-col justify-center gap-1 rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3 text-neutral-100 transition-colors hover:border-neutral-700 hover:bg-neutral-800"
-    >
-      <span className="text-2xl" aria-hidden="true">
-        {icone}
-      </span>
-      <span className="flex items-center gap-2 text-sm font-semibold">
-        {libelle}
-        {children}
-      </span>
-    </Link>
-  );
-}
 
 /** Point « écart à l'horaire » d'une case de la grille (même rendu pour les deux rôles). */
 function MarqueurEcart() {

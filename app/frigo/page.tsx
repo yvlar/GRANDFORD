@@ -15,6 +15,7 @@ import {
 } from "@/app/frigo/actions";
 import { ListesEpicerie } from "@/components/epicerie/listes-epicerie";
 import { TableauFrigo } from "@/components/frigo/tableau-frigo";
+import { TuileNav } from "@/components/ui/tuile-nav";
 import {
   GROCERY_ITEM_COLUMNS,
   GROCERY_LIST_COLUMNS,
@@ -26,7 +27,6 @@ import { FRIGO_NOTE_COLUMNS, parseFrigoRows } from "@/lib/frigo/db-rows";
 import type { FrigoHandlers } from "@/lib/frigo/types";
 import { fr } from "@/lib/i18n/fr";
 import { createClient } from "@/lib/supabase/server";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
@@ -125,12 +125,11 @@ export default async function FrigoPage() {
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-lg flex-col gap-8 bg-neutral-950 p-4 text-neutral-50">
-      <Link
-        href="/"
-        className="inline-flex min-h-11 w-fit items-center text-sm text-neutral-400 underline hover:text-neutral-200"
-      >
-        ← {fr.commun.retour}
-      </Link>
+      {/* Retour vers l'accueil (NFR-12) : tuile contrastée, alignée à gauche (self-start sur le
+          nav, qui rétrécit au contenu) pour ne pas l'étirer sur toute la largeur du <main>. */}
+      <nav className="self-start">
+        <TuileNav href="/" icone="📅" libelle={fr.commun.retour} />
+      </nav>
       <TableauFrigo
         householdId={householdId}
         currentUserId={user.id}
