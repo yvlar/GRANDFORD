@@ -55,7 +55,9 @@ export async function creerListeEpicerie(
   // Realtime délivre déjà la liste en direct dans l'app de l'autre.
   await declencherPushEpicerie(data.id, "nouvelle", user.id);
 
-  revalidatePath("/frigo");
+  // Pas de revalidate "/" : une nouvelle liste est vide → le compte « à acheter » de l'accueil
+  // (articles non cochés) ne change pas.
+  revalidatePath("/epicerie");
   return { ok: true, erreur: null, liste: parseGroceryListRows([data])[0] ?? null };
 }
 
@@ -85,7 +87,8 @@ export async function supprimerListeEpicerie(listId: string): Promise<EtatEpicer
     return { ok: false, erreur: fr.epicerie.erreurSuppressionListe };
   }
 
-  revalidatePath("/frigo");
+  revalidatePath("/epicerie");
+  revalidatePath("/"); // la pastille « à acheter » de l'accueil (les articles partent en cascade)
   return { ok: true, erreur: null };
 }
 
@@ -136,7 +139,8 @@ export async function ajouterElementEpicerie(
 
   // Pas de push à l'ajout d'un élément (faible signal ; seuls « nouvelle liste » et « coche »
   // notifient). Realtime délivre l'élément en direct dans l'app de l'autre.
-  revalidatePath("/frigo");
+  revalidatePath("/epicerie");
+  revalidatePath("/"); // la pastille « à acheter » de l'accueil (un article non coché de plus)
   return { ok: true, erreur: null, element: parseGroceryItemRows([data])[0] ?? null };
 }
 
@@ -165,7 +169,8 @@ export async function retirerElementEpicerie(itemId: string): Promise<EtatEpicer
     return { ok: false, erreur: fr.epicerie.erreurRetraitElement };
   }
 
-  revalidatePath("/frigo");
+  revalidatePath("/epicerie");
+  revalidatePath("/"); // la pastille « à acheter » de l'accueil (un article retiré)
   return { ok: true, erreur: null };
 }
 
@@ -213,6 +218,7 @@ export async function cocherElementEpicerie(
     await declencherPushEpicerie(element.list_id, "coche", user.id);
   }
 
-  revalidatePath("/frigo");
+  revalidatePath("/epicerie");
+  revalidatePath("/"); // la pastille « à acheter » de l'accueil (cocher/décocher change le compte)
   return { ok: true, erreur: null };
 }

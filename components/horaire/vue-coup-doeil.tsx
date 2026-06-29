@@ -115,6 +115,25 @@ function MarqueurPaie() {
  * Composant dédié plutôt que fragment inline : sort les <span> du contexte itérable du
  * `.map` (pas de clé requise) et reste partagé entre la case interactive et statique.
  */
+/**
+ * Pastille de compteur d'une tuile de navigation (notes du frigo non lues / articles d'épicerie
+ * à acheter). Un seul style — restyler une fois, pas deux (NFR-12 : la pastille est un repère
+ * de reconnaissance). Rien si le compte est nul. R7 : ne porte qu'un nombre, jamais de contenu.
+ */
+function PastilleNombre({ nombre, aria }: { readonly nombre: number; readonly aria: string }) {
+  if (nombre <= 0) {
+    return null;
+  }
+  return (
+    <span
+      aria-label={`${nombre} ${aria}`}
+      className="inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-emerald-600 px-1.5 text-xs font-bold text-white"
+    >
+      {nombre}
+    </span>
+  );
+}
+
 function ContenuCase({ day, aff, estPaye }: { day: DayStatus; aff: Affichage; estPaye: boolean }) {
   return (
     <>
@@ -184,6 +203,8 @@ export interface VueCoupDoeilProps {
   readonly noteHandlers?: NoteHandlers | null;
   /** Notes du frigo non lues écrites par l'autre (Sprint 20) — pastille du lien d'accueil. */
   readonly frigoNonLues?: number;
+  /** Articles d'épicerie non cochés du foyer (Sprint 27) — pastille « à acheter » de la tuile. */
+  readonly epicerieARacheter?: number;
   /**
    * Co-planification conjointe (FR-9, Sprint 9) — branche CONJOINTE seulement :
    * ses requêtes soumises + handler pour en créer. Le travailleur n'a pas cette prop.
@@ -214,6 +235,7 @@ export function VueCoupDoeil({
   notes = [],
   noteHandlers = null,
   frigoNonLues = 0,
+  epicerieARacheter = 0,
   coplanification = null,
 }: VueCoupDoeilProps) {
   const t = fr.horaire;
@@ -327,19 +349,15 @@ export function VueCoupDoeil({
         {workerName ? <p className="text-lg font-semibold">{t.horaireDe(workerName)}</p> : null}
       </header>
 
-      {/* Navigation principale (NFR-12) : deux grandes tuiles contrastées plutôt que des
-          liens textuels discrets — Mon foyer à gauche, Note du frigo à droite. */}
-      <nav aria-label={t.navAria} className="grid grid-cols-2 gap-3">
+      {/* Navigation principale (NFR-12) : grandes tuiles contrastées plutôt que des liens
+          textuels discrets — Mon foyer, Note du frigo, Épicerie (Sprint 27). */}
+      <nav aria-label={t.navAria} className="grid grid-cols-3 gap-3">
         <TuileNav href="/foyer" icone="🏠" libelle={t.monFoyer} />
         <TuileNav href="/frigo" icone="📌" libelle={fr.frigo.lien}>
-          {frigoNonLues > 0 ? (
-            <span
-              aria-label={`${frigoNonLues} ${fr.frigo.pastilleAria}`}
-              className="inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-emerald-600 px-1.5 text-xs font-bold text-white"
-            >
-              {frigoNonLues}
-            </span>
-          ) : null}
+          <PastilleNombre nombre={frigoNonLues} aria={fr.frigo.pastilleAria} />
+        </TuileNav>
+        <TuileNav href="/epicerie" icone="🛒" libelle={fr.epicerie.lien}>
+          <PastilleNombre nombre={epicerieARacheter} aria={fr.epicerie.pastilleAria} />
         </TuileNav>
       </nav>
 

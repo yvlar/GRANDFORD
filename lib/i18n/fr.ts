@@ -241,6 +241,9 @@ export const fr = {
   epicerie: {
     titre: "Listes d'épicerie",
     sousTitre: "Les listes partagées du foyer — cochez ce qui est acheté.",
+    // Tuile de navigation de l'accueil (Sprint 27) + aria de sa pastille « X à acheter ».
+    lien: "Épicerie",
+    pastilleAria: "articles à acheter",
     nouvelleListePlaceholder: "Nommer une nouvelle liste…",
     creerListe: "Créer la liste",
     supprimerListe: "Supprimer la liste",

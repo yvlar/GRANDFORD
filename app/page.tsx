@@ -114,6 +114,7 @@ export default async function AccueilPage({
     notesRes,
     requetesRes,
     frigoNonLuesRes,
+    epicerieARacheterRes,
     template,
   ] = await Promise.all([
     supabase
@@ -167,6 +168,14 @@ export default async function AccueilPage({
       .is("parent_id", null)
       .is("read_at", null)
       .neq("author_id", user.id),
+    // Épicerie (Sprint 27) : compteur d'articles non cochés du foyer (head:true → count seul,
+    // aucun libellé chargé — R7 : la pastille n'est qu'un nombre). Les deux rôles gèrent la liste,
+    // donc fetché ici (hors branche de rôle). Alimente la pastille « à acheter » de la tuile.
+    supabase
+      .from("grocery_items")
+      .select("id", { count: "exact", head: true })
+      .eq("household_id", householdId)
+      .eq("is_checked", false),
     fetchCycleTemplateWithFallback(supabase, householdId),
   ]);
   if (exceptionsRes.error) {
@@ -269,6 +278,9 @@ export default async function AccueilPage({
       // attente. Échouer fort ici ferait planter TOUT l'accueil tant que la table n'est pas
       // déployée — dégradation gracieuse à 0 (badge masqué) plutôt qu'un 500 généralisé.
       frigoNonLues={frigoNonLuesRes.count ?? 0}
+      // Même dégradation gracieuse que la pastille du frigo : la migration grocery_items
+      // (Sprint 25) reste une tâche opérationnelle en attente — 0 (badge masqué) plutôt qu'un 500.
+      epicerieARacheter={epicerieARacheterRes.count ?? 0}
       coplanification={coplanification}
     />
   );
