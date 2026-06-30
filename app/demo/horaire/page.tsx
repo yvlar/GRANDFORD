@@ -22,6 +22,8 @@ import { z } from "zod";
 //   …&sommeilActif=0                                  → interrupteur sommeil OFF (Sprint 19)
 //   …&ajustement=2026-06-05@09:00-13:00               → ajustement d'UN jour (FR-6)
 //   …&paye=2026-06-04@aux_2_semaines                  → jour de paye (Sprint 17, travailleur seul)
+//   …&frigo=3                                         → pastille « notes non lues » (Sprint 26)
+//   …&epicerie=2                                      → pastille « à acheter » épicerie (Sprint 27)
 
 // 'HH:MM-HH:MM' → fenêtre, ex. : sommeil=08:30-16:00. Format STRICT : tout segment
 // excédentaire est rejeté (jamais ignoré en silence), un seul découpage.
@@ -77,6 +79,9 @@ const parametresSchema = z.object({
   // Compte de notes du frigo non lues (Sprint 20) — démo seulement, pour constater la
   // pastille des tuiles de navigation (Sprint 26). Défaut 0 sans le param.
   frigo: z.coerce.number().int().min(0).optional(),
+  // Compte d'articles d'épicerie « à acheter » (Sprint 27) — démo seulement, pour constater
+  // la pastille de la tuile Épicerie. Défaut 0 sans le param.
+  epicerie: z.coerce.number().int().min(0).optional(),
 });
 
 export default async function DemoHorairePage({
@@ -120,6 +125,7 @@ export default async function DemoHorairePage({
       clockFrozen={params.date !== undefined}
       reglagePaye={params.paye ?? null}
       frigoNonLues={params.frigo ?? 0}
+      epicerieARacheter={params.epicerie ?? 0}
     />
   );
 }
