@@ -127,6 +127,47 @@ describe("statusForDate — superposition des écarts", () => {
   });
 });
 
+describe("temps supplémentaire (OT) — indicateur partageable (Sprint 29)", () => {
+  it("un écart « working_extra » sur un jour de repos marque overtime = true", () => {
+    // Le 11 juin, A est en congé ; un OT y ajoute un quart supplémentaire.
+    const ecarts: ScheduleException[] = [
+      { onDate: "2026-06-11", effect: "working_extra", shift: null },
+    ];
+    const s = statusForDate("A", "2026-06-11", T, ecarts, null);
+    expect(s.overtime).toBe(true);
+    expect(s.kind).toBe("jour"); // sans quart explicite → quart d'identité de l'équipe
+    expect(s.fromException).toBe(true);
+  });
+
+  it("un jour travaillé NORMAL (sans écart) n'est pas du temps supplémentaire", () => {
+    const s = statusForDate("A", "2026-06-03", T, AUCUN_ECART, null);
+    expect(s.kind).toBe("jour");
+    expect(s.overtime).toBe(false);
+  });
+
+  it("un écart « off » (absence) n'est jamais du temps supplémentaire", () => {
+    const ecarts: ScheduleException[] = [{ onDate: "2026-06-03", effect: "off", shift: null }];
+    expect(statusForDate("A", "2026-06-03", T, ecarts, null).overtime).toBe(false);
+  });
+
+  it("un écart « shift_swap » (échange) n'est pas du temps supplémentaire", () => {
+    const ecarts: ScheduleException[] = [
+      { onDate: "2026-06-03", effect: "shift_swap", shift: "nuit" },
+    ];
+    expect(statusForDate("A", "2026-06-03", T, ecarts, null).overtime).toBe(false);
+  });
+
+  it("le jour de SOMMEIL qui découle d'un OF de nuit la veille n'est pas lui-même de l'OT", () => {
+    // L'OT est le 10 (nuit) ; le 11 devient une récupération — pas un OT.
+    const ecarts: ScheduleException[] = [
+      { onDate: "2026-06-10", effect: "working_extra", shift: "nuit" },
+    ];
+    const s = statusForDate("A", "2026-06-11", T, ecarts, null);
+    expect(s.kind).toBe("sommeil");
+    expect(s.overtime).toBe(false);
+  });
+});
+
 describe("ajustement de sommeil au cas par cas (FR-6, Sprint 6)", () => {
   const AJUSTEMENT_5_JUIN = [{ onDate: "2026-06-05", window: { start: "09:00", end: "13:00" } }];
 

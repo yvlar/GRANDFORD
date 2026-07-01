@@ -32,6 +32,7 @@ export const fr = {
     travaille: "Travaille",
     disponible: "Disponible",
     ecart: "Écart à l'horaire",
+    supplementaire: "Temps supplémentaire",
     ecartsNonCharges: "Horaire de base seulement — les écarts de ce mois ne sont pas chargés ici.",
     cetteSemaine: "Cette semaine",
     legende: "Légende",
