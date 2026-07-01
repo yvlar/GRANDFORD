@@ -4,6 +4,7 @@ import {
   creerListeEpicerie,
   retirerElementEpicerie,
   supprimerListeEpicerie,
+  viderLesAchetesEpicerie,
 } from "@/app/epicerie/actions";
 import { ListesEpicerie } from "@/components/epicerie/listes-epicerie";
 import { TuileNav } from "@/components/ui/tuile-nav";
@@ -81,6 +82,7 @@ export default async function EpiceriePage() {
     ajouterElement: ajouterElementEpicerie,
     retirerElement: retirerElementEpicerie,
     cocherElement: cocherElementEpicerie,
+    viderLesAchetes: viderLesAchetesEpicerie,
   };
 
   return (

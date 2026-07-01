@@ -174,6 +174,43 @@ export async function retirerElementEpicerie(itemId: string): Promise<EtatEpicer
   return { ok: true, erreur: null };
 }
 
+export async function viderLesAchetesEpicerie(listId: string): Promise<EtatEpicerie> {
+  const id = uuidSchema.safeParse(listId);
+  if (!id.success) {
+    return { ok: false, erreur: fr.epicerie.erreurViderLesAchetes };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect("/connexion");
+  }
+
+  // RLS grocery_items_delete (membre du foyer) : les deux membres gèrent la liste partagée.
+  // list_id/is_checked ciblent UNIQUEMENT les articles cochés de CETTE liste — la RLS ne borne
+  // que le foyer, pas ce sous-ensemble (voir test d'isolation dédié). 0 ligne n'est PAS une
+  // erreur ici (contrairement aux actions sœurs) : le bouton n'est actionnable que si un article
+  // coché existe côté client, mais une course avec l'autre membre (déjà vidé) est un no-op bénin.
+  // Pas de push (comme ajouterElement) : vider des achetés est un rangement, signal faible ;
+  // Realtime délivre déjà le retrait en direct à l'autre membre s'il est dans l'app.
+  const { error } = await supabase
+    .from("grocery_items")
+    .delete()
+    .eq("list_id", id.data)
+    .eq("is_checked", true);
+
+  if (error) {
+    return { ok: false, erreur: fr.epicerie.erreurViderLesAchetes };
+  }
+
+  // Pas de revalidate "/" : vider des articles COCHÉS ne change jamais le compte non-coché
+  // qui alimente la pastille « à acheter » de l'accueil (même raisonnement que creerListeEpicerie).
+  revalidatePath("/epicerie");
+  return { ok: true, erreur: null };
+}
+
 export async function cocherElementEpicerie(
   itemId: string,
   checked: boolean,
