@@ -42,6 +42,7 @@ export interface EpicerieHandlers {
   readonly ajouterElement: (listId: string, label: string) => Promise<ResultatElement>;
   readonly retirerElement: (itemId: string) => Promise<EtatEpicerie>;
   readonly cocherElement: (itemId: string, checked: boolean) => Promise<EtatEpicerie>;
+  readonly viderLesAchetes: (listId: string) => Promise<EtatEpicerie>;
 }
 
 /**

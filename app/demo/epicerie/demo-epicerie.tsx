@@ -92,6 +92,7 @@ export function DemoEpicerie() {
       retirerElement: async () => ({ ok: true, erreur: null }),
       // Cochage : ListesEpicerie applique l'effet optimiste — on renvoie juste un succès.
       cocherElement: async () => ({ ok: true, erreur: null }),
+      viderLesAchetes: async () => ({ ok: true, erreur: null }),
     }),
     [],
   );

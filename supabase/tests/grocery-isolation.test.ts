@@ -21,19 +21,20 @@ describe.skipIf(!rlsAvailable)("Isolation RLS de la liste d'épicerie (Postgres 
   afterAll(closePool);
 
   // Le travailleur A crée une liste dans le foyer A ; on y ajoute deux éléments.
-  const insertListeA = (auteur = FIX.workerA) =>
+  // id paramétrable (défaut listeA) : réutilisé pour créer une 2e liste (isolation inter-listes).
+  const insertListeA = (auteur = FIX.workerA, id = listeA) =>
     asUser(auteur, (client) =>
       client.query(
         "insert into public.grocery_lists (id, household_id, author_id, title) values ($1, $2, $3, 'Épicerie de la semaine')",
-        [listeA, FIX.householdA, auteur],
+        [id, FIX.householdA, auteur],
       ),
     );
 
-  const insertItem = (auteur: string, id: string, label: string) =>
+  const insertItem = (auteur: string, id: string, label: string, listId = listeA) =>
     asUser(auteur, (client) =>
       client.query(
         "insert into public.grocery_items (id, list_id, household_id, author_id, label) values ($1, $2, $3, $4, $5)",
-        [id, listeA, FIX.householdA, auteur, label],
+        [id, listId, FIX.householdA, auteur, label],
       ),
     );
 
@@ -269,5 +270,65 @@ describe.skipIf(!rlsAvailable)("Isolation RLS de la liste d'épicerie (Postgres 
       [listeA],
     );
     expect(reste[0]?.n).toBe(0);
+  });
+
+  it("vider les achetés retire UNIQUEMENT les éléments cochés de CETTE liste (non cochés et autres intacts)", async () => {
+    await insertListeA();
+    await insertItem(FIX.workerA, item1, "Lait"); // restera non coché
+    await insertItem(FIX.spouseA, item2, "Pain");
+    expect(await cocher(FIX.workerA, item2, true)).toBe(true);
+
+    // Deuxième liste + élément coché du même foyer, pour prouver l'isolation inter-listes.
+    const listeAutre = "d4444444-4444-4444-8444-444444444444";
+    const itemAutre = "d5555555-5555-4555-8555-555555555555";
+    await insertListeA(FIX.workerA, listeAutre);
+    await insertItem(FIX.workerA, itemAutre, "Fromage", listeAutre);
+    expect(await cocher(FIX.workerA, itemAutre, true)).toBe(true);
+
+    // La conjointe (membre, pas auteure de l'élément) vide les achetés de la liste A seulement.
+    const rowCount = await asUser(FIX.spouseA, async (client) => {
+      const res = await client.query(
+        "delete from public.grocery_items where list_id = $1 and is_checked = true",
+        [listeA],
+      );
+      return res.rowCount;
+    });
+    expect(rowCount).toBe(1); // seul Pain (item2) part
+
+    const resteA = await queryAs<{ id: string }>(
+      FIX.workerA,
+      "select id from public.grocery_items where list_id = $1",
+      [listeA],
+    );
+    expect(resteA.map((r) => r.id)).toEqual([item1]); // Lait (non coché) intact
+
+    const resteAutre = await queryAs<{ n: number }>(
+      FIX.workerA,
+      "select count(*)::int as n from public.grocery_items where list_id = $1",
+      [listeAutre],
+    );
+    expect(resteAutre[0]?.n).toBe(1); // Fromage (autre liste, coché) intact
+  });
+
+  it("un non-membre ne peut pas vider les achetés du foyer A (0 ligne, élément intact)", async () => {
+    await insertListeA();
+    await insertItem(FIX.workerA, item1, "Lait");
+    expect(await cocher(FIX.workerA, item1, true)).toBe(true);
+
+    const rowCount = await asUser(FIX.workerB, async (client) => {
+      const res = await client.query(
+        "delete from public.grocery_items where list_id = $1 and is_checked = true",
+        [listeA],
+      );
+      return res.rowCount;
+    });
+    expect(rowCount).toBe(0);
+
+    const reste = await queryAs<{ n: number }>(
+      FIX.workerA,
+      "select count(*)::int as n from public.grocery_items where list_id = $1 and is_checked = true",
+      [listeA],
+    );
+    expect(reste[0]?.n).toBe(1);
   });
 });

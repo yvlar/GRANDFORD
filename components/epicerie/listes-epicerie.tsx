@@ -49,6 +49,64 @@ function parseItemRow(row: unknown): GroceryItem | null {
   }
 }
 
+interface ActionConfirmeeProps {
+  readonly icone: string;
+  readonly libelle: string;
+  readonly libelleConfirmer: string;
+  readonly ariaLabel: string;
+  readonly enConfirmation: boolean;
+  readonly disabled: boolean;
+  readonly onDemander: () => void;
+  readonly onAnnuler: () => void;
+  readonly onConfirmer: () => void;
+}
+
+/** Bouton d'action destructive confirmée en 2 temps (icône + texte, cibles ≥ 44 px, NFR-12) —
+ * factorisé pour « vider les achetés » et « supprimer la liste » (mêmes styles). */
+function ActionConfirmee({
+  icone,
+  libelle,
+  libelleConfirmer,
+  ariaLabel,
+  enConfirmation,
+  disabled,
+  onDemander,
+  onAnnuler,
+  onConfirmer,
+}: ActionConfirmeeProps) {
+  if (!enConfirmation) {
+    return (
+      <button
+        type="button"
+        onClick={onDemander}
+        aria-label={ariaLabel}
+        className="inline-flex min-h-11 items-center gap-1 rounded-lg px-3 text-xs font-medium text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
+      >
+        {icone} {libelle}
+      </button>
+    );
+  }
+  return (
+    <div className="flex gap-2">
+      <button
+        type="button"
+        onClick={onAnnuler}
+        className="inline-flex min-h-11 items-center rounded-lg px-3 text-xs font-medium text-neutral-300 hover:bg-neutral-800"
+      >
+        {fr.epicerie.annuler}
+      </button>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={onConfirmer}
+        className="inline-flex min-h-11 items-center rounded-lg bg-red-700 px-3 text-xs font-semibold text-white hover:bg-red-600 disabled:opacity-50"
+      >
+        {icone} {libelleConfirmer}
+      </button>
+    </div>
+  );
+}
+
 export function ListesEpicerie({
   householdId,
   currentUserId,
@@ -65,6 +123,7 @@ export function ListesEpicerie({
   const [erreur, setErreur] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [confirmListId, setConfirmListId] = useState<string | null>(null);
+  const [confirmViderListId, setConfirmViderListId] = useState<string | null>(null);
   // Brouillon d'ajout d'article, par liste (chaque liste a son propre composeur inline).
   const [itemDrafts, setItemDrafts] = useState<Record<string, string>>({});
   const [enCours, startTransition] = useTransition();
@@ -236,6 +295,26 @@ export function ListesEpicerie({
     });
   };
 
+  const viderLesAchetes = (listId: string) => {
+    setConfirmViderListId(null);
+    // Fige QUELS articles sont cochés au moment du clic (pas à la résolution du serveur) : le
+    // serveur cible list_id + is_checked AU MOMENT DE SA REQUÊTE, mais l'autre membre peut cocher
+    // un NOUVEL article via Realtime pendant l'aller-retour — un filtre relu sur l'état COURANT
+    // le retirerait localement à tort (jamais supprimé côté serveur).
+    const idsAVider = new Set(
+      items.filter((i) => i.listId === listId && i.isChecked).map((i) => i.id),
+    );
+    startTransition(async () => {
+      const etat = await handlers.viderLesAchetes(listId);
+      if (etat.ok) {
+        setItems((courants) => courants.filter((i) => !idsAVider.has(i.id)));
+        setErreur(null);
+      } else {
+        setErreur(etat.erreur);
+      }
+    });
+  };
+
   // Coche/décoche optimiste : on reflète l'état tout de suite (le RPC tient la vérité BD ;
   // Realtime redélivrera la ligne complète aux deux membres). checkedBy = moi sur cochage.
   const cocher = (item: GroceryItem) => {
@@ -332,15 +411,20 @@ export function ListesEpicerie({
                       {auteur} · {FORMAT_HORODATAGE.format(new Date(liste.createdAt))}
                     </span>
                   </div>
-                  <span
-                    className={`inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
-                      restant === 0
-                        ? "bg-emerald-700 text-white"
-                        : "bg-neutral-800 text-neutral-200"
-                    }`}
-                  >
-                    {restant === 0 ? `✓ ${t.toutCoche}` : `🛒 ${t.restant(restant)}`}
-                  </span>
+                  {/* Pas de badge sur une liste VIDE (0 élément) : sinon « ✓ Tout est acheté »
+                      contredirait le message « Liste vide » du corps (NFR-12 : pas d'info
+                      contradictoire). Vider les achetés peut désormais vider toute la liste. */}
+                  {elements.length > 0 ? (
+                    <span
+                      className={`inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
+                        restant === 0
+                          ? "bg-emerald-700 text-white"
+                          : "bg-neutral-800 text-neutral-200"
+                      }`}
+                    >
+                      {restant === 0 ? `✓ ${t.toutCoche}` : `🛒 ${t.restant(restant)}`}
+                    </span>
+                  ) : null}
                 </div>
 
                 {elements.length === 0 ? (
@@ -425,36 +509,40 @@ export function ListesEpicerie({
                   </button>
                 </div>
 
-                {/* Suppression de la liste (confirmée en 2 temps), ouverte aux deux membres. */}
-                <div className="flex justify-end">
-                  {confirmListId === liste.id ? (
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setConfirmListId(null)}
-                        className="inline-flex min-h-11 items-center rounded-lg px-3 text-xs font-medium text-neutral-300 hover:bg-neutral-800"
-                      >
-                        {t.annuler}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={enCours}
-                        onClick={() => supprimerListe(liste.id)}
-                        className="inline-flex min-h-11 items-center rounded-lg bg-red-700 px-3 text-xs font-semibold text-white hover:bg-red-600 disabled:opacity-50"
-                      >
-                        🗑 {t.confirmerSuppressionListe}
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setConfirmListId(liste.id)}
-                      aria-label={`${t.supprimerListe} : ${liste.title}`}
-                      className="inline-flex min-h-11 items-center gap-1 rounded-lg px-3 text-xs font-medium text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
-                    >
-                      🗑 {t.supprimerListe}
-                    </button>
-                  )}
+                {/* Vider les achetés (si ≥1 coché) + suppression de la liste, chacun confirmé en
+                    2 temps ; ouvrir l'une des deux ferme l'autre (1 seule confirmation
+                    destructive visible à la fois), ouvertes aux deux membres. */}
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  {elements.length !== restant ? (
+                    <ActionConfirmee
+                      icone="🧹"
+                      libelle={t.viderLesAchetes}
+                      libelleConfirmer={t.confirmerViderLesAchetes}
+                      ariaLabel={`${t.viderLesAchetes} : ${liste.title}`}
+                      enConfirmation={confirmViderListId === liste.id}
+                      disabled={enCours}
+                      onDemander={() => {
+                        setConfirmListId(null);
+                        setConfirmViderListId(liste.id);
+                      }}
+                      onAnnuler={() => setConfirmViderListId(null)}
+                      onConfirmer={() => viderLesAchetes(liste.id)}
+                    />
+                  ) : null}
+                  <ActionConfirmee
+                    icone="🗑"
+                    libelle={t.supprimerListe}
+                    libelleConfirmer={t.confirmerSuppressionListe}
+                    ariaLabel={`${t.supprimerListe} : ${liste.title}`}
+                    enConfirmation={confirmListId === liste.id}
+                    disabled={enCours}
+                    onDemander={() => {
+                      setConfirmViderListId(null);
+                      setConfirmListId(liste.id);
+                    }}
+                    onAnnuler={() => setConfirmListId(null)}
+                    onConfirmer={() => supprimerListe(liste.id)}
+                  />
                 </div>
               </li>
             );
