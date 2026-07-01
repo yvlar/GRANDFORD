@@ -134,6 +134,20 @@ function PastilleNombre({ nombre, aria }: { readonly nombre: number; readonly ar
   );
 }
 
+/**
+ * Titre d'une section de l'accueil (bande semaine, légende). Altitude « étiquette de
+ * section » muette — cohérente avec l'eyebrow GRANDFORD et le sous-titre « Aujourd'hui · »,
+ * sans concurrencer le <h2 text-xl> du mois. Rend un vrai <h2> porteur d'`id` : la section
+ * s'y rattache par `aria-labelledby` (un seul nom de landmark, porté par le titre visible).
+ */
+function TitreSection({ id, children }: { readonly id: string; readonly children: string }) {
+  return (
+    <h2 id={id} className="mb-2 text-sm font-bold uppercase tracking-wide text-neutral-400">
+      {children}
+    </h2>
+  );
+}
+
 function ContenuCase({ day, aff, estPaye }: { day: DayStatus; aff: Affichage; estPaye: boolean }) {
   return (
     <>
@@ -396,7 +410,8 @@ export function VueCoupDoeil({
       ) : null}
 
       {/* Bande semaine : aujourd'hui + 6 jours. */}
-      <section aria-label={t.semaine}>
+      <section aria-labelledby="titre-semaine">
+        <TitreSection id="titre-semaine">{t.cetteSemaine}</TitreSection>
         <ul className="grid grid-cols-7 gap-1">
           {week.map((day) => {
             const aff = affichagePour(day);
@@ -492,15 +507,18 @@ export function VueCoupDoeil({
       </section>
 
       {/* Légende : mêmes couleurs/pictos que les cases (reconnaissance, NFR-12). */}
-      <section className="flex flex-wrap gap-2">
-        {Object.values(legende).map((aff) => (
-          <span
-            key={aff.etiquette}
-            className={`rounded-full px-3 py-1 text-sm font-semibold ${aff.classes}`}
-          >
-            <span aria-hidden="true">{aff.emoji}</span> {aff.etiquette}
-          </span>
-        ))}
+      <section aria-labelledby="titre-legende">
+        <TitreSection id="titre-legende">{t.legende}</TitreSection>
+        <div className="flex flex-wrap gap-2">
+          {Object.values(legende).map((aff) => (
+            <span
+              key={aff.etiquette}
+              className={`rounded-full px-3 py-1 text-sm font-semibold ${aff.classes}`}
+            >
+              <span aria-hidden="true">{aff.emoji}</span> {aff.etiquette}
+            </span>
+          ))}
+        </div>
       </section>
 
       {capture && captureDate ? (
