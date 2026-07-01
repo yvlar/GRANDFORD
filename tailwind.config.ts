@@ -16,6 +16,9 @@ const config: Config = {
         conge: { DEFAULT: colors.emerald[500], fg: colors.emerald[950] },
         sommeil: { DEFAULT: colors.sky[500], fg: colors.sky[950] },
         travaille: { DEFAULT: colors.rose[500], fg: colors.rose[50] },
+        // Temps supplémentaire (Sprint 29) : orange distinct de l'ambre `quart-jour`
+        // pour signaler un quart AJOUTÉ (marqueur + pastille de légende).
+        supplementaire: { DEFAULT: colors.orange[500], fg: colors.orange[950] },
       },
     },
   },
