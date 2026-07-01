@@ -71,6 +71,16 @@ const AFFICHAGE_CONJOINTE: Record<Availability, Affichage> = {
   sommeil: { emoji: "😴", etiquette: fr.horaire.sommeil, classes: "bg-sommeil text-sommeil-fg" },
 };
 
+// Temps supplémentaire (Sprint 29) : superposé À l'état du jour (jour/nuit), pas un état
+// à part — un OT reste un quart travaillé, on ajoute une couleur + une icône (⚡). Source
+// unique du couple couleur/icône/label (marqueur de case ET pastille de légende). Montré
+// aux deux rôles : l'effet `working_extra` est partageable (fr.ts:314), jamais le motif (R7).
+const AFFICHAGE_SUPPLEMENTAIRE: Affichage = {
+  emoji: "⚡",
+  etiquette: fr.horaire.supplementaire,
+  classes: "bg-supplementaire text-supplementaire-fg",
+};
+
 // Dates affichées : les chaînes civiles 'YYYY-MM-DD' sont formatées en UTC pour ne
 // pas glisser d'un jour selon le fuseau du navigateur (la date civile est la vérité).
 const FORMAT_MOIS = new Intl.DateTimeFormat("fr-CA", {
@@ -90,6 +100,23 @@ function MarqueurEcart() {
       aria-label={fr.horaire.ecart}
       className="absolute right-1 top-1 h-2 w-2 rounded-full bg-black/60"
     />
+  );
+}
+
+/**
+ * Marqueur « temps supplémentaire » (Sprint 29) — coin haut-droit, à la place du point
+ * d'écart générique (un OT EST un écart, un seul marqueur). Couleur + icône (⚡), l'info
+ * n'est jamais portée par la seule couleur (parité daltonien, NFR-12). Les deux rôles :
+ * l'effet est partageable, jamais le motif (R7).
+ */
+function MarqueurSupplementaire() {
+  return (
+    <span
+      aria-label={AFFICHAGE_SUPPLEMENTAIRE.etiquette}
+      className={`absolute right-0.5 top-0.5 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-[0.5rem] leading-none ${AFFICHAGE_SUPPLEMENTAIRE.classes}`}
+    >
+      <span aria-hidden="true">{AFFICHAGE_SUPPLEMENTAIRE.emoji}</span>
+    </span>
   );
 }
 
@@ -155,7 +182,7 @@ function ContenuCase({ day, aff, estPaye }: { day: DayStatus; aff: Affichage; es
       <span className="text-[0.625rem] leading-none" aria-hidden="true">
         {aff.emoji}
       </span>
-      {day.fromException ? <MarqueurEcart /> : null}
+      {day.overtime ? <MarqueurSupplementaire /> : day.fromException ? <MarqueurEcart /> : null}
       {estPaye ? <MarqueurPaie /> : null}
     </>
   );
@@ -388,7 +415,12 @@ export function VueCoupDoeil({
         </p>
         <p className="text-5xl font-black uppercase tracking-tight">{pastille.etiquette}</p>
         {sousTitre ? <p className="text-2xl font-semibold">{sousTitre}</p> : null}
-        {todayStatus.fromException ? (
+        {todayStatus.overtime ? (
+          <p className="mt-2 rounded-full bg-black/25 px-3 py-1 text-sm font-semibold">
+            <span aria-hidden="true">{AFFICHAGE_SUPPLEMENTAIRE.emoji}</span>{" "}
+            {AFFICHAGE_SUPPLEMENTAIRE.etiquette}
+          </p>
+        ) : todayStatus.fromException ? (
           <p className="mt-2 rounded-full bg-black/25 px-3 py-1 text-sm font-semibold">{t.ecart}</p>
         ) : null}
         {estPaye(today) ? (
@@ -419,8 +451,10 @@ export function VueCoupDoeil({
               <li key={day.date}>
                 <div
                   title={`${FORMAT_JOUR_LONG.format(dateUTC(day.date))} : ${aff.etiquette}`}
-                  className={`flex flex-col items-center gap-0.5 rounded-xl py-2 ${aff.classes} ${
-                    day.date === today ? "ring-2 ring-white" : ""
+                  className={`relative flex flex-col items-center gap-0.5 rounded-xl py-2 ${aff.classes} ${
+                    day.date === today
+                      ? "ring-2 ring-white ring-offset-2 ring-offset-neutral-950"
+                      : ""
                   }`}
                 >
                   <span className="text-xs font-bold uppercase">
@@ -430,6 +464,7 @@ export function VueCoupDoeil({
                   <span className="text-base" aria-hidden="true">
                     {aff.emoji}
                   </span>
+                  {day.overtime ? <MarqueurSupplementaire /> : null}
                 </div>
               </li>
             );
@@ -482,7 +517,7 @@ export function VueCoupDoeil({
             const titre = `${FORMAT_JOUR_LONG.format(dateUTC(day.date))} : ${aff.etiquette}`;
             // h-11 = 44 px (cible tactile). flex-col : numéro + pictogramme d'état empilés.
             const classes = `relative flex h-11 flex-col items-center justify-center rounded-lg ${aff.classes} ${
-              day.date === today ? "ring-2 ring-white" : ""
+              day.date === today ? "ring-2 ring-white ring-offset-2 ring-offset-neutral-950" : ""
             }`;
             // Travailleur et conjointe (si coplanification câblée) : tap sur un jour
             // ouvre le panneau correspondant au rôle.
@@ -506,11 +541,12 @@ export function VueCoupDoeil({
         </div>
       </section>
 
-      {/* Légende : mêmes couleurs/pictos que les cases (reconnaissance, NFR-12). */}
+      {/* Légende : mêmes couleurs/pictos que les cases (reconnaissance, NFR-12). Pastilles
+          groupées dans une carte bordée (Sprint 29), calquée sur le style des tuiles. */}
       <section aria-labelledby="titre-legende">
         <TitreSection id="titre-legende">{t.legende}</TitreSection>
-        <div className="flex flex-wrap gap-2">
-          {Object.values(legende).map((aff) => (
+        <div className="flex flex-wrap gap-2 rounded-xl border border-neutral-800 bg-neutral-900 p-3">
+          {[...Object.values(legende), AFFICHAGE_SUPPLEMENTAIRE].map((aff) => (
             <span
               key={aff.etiquette}
               className={`rounded-full px-3 py-1 text-sm font-semibold ${aff.classes}`}

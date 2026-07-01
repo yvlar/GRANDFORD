@@ -94,11 +94,8 @@ export function dayStatuses(
   let previousShift: Shift | null = null;
   let previousAltered = false; // l'écart de la veille a-t-il changé « nuit ou pas » ?
   for (const [i, day] of days.entries()) {
-    const { shift, fromException } = resolveShift(
-      day.shift,
-      byDate.get(day.date),
-      identityFallback,
-    );
+    const exc = byDate.get(day.date);
+    const { shift, fromException } = resolveShift(day.shift, exc, identityFallback);
     if (i > 0) {
       const sleeping = sleepEnabled && shift === null && previousShift === "nuit";
       out.push({
@@ -108,6 +105,9 @@ export function dayStatuses(
         // (sommeil ↔ congé) découle d'un écart de la veille — sinon la conjointe
         // verrait un changement sans son indicateur (R1 : jamais taire un écart).
         fromException: fromException || (shift === null && previousAltered),
+        // Temps supplémentaire : la présence vient d'un écart `working_extra`. Effet
+        // partageable, jamais le motif (R7) — dérivé de `effect`, pas d'exception_private.
+        overtime: exc?.effect === "working_extra",
         sleep: sleeping ? (adjustmentByDate.get(day.date) ?? window) : null,
       });
     }

@@ -41,6 +41,13 @@ export interface DayStatus {
   readonly kind: DayStatusKind;
   /** true si un écart persisté a modifié l'horaire calculé ce jour-là. */
   readonly fromException: boolean;
+  /**
+   * true quand la présence de ce jour vient d'un écart `working_extra` (temps
+   * supplémentaire). WHY: l'EFFET de l'écart est partageable (`fr.ts:314` :
+   * « présence, absence, temps supplémentaire »), le MOTIF ne l'est jamais — ce
+   * booléen dérive de la colonne `effect` partagée, jamais d'`exception_private` (R7).
+   */
+  readonly overtime: boolean;
   /** Fenêtre de sommeil quand kind = 'sommeil', sinon null. */
   readonly sleep: SleepWindow | null;
 }

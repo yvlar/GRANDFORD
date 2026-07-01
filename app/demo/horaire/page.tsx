@@ -16,6 +16,7 @@ import { z } from "zod";
 //
 //   /demo/horaire?equipe=A&date=2026-06-11            → pastille du travailleur
 //   /demo/horaire?role=spouse&ecart=2026-06-12        → vue conjointe, écart factice
+//   /demo/horaire?ot=2026-06-11&date=2026-06-11       → journée de temps supplémentaire (Sprint 29)
 //   /demo/horaire?capture=1&date=2026-06-11           → flux de capture (Sprint 5),
 //                                                       persistance en état local
 //   …&sommeil=08:30-16:00                             → fenêtre configurée (FR-6)
@@ -70,6 +71,9 @@ const parametresSchema = z.object({
   date: dateCivileSchema.optional(),
   role: z.enum(["worker", "spouse"]).default("worker"),
   ecart: dateCivileSchema.optional(),
+  // Journée de temps supplémentaire (Sprint 29) — démo seulement, pour constater le
+  // marqueur OT (⚡). Injecte un écart `working_extra` ; visible des deux rôles (partageable).
+  ot: dateCivileSchema.optional(),
   capture: z.literal("1").optional(),
   sommeil: fenetreParamSchema.optional(),
   // Interrupteur de la fenêtre de sommeil (Sprint 19) : '0' = désactivé, défaut activé.
@@ -107,9 +111,10 @@ export default async function DemoHorairePage({
       />
     );
   }
-  const ecarts: ScheduleException[] = params.ecart
-    ? [{ onDate: params.ecart, effect: "off", shift: null }]
-    : [];
+  const ecarts: ScheduleException[] = [
+    ...(params.ecart ? [{ onDate: params.ecart, effect: "off" as const, shift: null }] : []),
+    ...(params.ot ? [{ onDate: params.ot, effect: "working_extra" as const, shift: null }] : []),
+  ];
 
   return (
     <VueCoupDoeil
