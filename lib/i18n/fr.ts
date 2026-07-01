@@ -269,9 +269,12 @@ export const fr = {
     erreurAjoutElement: "L'ajout de l'article a échoué. Réessayez.",
     erreurRetraitElement: "Le retrait de l'article a échoué. Réessayez.",
     erreurCochage: "Le cochage de l'article a échoué. Réessayez.",
+    viderLesAchetes: "Vider les achetés",
+    confirmerViderLesAchetes: "Confirmer le retrait",
+    erreurViderLesAchetes: "Le retrait des articles achetés a échoué. Réessayez.",
     demo: {
       intro:
-        "Démo sans BD : créer une liste, ajouter des articles (les deux membres), cocher/décocher un article, retirer un article, supprimer une liste.",
+        "Démo sans BD : créer une liste, ajouter des articles (les deux membres), cocher/décocher un article, retirer un article, vider les articles achetés d'une liste, supprimer une liste.",
       conjoint: "Conjoint(e)",
     },
   },
