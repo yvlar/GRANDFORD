@@ -36,14 +36,18 @@
 | Hébergement | Vercel Hobby + Supabase Cloud (région CA/US-est) |
 | Monitoring | Sentry + UptimeRobot |
 
-## Structure cible du dépôt (mise en place depuis le Sprint 1)
+## Structure du dépôt
 
 ```
-app/                  # Routes Next.js (App Router)
-components/           # UI (shadcn/ui + composants maison) — à créer au premier composant partagé
+app/                  # Routes Next.js (App Router) : accueil, ecarts, epicerie, foyer, frigo,
+                      #   notes, requetes, sommeil, onboarding, invitation, politique, api/, demo/
+components/           # UI (shadcn/ui + maison) : horaire, capture, epicerie, frigo, notes,
+                      #   requetes, sommeil, equipe, notifications, ui/
 lib/engine/           # Moteur Pitman — fonctions pures, zéro I/O
-lib/                  # Client Supabase, helpers
-supabase/             # Migrations SQL, policies RLS, Edge Functions
+lib/schedule/         # Couche horaire pure : statuts (moteur + écarts), capture, paie,
+                      #   sommeil, coplanification — frontières : today.ts (horloge), db-rows.ts (Zod)
+lib/                  # Client Supabase, i18n, validation, epicerie/foyer/frigo/ical/notifications
+supabase/             # Migrations SQL, policies RLS, Edge Functions, tests d'isolation
 docs/analyse/         # Dossier produit (source de vérité des exigences)
 docs/roadmap-archive.md   # Sprints archivés (rotation)
 .claude/rules/        # Règles scopées (table ci-dessous)
@@ -58,6 +62,7 @@ docs/roadmap-archive.md   # Sprints archivés (rotation)
 | Frontend (App Router, PWA, accessibilité TDAH, i18n) | `app/**`, `components/**` | `.claude/rules/conventions-frontend.md` |
 | Supabase & RLS (isolation foyers, motif étanche, migrations) | `supabase/**`, accès données | `.claude/rules/supabase-rls.md` |
 | Moteur Pitman (pureté, golden, jamais stocker les jours) | `**/engine/**` | `.claude/rules/moteur-pitman.md` |
+| Couche horaire (superposition des écarts, pureté, frontières, R7) | `lib/schedule/**` | `.claude/rules/couche-horaire.md` |
 | Tests Vitest (priorités, compteurs mesurés) | `**/*.test.ts`, `**/*.spec.ts` | `.claude/rules/tests-vitest.md` |
 | Sécurité & secrets (.env, Loi 25/PIPEDA, logs) | universel | `.claude/rules/securite-secrets.md` |
 | Workflow de sprint (3 étapes de fin, anti-hallucination) | universel | `.claude/rules/workflow-sprint.md` |
